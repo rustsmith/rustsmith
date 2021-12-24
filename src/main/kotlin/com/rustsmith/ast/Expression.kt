@@ -12,10 +12,8 @@ sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
 }
 
-@GenNode(1)
-data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) :
-    Expression {
-
+@GenNode
+data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
     companion object : Randomizeable<Int8Literal> {
         override fun createRandom(symbolTable: SymbolTable): Int8Literal {
             return Int8Literal(
@@ -31,11 +29,9 @@ data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) :
 }
 
 @GenNode
-data class Int16Literal(val value: Int, override val symbolTable: SymbolTable) :
-    Expression {
+data class Int16Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
 
     companion object : Randomizeable<Int16Literal> {
-        private val radixOptions = listOf(2, 8, 10, 16)
         override fun createRandom(symbolTable: SymbolTable): Int16Literal {
             return Int16Literal(
                 value = Random.nextBits(15),
@@ -150,6 +146,20 @@ data class StringLiteral(val value: String, override val symbolTable: SymbolTabl
 }
 
 @GenNode
+data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTable) : Expression {
+
+    companion object : Randomizeable<BooleanLiteral> {
+        override fun createRandom(symbolTable: SymbolTable): BooleanLiteral {
+            return BooleanLiteral(Random.nextBoolean(), symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return value.toString()
+    }
+}
+
+@GenNode
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
 
     companion object : Randomizeable<Variable> {
@@ -164,25 +174,35 @@ data class Variable(val value: String, override val symbolTable: SymbolTable) : 
     }
 }
 
-interface RecursiveExpression
+sealed interface RecursiveExpression : Expression {
+    val expr1: Expression
+    val expr2: Expression
+}
+
+interface RandomizeableBinOp<T: RecursiveExpression>: Randomizeable<T> {
+    fun createExpressions(symbolTable: SymbolTable): Pair<Expression, Expression> {
+        val type = generateSubClassList(Number::class).random(Random)
+        val depth = Thread.currentThread().stackTrace.size
+        val exp1: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
+            if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
+        }
+        val exp2: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
+            if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
+        }
+        return exp1 to exp2
+    }
+}
 
 @GenNode
 data class AddExpression(
-    val expr1: Expression,
-    val expr2: Expression,
+    override val expr1: Expression,
+    override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : Expression, RecursiveExpression {
+) : RecursiveExpression {
 
-    companion object : Randomizeable<AddExpression> {
+    companion object : RandomizeableBinOp<AddExpression> {
         override fun createRandom(symbolTable: SymbolTable): AddExpression {
-            val type = generateSubClassList(Number::class).random(Random)
-            val depth = Thread.currentThread().stackTrace.size
-            val exp1: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
-                if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
-            }
-            val exp2: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
-                if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
-            }
+            val (exp1, exp2) = this.createExpressions(symbolTable)
             return AddExpression(exp1, exp2, symbolTable)
         }
     }
@@ -193,22 +213,34 @@ data class AddExpression(
 }
 
 @GenNode
-data class DivideExpression(
-    val expr1: Expression,
-    val expr2: Expression,
+data class SubtractExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : Expression, RecursiveExpression {
+) : RecursiveExpression {
 
-    companion object : Randomizeable<AddExpression> {
+    companion object : RandomizeableBinOp<SubtractExpression> {
+        override fun createRandom(symbolTable: SymbolTable): SubtractExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable)
+            return SubtractExpression(exp1, exp2, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "${expr1.toRust()} - ${expr2.toRust()}"
+    }
+}
+
+@GenNode
+data class DivideExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+
+    companion object : RandomizeableBinOp<AddExpression> {
         override fun createRandom(symbolTable: SymbolTable): DivideExpression {
-            val type = generateSubClassList(Number::class).random(Random)
-            val depth = Thread.currentThread().stackTrace.size
-            val exp1: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
-                if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
-            }
-            val exp2: Expression = generateASTNode(symbolTable, { it.toType()::class == type }) {
-                if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
-            }
+            val (exp1, exp2) = this.createExpressions(symbolTable)
             return DivideExpression(exp1, exp2, symbolTable)
         }
     }
@@ -218,14 +250,47 @@ data class DivideExpression(
     }
 }
 
-data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) : Expression {
+@GenNode
+data class MultiplyExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+
+    companion object : RandomizeableBinOp<MultiplyExpression> {
+        override fun createRandom(symbolTable: SymbolTable): MultiplyExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable)
+            return MultiplyExpression(exp1, exp2, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "${expr1.toRust()} * ${expr2.toRust()}"
+    }
+}
+
+sealed interface ReconditionedExpression: Expression
+
+data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) : ReconditionedExpression {
     override fun toRust(): String {
         return "${addExpression.expr1.toRust()}.wrapping_add(${addExpression.expr2.toRust()})"
     }
 }
 
+data class WrappingMul(val multiplyExpression: MultiplyExpression, override val symbolTable: SymbolTable) : ReconditionedExpression {
+    override fun toRust(): String {
+        return "${multiplyExpression.expr1.toRust()}.wrapping_mul(${multiplyExpression.expr2.toRust()})"
+    }
+}
+
+data class WrappingSubtract(val subtractExpression: SubtractExpression, override val symbolTable: SymbolTable) : ReconditionedExpression {
+    override fun toRust(): String {
+        return "${subtractExpression.expr1.toRust()}.wrapping_sub(${subtractExpression.expr2.toRust()})"
+    }
+}
+
 data class ReconditionedDivision(val divideExpression: DivideExpression, override val symbolTable: SymbolTable) :
-    Expression {
+    ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (divideExpression.expr1.toType() as Number).zero(symbolTable)
         return "(if (${divideExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${divideExpression.expr1.toRust()} / ${divideExpression.expr2.toRust()}} else {${zeroExpression.toRust()}})"
@@ -242,10 +307,12 @@ fun Expression.toType(): Type {
         is Float32Literal -> F32Type
         is Float64Literal -> F64Type
         is StringLiteral -> StringType
+        is BooleanLiteral -> BoolType
         is Variable -> symbolTable[this.value]!!.type
-        is AddExpression -> this.expr1.toType()
-        is DivideExpression -> this.expr1.toType()
         is WrappingAdd -> this.addExpression.toType()
+        is WrappingMul -> this.multiplyExpression.toType()
+        is WrappingSubtract -> this.subtractExpression.toType()
         is ReconditionedDivision -> this.divideExpression.toType()
+        is RecursiveExpression -> this.expr1.toType()
     }
 }

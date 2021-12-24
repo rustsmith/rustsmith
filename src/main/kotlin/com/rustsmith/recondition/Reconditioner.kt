@@ -6,15 +6,21 @@ object Reconditioner {
 
     private fun reconditionExpression(node: Expression): Expression {
         return when (node) {
-            is AddExpression -> if (node.toType() is IntType) WrappingAdd(node.copy(expr1 = reconditionExpression(node.expr1), expr2 = reconditionExpression(node.expr2)), node.symbolTable) else node
             is Float32Literal -> node
             is Int32Literal -> node
             is StringLiteral -> node
             is Variable -> node
+            is BooleanLiteral -> node
+            is Float64Literal -> node
+            is Int128Literal -> node
+            is Int16Literal -> node
+            is Int64Literal -> node
+            is Int8Literal -> node
+            is AddExpression -> if (node.toType() is IntType) WrappingAdd(node.copy(expr1 = reconditionExpression(node.expr1), expr2 = reconditionExpression(node.expr2)), node.symbolTable) else node
             is DivideExpression -> ReconditionedDivision(node.copy(expr1 = reconditionExpression(node.expr1), expr2 = reconditionExpression(node.expr2)), node.symbolTable)
-            is WrappingAdd -> TODO()
-            is ReconditionedDivision -> TODO()
-            else -> node
+            is MultiplyExpression -> if (node.toType() is IntType) WrappingMul(node.copy(expr1 = reconditionExpression(node.expr1), expr2 = reconditionExpression(node.expr2)), node.symbolTable) else node
+            is SubtractExpression -> if (node.toType() is IntType) WrappingSubtract(node.copy(expr1 = reconditionExpression(node.expr1), expr2 = reconditionExpression(node.expr2)), node.symbolTable) else node
+            is ReconditionedExpression -> node
         }
     }
 

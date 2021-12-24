@@ -67,6 +67,13 @@ object StringType : Type {
     }
 }
 
+@GenNode
+object BoolType : Type {
+    override fun toRust(): String {
+        return "bool"
+    }
+}
+
 object VoidType : Type {
     override fun toRust(): String {
         return "()"
