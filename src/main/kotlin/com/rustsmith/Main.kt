@@ -28,7 +28,7 @@ class RustSmith : CliktCommand() {
         repeat(count) {
             val mapper = jacksonObjectMapper().writerWithDefaultPrettyPrinter()
             val randomSeed = seed ?: Random1.nextLong()
-            Random = kotlin.random.Random(randomSeed)
+            Random = Random1(randomSeed)
             val program = Reconditioner.recondition(Program(seed = randomSeed, functions = listOf(generateMain())))
             println(program.toRust())
             val path = Path(directory, "file$it")

@@ -6,12 +6,10 @@ import com.rustsmith.SymbolTable
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.hasAnnotation
-
-annotation class GenNode(val weight: Int = 1)
+import kotlin.reflect.full.isSubclassOf
 
 interface Randomizeable<T> {
-    fun createRandom(symbolTable: SymbolTable): ASTNode?
+    fun createRandom(symbolTable: SymbolTable, type: Type): T?
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
@@ -30,7 +28,8 @@ data class FunctionDefinition(
     }
 }
 
-data class Program(val seed: Long, val structs: List<Any> = emptyList(), val functions: List<FunctionDefinition>) : ASTNode {
+data class Program(val seed: Long, val structs: List<Any> = emptyList(), val functions: List<FunctionDefinition>) :
+    ASTNode {
     override fun toRust(): String {
         return functions.joinToString("\\n") { it.toRust() }
     }
@@ -38,26 +37,58 @@ data class Program(val seed: Long, val structs: List<Any> = emptyList(), val fun
 
 fun generateMain(): FunctionDefinition {
     val symbolTable = SymbolTable()
-    val body = generateASTNode<Statement>(symbolTable)
-    return FunctionDefinition(functionName = "main", arguments = emptyMap(), body = ChainedStatement(body, Output(symbolTable), symbolTable))
+    val body = ChainedStatement(generateStatement(symbolTable), Output(symbolTable), symbolTable)
+    val emptySymbolTable = SymbolTable()
+    val declarations = body.symbolTable.getVirtualVariables().map {
+        Declaration(
+            it.second.type, it.first, it.second.type.generateLiteral(symbolTable), emptySymbolTable
+        )
+    }
+    symbolTable.cleanupVirtualVariables()
+    val finalBody = if (declarations.isEmpty()) {
+        body
+    } else ChainedStatement(ChainedStatement.createFromList(declarations, emptySymbolTable), body, symbolTable)
+    return FunctionDefinition(
+        functionName = "main",
+        arguments = emptyMap(),
+        body = finalBody
+    )
 }
 
-fun <T : ASTNode> generateSubClassList(kClass: KClass<out T>): List<KClass<out T>> {
-    val nonFinalClasses = kClass.sealedSubclasses.filter { !it.isFinal }
+fun <T : Any> KClass<T>.subclasses(): List<KClass<out T>> {
+    if (this.isFinal) {
+        return listOf(this)
+    }
+    val nonFinalClasses = this.sealedSubclasses.filter { !it.isFinal }
     val result = mutableListOf<KClass<out T>>()
     for (nonFinalClass in nonFinalClasses) {
-        result.addAll(generateSubClassList(nonFinalClass))
+        result.addAll(nonFinalClass.subclasses())
     }
-    return kClass.sealedSubclasses.filter { it.isFinal && it.hasAnnotation<GenNode>() } + result
+    return this.sealedSubclasses.filter { it.isFinal } + result
 }
 
-inline fun <reified T : ASTNode> generateASTNode(symbolTable: SymbolTable, predicate: (t: T) -> Boolean = { true }, kClassPredicate: (t: KClass<out T>) -> Boolean = { true }): T {
-    val classes = generateSubClassList(T::class).flatMap { kClass -> List(kClass.findAnnotation<GenNode>()!!.weight) { kClass } }
-    var node: T? = null
+fun generateExpression(symbolTable: SymbolTable, type: Type): Expression {
+    val classes = Expression::class.genSubClasses().filter {
+        it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()?.contains(type::class) ?: false
+    }
+    var node: Expression?
     do {
-        val kClass = classes.random(Random)
-        if (!kClassPredicate(kClass)) continue
-        node = (kClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable) as T?
-    } while (node == null || !predicate(node))
+        val chosenClass = classes.random(Random)
+        node = (chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, type) as Expression?
+    } while (node == null)
     return node
+}
+
+fun generateStatement(symbolTable: SymbolTable): Statement {
+    val classes = Statement::class.genSubClasses() + Expression::class.genSubClasses()
+    val chosenClass = classes.random(Random)
+    if (chosenClass.isSubclassOf(Expression::class)) {
+        val expressionType = chosenClass.findAnnotation<ExpressionGenNode>()!!.compatibleType.genSubClasses().random(
+            Random
+        ).objectInstance!!
+        return ExpressionStatement(
+            (chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, expressionType) as Expression, symbolTable
+        )
+    }
+    return (chosenClass.companionObjectInstance as RandomStatFactory<*>).createRandom(symbolTable) as Statement
 }

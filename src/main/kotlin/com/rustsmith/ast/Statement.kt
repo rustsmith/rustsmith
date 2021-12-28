@@ -1,7 +1,10 @@
 package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.rustsmith.Random
 import com.rustsmith.SymbolTable
+import kotlin.reflect.KClass
+import kotlin.reflect.full.hasAnnotation
 
 var varCount = 0
 
@@ -10,15 +13,28 @@ sealed interface Statement : ASTNode {
     val symbolTable: SymbolTable
 }
 
+interface RandomStatFactory<T> {
+    fun createRandom(symbolTable: SymbolTable): T
+}
+
+annotation class GenNode
+
+data class ExpressionStatement(val expression: Expression, override val symbolTable: SymbolTable) : Statement {
+    override fun toRust(): String {
+        return "${expression.toRust()};"
+    }
+}
+
 @GenNode
 data class Declaration(val type: Type, val variableName: String, val value: Expression, override val symbolTable: SymbolTable) : Statement {
-    companion object : Randomizeable<Declaration> {
+    companion object : RandomStatFactory<Declaration> {
         override fun createRandom(symbolTable: SymbolTable): Declaration {
             val variableName = "var${varCount++}"
-            val expression = generateASTNode<Expression>(symbolTable)
+            val declarationType = Type::class.genSubClasses().random(Random).objectInstance!!
+            val expression = generateExpression(symbolTable, declarationType)
             symbolTable[variableName] = expression.toType()
             return Declaration(
-                type = expression.toType(),
+                type = declarationType,
                 variableName = variableName,
                 value = expression,
                 symbolTable
@@ -33,10 +49,10 @@ data class Declaration(val type: Type, val variableName: String, val value: Expr
 
 @GenNode
 data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) : Statement {
-    companion object : Randomizeable<Assignment> {
-        override fun createRandom(symbolTable: SymbolTable): Assignment? {
-            val (variableName, identifierData) = symbolTable.getRandomVariable() ?: return null
-            val expression = generateASTNode<Expression>(symbolTable, { it.toType() == identifierData.type })
+    companion object : RandomStatFactory<Assignment> {
+        override fun createRandom(symbolTable: SymbolTable): Assignment {
+            val (variableName, identifierData) = symbolTable.getRandomVariable() ?: symbolTable.setVirtualVariable(Type::class.genSubClasses().random(Random).objectInstance!!)
+            val expression = generateExpression(symbolTable, identifierData.type)
             return Assignment(
                 variableName = variableName,
                 value = expression,
@@ -50,12 +66,19 @@ data class Assignment(val variableName: String, val value: Expression, override 
     }
 }
 
-@GenNode(1)
+@GenNode
 data class ChainedStatement(val s1: Statement, val s2: Statement, override val symbolTable: SymbolTable) : Statement {
 
-    companion object : Randomizeable<ChainedStatement> {
+    companion object : RandomStatFactory<ChainedStatement> {
         override fun createRandom(symbolTable: SymbolTable): ChainedStatement {
-            return ChainedStatement(generateASTNode(symbolTable), generateASTNode(symbolTable), symbolTable)
+            return ChainedStatement(generateStatement(symbolTable), generateStatement(symbolTable), symbolTable)
+        }
+
+        fun createFromList(statements: List<Statement>, symbolTable: SymbolTable): Statement {
+            if (statements.size == 1) {
+                return statements.first()
+            }
+            return ChainedStatement(statements.first(), createFromList(statements.drop(1), symbolTable), symbolTable)
         }
     }
 
@@ -73,4 +96,8 @@ data class Output(override val symbolTable: SymbolTable) : Statement {
         }
         return hashString.joinToString("\n")
     }
+}
+
+fun KClass<out Statement>.genSubClasses(): List<KClass<out Statement>> {
+    return this.subclasses().filter { it.hasAnnotation<GenNode>() }
 }
