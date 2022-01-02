@@ -2,14 +2,13 @@ package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.rustsmith.Random
-import com.rustsmith.SymbolTable
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
 
 interface Randomizeable<T> {
-    fun createRandom(symbolTable: SymbolTable, type: Type): T?
+    fun createRandom(symbolTable: SymbolTable, type: Type): T
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
@@ -31,40 +30,30 @@ data class FunctionDefinition(
 data class Program(val seed: Long, val structs: List<Any> = emptyList(), val functions: List<FunctionDefinition>) :
     ASTNode {
     override fun toRust(): String {
-        return functions.joinToString("\\n") { it.toRust() }
+        return "#![allow(warnings, unused, unconditional_panic)]\n${functions.joinToString("\n") { it.toRust() }}"
     }
 }
 
 fun generateMain(): FunctionDefinition {
-    val symbolTable = SymbolTable()
+    val symbolTable = SymbolTable(null)
     val body = ChainedStatement(generateStatement(symbolTable), Output(symbolTable), symbolTable)
-    val emptySymbolTable = SymbolTable()
-    val declarations = body.symbolTable.getVirtualVariables().map {
-        Declaration(
-            it.second.type, it.first, it.second.type.generateLiteral(symbolTable), emptySymbolTable
-        )
-    }
-    symbolTable.cleanupVirtualVariables()
-    val finalBody = if (declarations.isEmpty()) {
-        body
-    } else ChainedStatement(ChainedStatement.createFromList(declarations, emptySymbolTable), body, symbolTable)
     return FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
-        body = finalBody
+        body = symbolTable.exitScope(body)
     )
 }
 
-fun <T : Any> KClass<T>.subclasses(): List<KClass<out T>> {
+fun <T : Any> KClass<T>.subclasses(): Set<KClass<out T>> {
     if (this.isFinal) {
-        return listOf(this)
+        return setOf(this)
     }
     val nonFinalClasses = this.sealedSubclasses.filter { !it.isFinal }
-    val result = mutableListOf<KClass<out T>>()
+    val result = mutableSetOf<KClass<out T>>()
     for (nonFinalClass in nonFinalClasses) {
         result.addAll(nonFinalClass.subclasses())
     }
-    return this.sealedSubclasses.filter { it.isFinal } + result
+    return this.sealedSubclasses.filter { it.isFinal }.toSet() + result
 }
 
 fun generateExpression(symbolTable: SymbolTable, type: Type): Expression {
@@ -86,9 +75,7 @@ fun generateStatement(symbolTable: SymbolTable): Statement {
         val expressionType = chosenClass.findAnnotation<ExpressionGenNode>()!!.compatibleType.genSubClasses().random(
             Random
         ).objectInstance!!
-        return ExpressionStatement(
-            (chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, expressionType) as Expression, symbolTable
-        )
+        return ((chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, expressionType) as Expression).toStatement()
     }
     return (chosenClass.companionObjectInstance as RandomStatFactory<*>).createRandom(symbolTable) as Statement
 }

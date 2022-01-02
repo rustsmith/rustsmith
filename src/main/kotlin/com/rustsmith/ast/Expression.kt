@@ -2,11 +2,11 @@ package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.rustsmith.Random
-import com.rustsmith.SymbolTable
 import java.math.BigInteger
 import kotlin.random.asJavaRandom
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
+import kotlin.reflect.full.isSubclassOf
 
 annotation class ExpressionGenNode(val compatibleType: KClass<out Type>)
 
@@ -175,20 +175,17 @@ data class Variable(val value: String, override val symbolTable: SymbolTable) : 
     }
 }
 
-sealed interface RecursiveExpression : Expression {
+sealed interface RecursiveExpression: Expression
+
+sealed interface BinOpExpression : RecursiveExpression {
     val expr1: Expression
     val expr2: Expression
 }
 
-interface RandomizeableBinOp<T : RecursiveExpression> : Randomizeable<T> {
-    fun createExpressions(symbolTable: SymbolTable, expressionType: Type): Pair<Expression, Expression>? {
-        val depth = Thread.currentThread().stackTrace.size
-        if (depth > 50) return null
+interface RandomizeableBinOp<T : BinOpExpression> : Randomizeable<T> {
+    fun createExpressions(symbolTable: SymbolTable, expressionType: Type): Pair<Expression, Expression> {
         val exp1: Expression = generateExpression(symbolTable, expressionType)
         val exp2: Expression = generateExpression(symbolTable, expressionType)
-//        {
-//            if (depth > 20) !it.isSubclassOf(RecursiveExpression::class) else true
-//        }
         return exp1 to exp2
     }
 }
@@ -198,17 +195,17 @@ data class AddExpression(
     override val expr1: Expression,
     override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : BinOpExpression {
 
     companion object : RandomizeableBinOp<AddExpression> {
-        override fun createRandom(symbolTable: SymbolTable, type: Type): AddExpression? {
-            val (exp1, exp2) = this.createExpressions(symbolTable, type) ?: return null
+        override fun createRandom(symbolTable: SymbolTable, type: Type): AddExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
             return AddExpression(exp1, exp2, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "${expr1.toRust()} + ${expr2.toRust()}"
+        return "(${expr1.toRust()} + ${expr2.toRust()})"
     }
 }
 
@@ -217,17 +214,17 @@ data class SubtractExpression(
     override val expr1: Expression,
     override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : BinOpExpression {
 
     companion object : RandomizeableBinOp<SubtractExpression> {
-        override fun createRandom(symbolTable: SymbolTable, type: Type): SubtractExpression? {
-            val (exp1, exp2) = this.createExpressions(symbolTable, type) ?: return null
+        override fun createRandom(symbolTable: SymbolTable, type: Type): SubtractExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
             return SubtractExpression(exp1, exp2, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "${expr1.toRust()} - ${expr2.toRust()}"
+        return "(${expr1.toRust()} - ${expr2.toRust()})"
     }
 }
 
@@ -236,17 +233,17 @@ data class DivideExpression(
     override val expr1: Expression,
     override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : BinOpExpression {
 
     companion object : RandomizeableBinOp<DivideExpression> {
-        override fun createRandom(symbolTable: SymbolTable, type: Type): DivideExpression? {
-            val (exp1, exp2) = this.createExpressions(symbolTable, type) ?: return null
+        override fun createRandom(symbolTable: SymbolTable, type: Type): DivideExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
             return DivideExpression(exp1, exp2, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "${expr1.toRust()} / ${expr2.toRust()}"
+        return "(${expr1.toRust()} / ${expr2.toRust()})"
     }
 }
 
@@ -255,98 +252,95 @@ data class MultiplyExpression(
     override val expr1: Expression,
     override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : BinOpExpression {
 
     companion object : RandomizeableBinOp<MultiplyExpression> {
-        override fun createRandom(symbolTable: SymbolTable, type: Type): MultiplyExpression? {
-            val (exp1, exp2) = this.createExpressions(symbolTable, type) ?: return null
+        override fun createRandom(symbolTable: SymbolTable, type: Type): MultiplyExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
             return MultiplyExpression(exp1, exp2, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "${expr1.toRust()} * ${expr2.toRust()}"
+        return "(${expr1.toRust()} * ${expr2.toRust()})"
     }
 }
 
-@ExpressionGenNode(NumberType::class)
+@ExpressionGenNode(IntType::class)
 data class ModExpression(
     override val expr1: Expression,
     override val expr2: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : BinOpExpression {
 
     companion object : RandomizeableBinOp<ModExpression> {
-        override fun createRandom(symbolTable: SymbolTable, type: Type): ModExpression? {
-            val (exp1, exp2) = this.createExpressions(symbolTable, type) ?: return null
+        override fun createRandom(symbolTable: SymbolTable, type: Type): ModExpression {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
             return ModExpression(exp1, exp2, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "${expr1.toRust()} % ${expr2.toRust()}"
+        return "(${expr1.toRust()} % ${expr2.toRust()})"
     }
 }
 
-// @ExpressionGenNode
-// data class BitwiseAndLogicalAnd(
-//    override val expr1: Expression,
-//    override val expr2: Expression,
-//    override val symbolTable: SymbolTable
-// ) : RecursiveExpression {
-//
-//    companion object : RandomizeableBinOp<BitwiseAndLogicalAnd> {
-//        override fun createRandom(symbolTable: SymbolTable): BitwiseAndLogicalAnd {
-//            val selectedType = listOf(IntType::class, BoolType::class).random(Random)
-//            val (exp1, exp2) = this.createExpressions(selectedType, symbolTable)
-//            return BitwiseAndLogicalAnd(exp1, exp2, symbolTable)
-//        }
-//    }
-//
-//    override fun toRust(): String {
-//        return "${expr1.toRust()} & ${expr2.toRust()}"
-//    }
-// }
-//
-// @ExpressionGenNode
-// data class BitwiseAndLogicalOr(
-//    override val expr1: Expression,
-//    override val expr2: Expression,
-//    override val symbolTable: SymbolTable
-// ) : RecursiveExpression {
-//
-//    companion object : RandomizeableBinOp<BitwiseAndLogicalOr> {
-//        override fun createRandom(symbolTable: SymbolTable): BitwiseAndLogicalOr {
-//            val selectedType = listOf(IntType::class, BoolType::class).random(Random)
-//            val (exp1, exp2) = this.createExpressions(selectedType, symbolTable)
-//            return BitwiseAndLogicalOr(exp1, exp2, symbolTable)
-//        }
-//    }
-//
-//    override fun toRust(): String {
-//        return "${expr1.toRust()} | ${expr2.toRust()}"
-//    }
-// }
-//
-// @ExpressionGenNode
-// data class BitwiseAndLogicalXor(
-//    override val expr1: Expression,
-//    override val expr2: Expression,
-//    override val symbolTable: SymbolTable
-// ) : RecursiveExpression {
-//
-//    companion object : RandomizeableBinOp<BitwiseAndLogicalXor> {
-//        override fun createRandom(symbolTable: SymbolTable): BitwiseAndLogicalXor {
-//            val selectedType = listOf(IntType::class, BoolType::class).random(Random)
-//            val (exp1, exp2) = this.createExpressions(selectedType, symbolTable)
-//            return BitwiseAndLogicalXor(exp1, exp2, symbolTable)
-//        }
-//    }
-//
-//    override fun toRust(): String {
-//        return "${expr1.toRust()} ^ ${expr2.toRust()}"
-//    }
-// }
+@ExpressionGenNode(BitWiseCompatibleType::class)
+data class BitwiseAndLogicalAnd(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    companion object : RandomizeableBinOp<BitwiseAndLogicalAnd> {
+        override fun createRandom(symbolTable: SymbolTable, type: Type): BitwiseAndLogicalAnd {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
+            return BitwiseAndLogicalAnd(exp1, exp2, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} & ${expr2.toRust()})"
+    }
+}
+
+@ExpressionGenNode(BitWiseCompatibleType::class)
+data class BitwiseAndLogicalOr(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    companion object : RandomizeableBinOp<BitwiseAndLogicalOr> {
+        override fun createRandom(symbolTable: SymbolTable, type: Type): BitwiseAndLogicalOr {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
+            return BitwiseAndLogicalOr(exp1, exp2, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} | ${expr2.toRust()})"
+    }
+}
+
+@ExpressionGenNode(BitWiseCompatibleType::class)
+data class BitwiseAndLogicalXor(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    companion object : RandomizeableBinOp<BitwiseAndLogicalXor> {
+        override fun createRandom(symbolTable: SymbolTable, type: Type): BitwiseAndLogicalXor {
+            val (exp1, exp2) = this.createExpressions(symbolTable, type)
+            return BitwiseAndLogicalXor(exp1, exp2, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} ^ ${expr2.toRust()})"
+    }
+}
 
 @ExpressionGenNode(Type::class)
 data class GroupedExpression(
@@ -383,6 +377,61 @@ data class GroupedExpression(
 //    }
 // }
 
+@ExpressionGenNode(Type::class)
+data class BlockExpression(
+    val statement: Statement,
+    val type: Type,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    companion object : Randomizeable<BlockExpression> {
+        override fun createRandom(symbolTable: SymbolTable, type: Type): BlockExpression {
+            val newSymbolTable = symbolTable.enterScope()
+            val statement = generateStatement(newSymbolTable)
+            val finalExpression = generateExpression(newSymbolTable, type)
+            return BlockExpression(newSymbolTable.exitScope(ChainedStatement(statement, finalExpression, newSymbolTable)), type, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "{\n ${statement.toRust()} \n}"
+    }
+}
+
+@ExpressionGenNode(Type::class)
+data class IfElseExpression(
+    val predicate: Expression,
+    val ifBlock: BlockExpression,
+    val elseBlock: BlockExpression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    companion object : Randomizeable<IfElseExpression> {
+        override fun createRandom(symbolTable: SymbolTable, type: Type): IfElseExpression {
+            val predicate = generateExpression(symbolTable, BoolType)
+            val ifSymbolTable = symbolTable.enterScope()
+            val ifStatement = generateStatement(ifSymbolTable)
+            val finalIfExpression = generateExpression(ifSymbolTable, type)
+            val ifBody = BlockExpression(
+                ifSymbolTable.exitScope(ChainedStatement(ifStatement, finalIfExpression, ifSymbolTable)),
+                type,
+                symbolTable
+            )
+            val elseSymbolTable = symbolTable.enterScope()
+            val elseStatement = generateStatement(elseSymbolTable)
+            val finalElseExpression = generateExpression(elseSymbolTable, type)
+            val elseBody = BlockExpression(
+                elseSymbolTable.exitScope(ChainedStatement(elseStatement, finalElseExpression, elseSymbolTable)),
+                type,
+                symbolTable
+            )
+            return IfElseExpression(predicate, ifBody, elseBody, symbolTable)
+        }
+    }
+
+    override fun toRust(): String {
+        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
+    }
+}
+
 sealed interface ReconditionedExpression : Expression
 
 data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) :
@@ -410,7 +459,15 @@ data class ReconditionedDivision(val divideExpression: DivideExpression, overrid
     ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (divideExpression.expr1.toType() as NumberType).zero(symbolTable)
-        return "(if (${divideExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${divideExpression.expr1.toRust()} / ${divideExpression.expr2.toRust()}} else {${zeroExpression.toRust()}})"
+        return "(if (${divideExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${divideExpression.toRust()}} else {${zeroExpression.toRust()}})"
+    }
+}
+
+data class ReconditionedMod(val modExpression: ModExpression, override val symbolTable: SymbolTable) :
+    ReconditionedExpression {
+    override fun toRust(): String {
+        val zeroExpression = (modExpression.expr1.toType() as NumberType).zero(symbolTable)
+        return "(if (${modExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${modExpression.toRust()}} else {${zeroExpression.toRust()}})"
     }
 }
 
@@ -430,11 +487,23 @@ fun Expression.toType(): Type {
         is WrappingMul -> this.multiplyExpression.toType()
         is WrappingSubtract -> this.subtractExpression.toType()
         is ReconditionedDivision -> this.divideExpression.toType()
-        is RecursiveExpression -> this.expr1.toType()
+        is BinOpExpression -> this.expr1.toType()
         is GroupedExpression -> this.expression.toType()
+        is BlockExpression -> this.type
+        is ReconditionedMod -> this.modExpression.toType()
+        is IfElseExpression -> this.ifBlock.type
     }
 }
 
 fun KClass<out Expression>.genSubClasses(): List<KClass<out Expression>> {
-    return this.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
+    val depth = Thread.currentThread().stackTrace.size
+    return if (depth > 50) {
+        this.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.filter { !it.isSubclassOf(RecursiveExpression::class) }
+    } else {
+        this.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
+    }
+}
+
+fun Expression.toStatement(): ExpressionStatement {
+    return ExpressionStatement(this, symbolTable)
 }

@@ -1,6 +1,5 @@
 package com.rustsmith.ast
 
-import com.rustsmith.SymbolTable
 import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
@@ -9,9 +8,11 @@ sealed interface Type : ASTNode {
     fun generateLiteral(symbolTable: SymbolTable): Expression
 }
 
+sealed interface BitWiseCompatibleType : Type
+
 sealed interface NumberType : Type
 
-sealed interface IntType : NumberType
+sealed interface IntType : NumberType, BitWiseCompatibleType
 
 @GenNode
 object I8Type : IntType {
@@ -104,7 +105,7 @@ object StringType : Type {
 }
 
 @GenNode
-object BoolType : Type {
+object BoolType : BitWiseCompatibleType {
     override fun generateLiteral(symbolTable: SymbolTable): Expression {
         return BooleanLiteral.createRandom(symbolTable, this)
     }
