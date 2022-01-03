@@ -50,7 +50,6 @@ object Reconditioner {
             is Declaration -> node.copy(value = reconditionExpression(node.value))
             is Output -> node
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
-            is Expression -> reconditionExpression(node)
         }
     }
 
@@ -59,7 +58,8 @@ object Reconditioner {
             is Program -> Program(
                 node.seed,
                 node.structs,
-                node.functions.map { it.copy(body = reconditionStatement(it.body)) })
+                node.functions.map { it.copy(body = reconditionStatement(it.body)) }
+            )
             is Expression -> reconditionExpression(node)
             is Statement -> reconditionStatement(node)
             is FunctionDefinition -> node

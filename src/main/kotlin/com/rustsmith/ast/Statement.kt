@@ -29,14 +29,23 @@ object VariableGenerator {
     }
 }
 
-data class ExpressionStatement(val expression: Expression, override val symbolTable: SymbolTable) : Statement {
+data class ExpressionStatement(
+    val expression: Expression,
+    val addSemiColon: Boolean,
+    override val symbolTable: SymbolTable
+) : Statement {
     override fun toRust(): String {
-        return "${expression.toRust()};"
+        return "${expression.toRust()}${if (addSemiColon) ";" else ""}"
     }
 }
 
 @GenNode
-data class Declaration(val type: Type, val variableName: String, val value: Expression, override val symbolTable: SymbolTable) : Statement {
+data class Declaration(
+    val type: Type,
+    val variableName: String,
+    val value: Expression,
+    override val symbolTable: SymbolTable
+) : Statement {
     companion object : RandomStatFactory<Declaration> {
         override fun createRandom(symbolTable: SymbolTable): Declaration {
             val variableName = VariableGenerator.generateVariable()
@@ -58,7 +67,8 @@ data class Declaration(val type: Type, val variableName: String, val value: Expr
 }
 
 @GenNode
-data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) : Statement {
+data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) :
+    Statement {
     companion object : RandomStatFactory<Assignment> {
         override fun createRandom(symbolTable: SymbolTable): Assignment {
             val (variableName, identifierData) = symbolTable.getRandomVariable()
@@ -76,7 +86,7 @@ data class Assignment(val variableName: String, val value: Expression, override 
     }
 }
 
-@GenNode(10)
+@GenNode
 data class ChainedStatement(val s1: Statement, val s2: Statement, override val symbolTable: SymbolTable) : Statement {
 
     companion object : RandomStatFactory<ChainedStatement> {
@@ -97,10 +107,11 @@ data class ChainedStatement(val s1: Statement, val s2: Statement, override val s
     }
 }
 
-data class Output(override val symbolTable: SymbolTable) : Statement {
+data class Output(override val symbolTable: SymbolTable, val programSeed: Long) : Statement {
 
     override fun toRust(): String {
         val hashString = mutableListOf<String>()
+        hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
         symbolTable.getCurrentVariables().sorted().forEach {
             hashString.add("println!(\"{:?}\", ${"\"$it\"" to it});")
         }
@@ -109,5 +120,6 @@ data class Output(override val symbolTable: SymbolTable) : Statement {
 }
 
 fun KClass<out Statement>.genSubClasses(): List<KClass<out Statement>> {
-    return this.subclasses().filter { it.hasAnnotation<GenNode>() }.flatMap { kclass -> List(kclass.findAnnotation<GenNode>()!!.weight) {kclass} }
+    return this.subclasses().filter { it.hasAnnotation<GenNode>() }
+        .flatMap { kclass -> List(kclass.findAnnotation<GenNode>()!!.weight) { kclass } }
 }

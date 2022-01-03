@@ -34,9 +34,9 @@ data class Program(val seed: Long, val structs: List<Any> = emptyList(), val fun
     }
 }
 
-fun generateMain(): FunctionDefinition {
+fun generateMain(programSeed: Long): FunctionDefinition {
     val symbolTable = SymbolTable(null)
-    val body = ChainedStatement(generateStatement(symbolTable), Output(symbolTable), symbolTable)
+    val body = ChainedStatement(generateStatement(symbolTable), Output(symbolTable, programSeed), symbolTable)
     return FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
@@ -69,13 +69,10 @@ fun generateExpression(symbolTable: SymbolTable, type: Type): Expression {
 }
 
 fun generateStatement(symbolTable: SymbolTable): Statement {
-    val classes = Statement::class.genSubClasses() + Expression::class.genSubClasses()
+    val classes = Statement::class.genSubClasses() + Expression::class.genSubClasses().filter { it.isSubclassOf(ExpressionAndStatement::class) }
     val chosenClass = classes.random(Random)
-    if (chosenClass.isSubclassOf(Expression::class)) {
-        val expressionType = chosenClass.findAnnotation<ExpressionGenNode>()!!.compatibleType.genSubClasses().random(
-            Random
-        ).objectInstance!!
-        return ((chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, expressionType) as Expression).toStatement()
+    if (chosenClass.isSubclassOf(ExpressionAndStatement::class)) {
+        return ((chosenClass.companionObjectInstance as RandomizeableExpressionAndStatement<*>).createRandomStatement(symbolTable) as ExpressionAndStatement).toStatement()
     }
     return (chosenClass.companionObjectInstance as RandomStatFactory<*>).createRandom(symbolTable) as Statement
 }

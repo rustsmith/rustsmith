@@ -11,7 +11,9 @@ import kotlin.reflect.full.isSubclassOf
 annotation class ExpressionGenNode(val compatibleType: KClass<out Type>)
 
 @JsonIgnoreProperties(value = ["symbolTable"])
-sealed interface Expression : Statement
+sealed interface Expression : ASTNode {
+    val symbolTable: SymbolTable
+}
 
 @ExpressionGenNode(I8Type::class)
 data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
@@ -175,7 +177,7 @@ data class Variable(val value: String, override val symbolTable: SymbolTable) : 
     }
 }
 
-sealed interface RecursiveExpression: Expression
+sealed interface RecursiveExpression : Expression
 
 sealed interface BinOpExpression : RecursiveExpression {
     val expr1: Expression
@@ -377,23 +379,35 @@ data class GroupedExpression(
 //    }
 // }
 
+sealed interface ExpressionAndStatement : Expression
+
+interface RandomizeableExpressionAndStatement<T> : Randomizeable<T> {
+    fun createRandomStatement(symbolTable: SymbolTable): T
+}
+
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: Statement,
-    val type: Type,
+    val type: Type?,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
-    companion object : Randomizeable<BlockExpression> {
+) : RecursiveExpression, ExpressionAndStatement {
+    companion object : RandomizeableExpressionAndStatement<BlockExpression> {
         override fun createRandom(symbolTable: SymbolTable, type: Type): BlockExpression {
             val newSymbolTable = symbolTable.enterScope()
             val statement = generateStatement(newSymbolTable)
             val finalExpression = generateExpression(newSymbolTable, type)
-            return BlockExpression(newSymbolTable.exitScope(ChainedStatement(statement, finalExpression, newSymbolTable)), type, symbolTable)
+            return BlockExpression(newSymbolTable.exitScope(ChainedStatement(statement, finalExpression.toStatement(false), newSymbolTable)), type, symbolTable)
+        }
+
+        override fun createRandomStatement(symbolTable: SymbolTable): BlockExpression {
+            val newSymbolTable = symbolTable.enterScope()
+            val statement = generateStatement(newSymbolTable)
+            return BlockExpression(newSymbolTable.exitScope(statement), null, symbolTable)
         }
     }
 
     override fun toRust(): String {
-        return "{\n ${statement.toRust()} \n}"
+        return "{\n${statement.toRust()}\n}"
     }
 }
 
@@ -403,15 +417,15 @@ data class IfElseExpression(
     val ifBlock: BlockExpression,
     val elseBlock: BlockExpression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
-    companion object : Randomizeable<IfElseExpression> {
+) : RecursiveExpression, ExpressionAndStatement {
+    companion object : RandomizeableExpressionAndStatement<IfElseExpression> {
         override fun createRandom(symbolTable: SymbolTable, type: Type): IfElseExpression {
             val predicate = generateExpression(symbolTable, BoolType)
             val ifSymbolTable = symbolTable.enterScope()
             val ifStatement = generateStatement(ifSymbolTable)
             val finalIfExpression = generateExpression(ifSymbolTable, type)
             val ifBody = BlockExpression(
-                ifSymbolTable.exitScope(ChainedStatement(ifStatement, finalIfExpression, ifSymbolTable)),
+                ifSymbolTable.exitScope(ChainedStatement(ifStatement, finalIfExpression.toStatement(false), ifSymbolTable)),
                 type,
                 symbolTable
             )
@@ -419,8 +433,27 @@ data class IfElseExpression(
             val elseStatement = generateStatement(elseSymbolTable)
             val finalElseExpression = generateExpression(elseSymbolTable, type)
             val elseBody = BlockExpression(
-                elseSymbolTable.exitScope(ChainedStatement(elseStatement, finalElseExpression, elseSymbolTable)),
+                elseSymbolTable.exitScope(ChainedStatement(elseStatement, finalElseExpression.toStatement(false), elseSymbolTable)),
                 type,
+                symbolTable
+            )
+            return IfElseExpression(predicate, ifBody, elseBody, symbolTable)
+        }
+
+        override fun createRandomStatement(symbolTable: SymbolTable): IfElseExpression {
+            val predicate = generateExpression(symbolTable, BoolType)
+            val ifSymbolTable = symbolTable.enterScope()
+            val ifStatement = generateStatement(ifSymbolTable)
+            val ifBody = BlockExpression(
+                ifSymbolTable.exitScope(ifStatement),
+                null,
+                symbolTable
+            )
+            val elseSymbolTable = symbolTable.enterScope()
+            val elseStatement = generateStatement(elseSymbolTable)
+            val elseBody = BlockExpression(
+                elseSymbolTable.exitScope(elseStatement),
+                null,
                 symbolTable
             )
             return IfElseExpression(predicate, ifBody, elseBody, symbolTable)
@@ -489,21 +522,21 @@ fun Expression.toType(): Type {
         is ReconditionedDivision -> this.divideExpression.toType()
         is BinOpExpression -> this.expr1.toType()
         is GroupedExpression -> this.expression.toType()
-        is BlockExpression -> this.type
+        is BlockExpression -> this.type!!
         is ReconditionedMod -> this.modExpression.toType()
-        is IfElseExpression -> this.ifBlock.type
+        is IfElseExpression -> this.ifBlock.type!!
     }
 }
 
 fun KClass<out Expression>.genSubClasses(): List<KClass<out Expression>> {
     val depth = Thread.currentThread().stackTrace.size
-    return if (depth > 50) {
+    return if (depth > 20) {
         this.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.filter { !it.isSubclassOf(RecursiveExpression::class) }
     } else {
         this.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
     }
 }
 
-fun Expression.toStatement(): ExpressionStatement {
-    return ExpressionStatement(this, symbolTable)
+fun Expression.toStatement(addSemicolon: Boolean = true): ExpressionStatement {
+    return ExpressionStatement(this, addSemicolon, symbolTable)
 }
