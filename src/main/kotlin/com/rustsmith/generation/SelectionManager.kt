@@ -8,7 +8,7 @@ import kotlin.reflect.full.isSubclassOf
 
 // Config describes what limit each specific ASTNode should have in terms of depth
 val config: Map<KClass<out ASTNode>, Int> =
-    (listOf(RecursiveExpression::class to 2)).toMap<KClass<out ASTNode>, Int>().withDefault { Int.MAX_VALUE }
+    mapOf<KClass<out ASTNode>, Int>(RecursiveExpression::class to 2).withDefault { Int.MAX_VALUE }
 
 class SelectionManager(state: Map<KClass<out ASTNode>, Int>) {
 
@@ -37,18 +37,15 @@ class SelectionManager(state: Map<KClass<out ASTNode>, Int>) {
     }
 
     fun availableStatements(): List<KClass<out Statement>> {
-        val allStatements: MutableList<KClass<out Statement>> =
-            (
-                Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() } +
-                    ExpressionAndStatement::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
-                ).toMutableList()
-        return filterNodes(allStatements)
+        val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() } +
+            ExpressionAndStatement::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
+        return filterNodes(allStatements.toMutableList())
     }
 
     fun availableExpressions(type: Type): List<KClass<out Expression>> {
         val allExpressions = Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.filter {
             it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()?.contains(type::class) ?: false
-        }.toMutableList()
-        return filterNodes(allExpressions)
+        }
+        return filterNodes(allExpressions.toMutableList())
     }
 }
