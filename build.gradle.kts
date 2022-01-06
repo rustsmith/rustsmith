@@ -22,6 +22,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.0")
     implementation("com.github.ajalt.clikt:clikt:3.3.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1")
+    implementation("com.squareup:kotlinpoet:1.10.2")
 }
 
 tasks.jar {
@@ -32,30 +33,6 @@ tasks.jar {
     from(configurations.compileClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
     exclude("**/module-info.class")
 }
-
-//def shadowJarExecutableTask = tasks.register("shadowJarExecutable", DefaultTask.class) {
-//    description = "Creates self-executable file, that runs generated shadow jar"
-//    group = "Distribution"
-//
-//    inputs.files tasks.named("shadowJar")
-//    outputs.files("$buildDir/run/ktlint")
-//    if (!version.toString().endsWith("SNAPSHOT")) {
-//        outputs.files("$buildDir/run/ktlint.asc")
-//    }
-//
-//    doLast {
-//        File execFile = outputs.files.getFiles().first()
-//        execFile.withOutputStream {
-//            it.write "#!/bin/sh\n\nexec java -Xmx512m -jar \"\$0\" \"\$@\"\n\n".bytes
-//            it.write inputs.files.singleFile.bytes
-//        }
-//        execFile.setExecutable(true, false)
-//        if (!version.toString().endsWith("SNAPSHOT")) {
-//            signing.sign(execFile)
-//        }
-//    }
-//    finalizedBy tasks.named("shadowJarExecutableChecksum")
-//}
 
 tasks.shadowJar {
     mergeServiceFiles()
@@ -76,6 +53,12 @@ tasks.register<DefaultTask>("shadowJarExecutable") {
         }
         execFile.setExecutable(true, false)
     }
+}
+
+tasks.register<JavaExec>("generateInterface") {
+    group = "Tools"
+    mainClass.set("com.tools.InterfaceGeneratorKt")
+    classpath = sourceSets["main"].runtimeClasspath
 }
 
 application {

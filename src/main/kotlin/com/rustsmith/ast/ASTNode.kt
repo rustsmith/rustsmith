@@ -1,15 +1,9 @@
 package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.rustsmith.Random
+import com.rustsmith.generation.ASTGenerator
+import com.rustsmith.generation.SelectionManager
 import kotlin.reflect.KClass
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.isSubclassOf
-
-interface Randomizeable<T> {
-    fun createRandom(symbolTable: SymbolTable, type: Type): T
-}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 sealed interface ASTNode {
@@ -36,11 +30,11 @@ data class Program(val seed: Long, val structs: List<Any> = emptyList(), val fun
 
 fun generateMain(programSeed: Long): FunctionDefinition {
     val symbolTable = SymbolTable(null)
-    val body = ChainedStatement(generateStatement(symbolTable), Output(symbolTable, programSeed), symbolTable)
+    val body = ChainedStatement(ASTGenerator(symbolTable)(SelectionManager(mapOf())), Output(symbolTable, programSeed), symbolTable)
     return FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
-        body = symbolTable.exitScope(body)
+        body = body
     )
 }
 
@@ -54,25 +48,4 @@ fun <T : Any> KClass<T>.subclasses(): Set<KClass<out T>> {
         result.addAll(nonFinalClass.subclasses())
     }
     return this.sealedSubclasses.filter { it.isFinal }.toSet() + result
-}
-
-fun generateExpression(symbolTable: SymbolTable, type: Type): Expression {
-    val classes = Expression::class.genSubClasses().filter {
-        it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()?.contains(type::class) ?: false
-    }
-    var node: Expression?
-    do {
-        val chosenClass = classes.random(Random)
-        node = (chosenClass.companionObjectInstance as Randomizeable<*>).createRandom(symbolTable, type) as Expression?
-    } while (node == null)
-    return node
-}
-
-fun generateStatement(symbolTable: SymbolTable): Statement {
-    val classes = Statement::class.genSubClasses() + Expression::class.genSubClasses().filter { it.isSubclassOf(ExpressionAndStatement::class) }
-    val chosenClass = classes.random(Random)
-    if (chosenClass.isSubclassOf(ExpressionAndStatement::class)) {
-        return ((chosenClass.companionObjectInstance as RandomizeableExpressionAndStatement<*>).createRandomStatement(symbolTable) as ExpressionAndStatement).toStatement()
-    }
-    return (chosenClass.companionObjectInstance as RandomStatFactory<*>).createRandom(symbolTable) as Statement
 }

@@ -4,9 +4,7 @@ import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
 
-sealed interface Type : ASTNode {
-    fun generateLiteral(symbolTable: SymbolTable): Expression
-}
+sealed interface Type : ASTNode
 
 sealed interface BitWiseCompatibleType : Type
 
@@ -16,10 +14,6 @@ sealed interface IntType : NumberType, BitWiseCompatibleType
 
 @GenNode
 object I8Type : IntType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Int8Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "i8"
     }
@@ -27,10 +21,6 @@ object I8Type : IntType {
 
 @GenNode
 object I16Type : IntType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Int16Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "i16"
     }
@@ -38,10 +28,6 @@ object I16Type : IntType {
 
 @GenNode
 object I32Type : IntType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Int32Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "i32"
     }
@@ -49,10 +35,6 @@ object I32Type : IntType {
 
 @GenNode
 object I64Type : IntType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Int64Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "i64"
     }
@@ -60,10 +42,6 @@ object I64Type : IntType {
 
 @GenNode
 object I128Type : IntType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Int128Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "i128"
     }
@@ -73,10 +51,6 @@ sealed interface FloatType : NumberType
 
 @GenNode
 object F32Type : FloatType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Float32Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "f32"
     }
@@ -84,42 +58,30 @@ object F32Type : FloatType {
 
 @GenNode
 object F64Type : FloatType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return Float64Literal.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "f64"
     }
 }
 
-@GenNode
-object StringType : Type {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return StringLiteral.createRandom(symbolTable, this)
-    }
-
-    override fun toRust(): String {
-        return "&str"
-    }
-}
+// @GenNode
+// object StringType : Type {
+//    override fun generateLiteral(symbolTable: SymbolTable): Expression {
+//        return StringLiteral.createRandom(symbolTable, this)
+//    }
+//
+//    override fun toRust(): String {
+//        return "&str"
+//    }
+// }
 
 @GenNode
 object BoolType : BitWiseCompatibleType {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        return BooleanLiteral.createRandom(symbolTable, this)
-    }
-
     override fun toRust(): String {
         return "bool"
     }
 }
 
 object VoidType : Type {
-    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-        TODO("Not yet implemented")
-    }
-
     override fun toRust(): String {
         return "()"
     }

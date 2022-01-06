@@ -23,7 +23,7 @@ object Reconditioner {
         return when (node) {
             is Float32Literal -> node
             is Int32Literal -> node
-            is StringLiteral -> node
+//            is StringLiteral -> node
             is Variable -> node
             is BooleanLiteral -> node
             is Float64Literal -> node
@@ -49,6 +49,7 @@ object Reconditioner {
             is ChainedStatement -> node.copy(s1 = reconditionStatement(node.s1), s2 = reconditionStatement(node.s2))
             is Declaration -> node.copy(value = reconditionExpression(node.value))
             is Output -> node
+            is ExpressionAndStatement -> reconditionExpression(node) as ExpressionAndStatement
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
