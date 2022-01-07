@@ -40,6 +40,7 @@ object Reconditioner {
                 ifBlock = reconditionExpression(node.ifBlock) as BlockExpression,
                 elseBlock = reconditionExpression(node.elseBlock) as BlockExpression
             )
+            is FunctionCallExpression -> node.copy(args = node.args.map { reconditionExpression(it) })
         }
     }
 

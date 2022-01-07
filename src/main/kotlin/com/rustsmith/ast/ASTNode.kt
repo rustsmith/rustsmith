@@ -17,7 +17,7 @@ data class FunctionDefinition(
     val body: Statement
 ) : ASTNode {
     override fun toRust(): String {
-        return "fn $functionName() -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
+        return "fn $functionName(${arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")}) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
 }
 
@@ -28,14 +28,20 @@ data class Program(val seed: Long, val structs: List<Any> = emptyList(), val fun
     }
 }
 
-fun generateMain(programSeed: Long): FunctionDefinition {
-    val symbolTable = SymbolTable(null)
-    val body = ChainedStatement(ASTGenerator(symbolTable)(SelectionManager(mapOf())), Output(symbolTable, programSeed), symbolTable)
-    return FunctionDefinition(
+fun generateProgram(programSeed: Long): Program {
+    val functionSymbolTable = FunctionSymbolTable()
+    val symbolTable = SymbolTable(null, functionSymbolTable)
+    val body = ChainedStatement(
+        ASTGenerator(symbolTable)(SelectionManager(mapOf())),
+        Output(symbolTable, programSeed),
+        symbolTable
+    )
+    val mainFunction = FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
         body = body
     )
+    return Program(programSeed, emptyList(), functionSymbolTable.functions + mainFunction)
 }
 
 fun <T : Any> KClass<T>.subclasses(): Set<KClass<out T>> {

@@ -10,12 +10,19 @@ import kotlin.reflect.KClass
 class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator {
     private val statements = mutableListOf<Statement>()
 
-    operator fun invoke(selectionManager: SelectionManager): Statement {
-        val statement = generateStatement(selectionManager)
-        if (statements.isEmpty()) {
-            return statement
+    private fun combineStatementWithDependencies(statement: Statement): Statement {
+        return if (statements.isEmpty()) {
+            statement
+        } else {
+            ChainedStatement(ChainedStatement.createFromList(statements, symbolTable), statement, symbolTable)
         }
-        return ChainedStatement(ChainedStatement.createFromList(statements, symbolTable), statement, symbolTable)
+    }
+
+    operator fun invoke(selectionManager: SelectionManager, type: Type = VoidType): Statement {
+        val statement = generateStatement(selectionManager)
+        val finalStatement = combineStatementWithDependencies(statement)
+        statements.clear()
+        return if (type == VoidType) finalStatement else ChainedStatement(finalStatement, combineStatementWithDependencies(generateExpression(type, selectionManager).toStatement(false)), symbolTable)
     }
 
     /** Statement Generation **/
@@ -56,8 +63,17 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return ChainedStatement(s1, s2, symbolTable)
     }
 
+    override fun generateFunctionCallExpression(selectionManager: SelectionManager): FunctionCallExpression {
+        return generateFunctionCallExpression(VoidType, selectionManager).copy(isStatement = true)
+    }
+
     override fun generateBlockExpression(selectionManager: SelectionManager): BlockExpression {
-        return BlockExpression(ASTGenerator(symbolTable.enterScope())(selectionManager.incrementCount(BlockExpression::class)), null, symbolTable)
+        return BlockExpression(
+            ASTGenerator(symbolTable.enterScope())(selectionManager.incrementCount(BlockExpression::class)),
+            null,
+            true,
+            symbolTable
+        )
     }
 
     override fun generateIfElseExpression(selectionManager: SelectionManager): IfElseExpression {
@@ -65,6 +81,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             generateExpression(BoolType, selectionManager.incrementCount(IfElseExpression::class)),
             generateBlockExpression(selectionManager.incrementCount(IfElseExpression::class)),
             generateBlockExpression(selectionManager.incrementCount(IfElseExpression::class)),
+            true,
             symbolTable
         )
     }
@@ -75,7 +92,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return selectionManager.availableExpressions(type).random(Random)
     }
 
-    override fun generateInt8Literal(type: Type, selectionManager: SelectionManager): Int8Literal = Int8Literal(Random.nextBits(7), symbolTable)
+    override fun generateInt8Literal(type: Type, selectionManager: SelectionManager): Int8Literal =
+        Int8Literal(Random.nextBits(7), symbolTable)
 
     override fun generateInt16Literal(type: Type, selectionManager: SelectionManager): Int16Literal =
         Int16Literal(Random.nextBits(15), symbolTable)
@@ -111,13 +129,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateGroupedExpression(type: Type, selectionManager: SelectionManager): GroupedExpression =
-        GroupedExpression(generateExpression(type, selectionManager.incrementCount(GroupedExpression::class)), symbolTable)
+        GroupedExpression(
+            generateExpression(type, selectionManager.incrementCount(GroupedExpression::class)),
+            symbolTable
+        )
 
     override fun generateBlockExpression(type: Type, selectionManager: SelectionManager): BlockExpression {
         val newScope = symbolTable.enterScope()
-        val body = ASTGenerator(newScope)(selectionManager.incrementCount(BlockExpression::class))
-        val finalExpression = generateExpression(type, selectionManager.incrementCount(BlockExpression::class)).toStatement(false)
-        return BlockExpression(ChainedStatement(body, finalExpression, newScope), type, symbolTable)
+        val body = ASTGenerator(newScope)(selectionManager.incrementCount(BlockExpression::class), type)
+        return BlockExpression(body, type, false, symbolTable)
     }
 
     override fun generateIfElseExpression(type: Type, selectionManager: SelectionManager): IfElseExpression {
@@ -125,6 +145,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             generateExpression(BoolType, selectionManager.incrementCount(IfElseExpression::class)),
             generateBlockExpression(type, selectionManager.incrementCount(IfElseExpression::class)),
             generateBlockExpression(type, selectionManager.incrementCount(IfElseExpression::class)),
+            false,
             symbolTable
         )
     }
@@ -191,5 +212,54 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalXor::class)),
             symbolTable
         )
+    }
+
+    override fun generateFunctionCallExpression(
+        type: Type,
+        selectionManager: SelectionManager
+    ): FunctionCallExpression {
+        val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
+        if (functionData == null) {
+            val newFunctionType = generateFunction(type, selectionManager)
+            return FunctionCallExpression(
+                newFunctionType.first,
+                newFunctionType.second.args.map {
+                    generateExpression(
+                        it,
+                        selectionManager.incrementCount(FunctionCallExpression::class)
+                    )
+                },
+                false,
+                symbolTable
+            )
+        } else {
+            return FunctionCallExpression(
+                functionData.first,
+                (functionData.second.type as FunctionType).args.map {
+                    generateExpression(
+                        it,
+                        selectionManager.incrementCount(FunctionCallExpression::class)
+                    )
+                },
+                false,
+                symbolTable
+            )
+        }
+    }
+
+    private fun generateFunction(returnType: Type, selectionManager: SelectionManager): Pair<String, FunctionType> {
+        val numArgs = Random.nextInt(5)
+        val argTypes = (0 until numArgs).map { Type::class.genSubClasses().random(Random).objectInstance!! }
+        val functionDefinition =
+            FunctionDefinition(
+                returnType,
+                IdentGenerator.generateFunctionName(),
+                argTypes.associateBy { IdentGenerator.generateVariable() },
+                ASTGenerator(SymbolTable(null, symbolTable.functionSymbolTable))(selectionManager.incrementCount(FunctionCallExpression::class), returnType)
+            )
+        val functionType = FunctionType(returnType, argTypes)
+        symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType)
+        symbolTable.functionSymbolTable.addFunction(functionDefinition)
+        return functionDefinition.functionName to functionType
     }
 }

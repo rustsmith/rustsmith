@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.rustsmith.Random
 
-data class IdentifierData(val type: Type, val virtual: Boolean = false)
+data class IdentifierData(val type: Type)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     var current: SymbolTable? = null
@@ -18,7 +18,28 @@ class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<Symbo
     }
 }
 
-data class SymbolTable(val parent: SymbolTable?) : Iterable<SymbolTable> {
+class FunctionSymbolTable {
+    private val symbolMap = mutableMapOf<String, IdentifierData>()
+    val functions = mutableListOf<FunctionDefinition>()
+
+    fun getRandomFunctionOfType(type: Type): Pair<String, IdentifierData>? {
+        return symbolMap.toList().filter { (it.second.type as FunctionType).returnType == type }.randomOrNull(Random)
+    }
+
+    operator fun get(key: String): IdentifierData? {
+        return symbolMap[key]
+    }
+
+    operator fun set(key: String, value: IdentifierData) {
+        symbolMap[key] = value
+    }
+
+    fun addFunction(functionDefinition: FunctionDefinition) {
+        functions.add(functionDefinition)
+    }
+}
+
+data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: FunctionSymbolTable) : Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
 
     operator fun get(key: String): IdentifierData? {
@@ -27,7 +48,7 @@ data class SymbolTable(val parent: SymbolTable?) : Iterable<SymbolTable> {
                 return table.symbolMap[key]
             }
         }
-        return null
+        return functionSymbolTable[key]
     }
 
     operator fun set(key: String, value: IdentifierData) {
@@ -55,7 +76,7 @@ data class SymbolTable(val parent: SymbolTable?) : Iterable<SymbolTable> {
     }
 
     fun enterScope(): SymbolTable {
-        return SymbolTable(this)
+        return SymbolTable(this, functionSymbolTable)
     }
 
     override fun iterator() = SymbolTableIterator(this)

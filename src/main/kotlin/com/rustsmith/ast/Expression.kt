@@ -224,16 +224,32 @@ data class GroupedExpression(
 //    }
 // }
 
-sealed interface ExpressionAndStatement : Expression, Statement
+sealed interface ExpressionAndStatement : Expression, Statement {
+    val isStatement: Boolean
+
+    fun addSemiColon(): String {
+        return if (isStatement) ";" else ""
+    }
+}
+
+@ExpressionGenNode(Type::class)
+data class FunctionCallExpression(val functionName: String, val args: List<Expression>,
+                                  override val isStatement: Boolean, override val symbolTable: SymbolTable) : ExpressionAndStatement {
+
+    override fun toRust(): String {
+        return "$functionName(${args.joinToString(",") { it.toRust() }})${addSemiColon()}"
+    }
+}
 
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: Statement,
     val type: Type?,
+    override val isStatement: Boolean,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression, ExpressionAndStatement {
     override fun toRust(): String {
-        return "{\n${statement.toRust()}\n}"
+        return "{\n${statement.toRust()}\n}${addSemiColon()}"
     }
 }
 
@@ -242,10 +258,11 @@ data class IfElseExpression(
     val predicate: Expression,
     val ifBlock: BlockExpression,
     val elseBlock: BlockExpression,
+    override val isStatement: Boolean,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression, ExpressionAndStatement {
     override fun toRust(): String {
-        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
+        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}${addSemiColon()}"
     }
 }
 
@@ -309,6 +326,7 @@ fun Expression.toType(): Type {
         is BlockExpression -> this.type!!
         is ReconditionedMod -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
+        is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
     }
 }
 

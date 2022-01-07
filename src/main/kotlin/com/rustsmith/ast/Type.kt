@@ -1,5 +1,6 @@
 package com.rustsmith.ast
 
+import com.rustsmith.Random
 import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
@@ -78,6 +79,12 @@ object F64Type : FloatType {
 object BoolType : BitWiseCompatibleType {
     override fun toRust(): String {
         return "bool"
+    }
+}
+
+data class FunctionType(val returnType: Type, val args: List<Type>): Type {
+    override fun toRust(): String {
+        return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
     }
 }
 
