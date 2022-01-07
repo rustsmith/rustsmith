@@ -11,7 +11,6 @@ val kClassType = ClassName("kotlin.reflect", "KClass")
 
 class InterfaceGenerator {
     private val generatorInterface = TypeSpec.interfaceBuilder("AbstractASTGenerator")
-    private val selectionManager = SelectionManager(mapOf())
 
     private fun generateStatementFunctions() {
         val randomStatementFunction = FunSpec.builder("selectRandomStatement")
@@ -29,7 +28,7 @@ class InterfaceGenerator {
             generatorInterface.addFunction(funSpec)
             codeBlock.addStatement("%T::class -> %N(%N)", it.asClassName(), funSpec, "selectionManager")
         }
-        codeBlock.addStatement("else -> TODO()")
+        codeBlock.addStatement("else -> throw Exception(\"Unrecognized type\")")
         codeBlock.endControlFlow()
 
         generatorInterface.addFunction(randomStatementFunction)
@@ -59,7 +58,7 @@ class InterfaceGenerator {
             generatorInterface.addFunction(funSpec)
             codeBlock.addStatement("%T::class -> %N(%N, %N)", it.asClassName(), funSpec, "type", "selectionManager")
         }
-        codeBlock.addStatement("else -> TODO()")
+        codeBlock.addStatement("else -> throw Exception(\"Unrecognized type\")")
         codeBlock.endControlFlow()
 
         generatorInterface.addFunction(randomExpressionFunction)
