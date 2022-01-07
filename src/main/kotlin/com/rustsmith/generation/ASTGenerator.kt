@@ -25,7 +25,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateDeclaration(selectionManager: SelectionManager): Declaration {
-        val declarationType = Type::class.genSubClasses().random(Random).objectInstance!!
+        val declarationType = selectionManager.availableTypes().random(Random).objectInstance!!
         return generateDependantDeclarationOfType(declarationType, selectionManager)
     }
 

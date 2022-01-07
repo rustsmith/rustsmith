@@ -36,6 +36,8 @@ class SelectionManager(state: Map<KClass<out ASTNode>, Int>) {
         return nodes
     }
 
+    fun availableTypes() = Type::class.genSubClasses()
+
     fun availableStatements(): List<KClass<out Statement>> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() } +
             ExpressionAndStatement::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }
