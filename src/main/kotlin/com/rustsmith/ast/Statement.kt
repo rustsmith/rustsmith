@@ -9,18 +9,6 @@ sealed interface Statement : ASTNode {
     val symbolTable: SymbolTable
 }
 
-object VariableGenerator {
-    private var varCount = 0
-
-    fun generateVariable(): String {
-        return "var${varCount++}"
-    }
-
-    fun reset() {
-        varCount = 0
-    }
-}
-
 data class ExpressionStatement(
     val expression: Expression,
     val addSemiColon: Boolean,

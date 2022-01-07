@@ -30,7 +30,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     private fun generateDependantDeclarationOfType(type: Type, selectionManager: SelectionManager): Declaration {
-        val variableName = VariableGenerator.generateVariable()
+        val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, selectionManager.incrementCount(Declaration::class))
         symbolTable[variableName] = IdentifierData(type)
         return Declaration(type, variableName, expression, symbolTable)
