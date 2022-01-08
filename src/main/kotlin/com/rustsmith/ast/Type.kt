@@ -1,6 +1,5 @@
 package com.rustsmith.ast
 
-import com.rustsmith.Random
 import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
@@ -82,7 +81,14 @@ object BoolType : BitWiseCompatibleType {
     }
 }
 
-data class FunctionType(val returnType: Type, val args: List<Type>): Type {
+@GenNode
+data class TupleType(val types: List<Type>) : Type {
+    override fun toRust(): String {
+        return "(${types.joinToString(",") { it.toRust() }})"
+    }
+}
+
+data class FunctionType(val returnType: Type, val args: List<Type>) : Type {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
     }

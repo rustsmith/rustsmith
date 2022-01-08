@@ -41,6 +41,7 @@ object Reconditioner {
                 elseBlock = reconditionExpression(node.elseBlock) as BlockExpression
             )
             is FunctionCallExpression -> node.copy(args = node.args.map { reconditionExpression(it) })
+            is TupleLiteral -> node.copy(values = node.values.map { reconditionExpression(it) })
         }
     }
 

@@ -40,6 +40,35 @@ class InterfaceGenerator {
         )
     }
 
+    private fun generateTypeFunctions() {
+        val randomTypeFunction = FunSpec.builder("selectRandomType")
+            .addParameter(ParameterSpec.builder("selectionManager", SelectionManager::class).build())
+            .returns(kClassType.parameterizedBy(WildcardTypeName.producerOf(Type::class.asClassName())))
+            .addModifiers(KModifier.ABSTRACT)
+            .build()
+
+        val codeBlock = CodeBlock.builder().beginControlFlow("return when(%N(%N))", randomTypeFunction, "selectionManager")
+        Type::class.genSubClasses().forEach {
+            val funSpec = FunSpec.builder("generate${it.simpleName}")
+                .addParameter(ParameterSpec.builder("selectionManager", SelectionManager::class).build())
+                .returns(it)
+                .addModifiers(KModifier.ABSTRACT)
+                .build()
+            generatorInterface.addFunction(funSpec)
+            codeBlock.addStatement("%T::class -> %N(%N)", it.asClassName(), funSpec, "selectionManager")
+        }
+        codeBlock.addStatement("else -> throw Exception(\"Unrecognized type\")")
+        codeBlock.endControlFlow()
+
+        generatorInterface.addFunction(randomTypeFunction)
+
+        generatorInterface.addFunction(
+            FunSpec.builder("generateType")
+                .addParameter(ParameterSpec.builder("selectionManager", SelectionManager::class).build())
+                .returns(Type::class).addCode(codeBlock.build()).build()
+        )
+    }
+
     private fun generateExpressionFunctions() {
         val randomExpressionFunction = FunSpec.builder("selectRandomExpression")
             .addParameter(ParameterSpec.builder("type", Type::class.asClassName()).build())
@@ -76,6 +105,7 @@ class InterfaceGenerator {
     fun generate() {
         generateStatementFunctions()
         generateExpressionFunctions()
+        generateTypeFunctions()
         val file = FileSpec.builder("", "AbstractASTGenerator")
         file.addType(generatorInterface.build())
         file.build().writeTo(File("src/main/kotlin/com/rustsmith/generation"))

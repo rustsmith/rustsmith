@@ -8,7 +8,7 @@ import kotlin.reflect.full.isSubclassOf
 
 // Config describes what limit each specific ASTNode should have in terms of depth
 val config: Map<KClass<out ASTNode>, Int> =
-    mapOf<KClass<out ASTNode>, Int>(RecursiveExpression::class to 2, FunctionCallExpression::class to 3).withDefault { Int.MAX_VALUE }
+    mapOf<KClass<out ASTNode>, Int>(RecursiveExpression::class to 2, FunctionCallExpression::class to 3, TupleType::class to 3).withDefault { Int.MAX_VALUE }
 
 class SelectionManager(state: Map<KClass<out ASTNode>, Int>) {
 

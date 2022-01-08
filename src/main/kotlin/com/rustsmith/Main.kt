@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import com.rustsmith.ast.Program
 import com.rustsmith.ast.generateProgram
 import com.rustsmith.generation.IdentGenerator
 import com.rustsmith.recondition.Reconditioner

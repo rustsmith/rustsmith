@@ -84,6 +84,14 @@ data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTa
     }
 }
 
+@ExpressionGenNode(TupleType::class)
+data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) : Expression {
+
+    override fun toRust(): String {
+        return "(${values.joinToString(",") { it.toRust() }})"
+    }
+}
+
 @ExpressionGenNode(Type::class)
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
 
@@ -233,8 +241,12 @@ sealed interface ExpressionAndStatement : Expression, Statement {
 }
 
 @ExpressionGenNode(Type::class)
-data class FunctionCallExpression(val functionName: String, val args: List<Expression>,
-                                  override val isStatement: Boolean, override val symbolTable: SymbolTable) : ExpressionAndStatement {
+data class FunctionCallExpression(
+    val functionName: String,
+    val args: List<Expression>,
+    override val isStatement: Boolean,
+    override val symbolTable: SymbolTable
+) : ExpressionAndStatement {
 
     override fun toRust(): String {
         return "$functionName(${args.joinToString(",") { it.toRust() }})${addSemiColon()}"
@@ -327,6 +339,7 @@ fun Expression.toType(): Type {
         is ReconditionedMod -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
+        is TupleLiteral -> TupleType(this.values.map { it.toType() })
     }
 }
 

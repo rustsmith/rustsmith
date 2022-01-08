@@ -32,7 +32,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateDeclaration(selectionManager: SelectionManager): Declaration {
-        val declarationType = selectionManager.availableTypes().random(Random).objectInstance!!
+        val declarationType = generateType(selectionManager)
         return generateDependantDeclarationOfType(declarationType, selectionManager)
     }
 
@@ -115,6 +115,13 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateBooleanLiteral(type: Type, selectionManager: SelectionManager): BooleanLiteral =
         BooleanLiteral(Random.nextBoolean(), symbolTable)
+
+    override fun generateTupleLiteral(type: Type, selectionManager: SelectionManager): TupleLiteral {
+        if (type is TupleType) {
+            return TupleLiteral(type.types.map { generateExpression(it, selectionManager.incrementCount(TupleLiteral::class)) }, symbolTable)
+        }
+        throw Exception("Incompatible Type")
+    }
 
     override fun generateVariable(type: Type, selectionManager: SelectionManager): Variable {
         val value = symbolTable.getRandomVariableOfType(type)
@@ -249,7 +256,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     private fun generateFunction(returnType: Type, selectionManager: SelectionManager): Pair<String, FunctionType> {
         val numArgs = Random.nextInt(5)
-        val argTypes = (0 until numArgs).map { Type::class.genSubClasses().random(Random).objectInstance!! }
+        val argTypes = (0 until numArgs).map { generateType(selectionManager.incrementCount(FunctionType::class)) }
         val functionDefinition =
             FunctionDefinition(
                 returnType,
@@ -261,5 +268,33 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
+    }
+
+    /** Type generators **/
+
+    override fun selectRandomType(selectionManager: SelectionManager): KClass<out Type> {
+        return selectionManager.availableTypes().random(Random)
+    }
+
+    override fun generateBoolType(selectionManager: SelectionManager) = BoolType
+
+    override fun generateI8Type(selectionManager: SelectionManager) = I8Type
+
+    override fun generateI16Type(selectionManager: SelectionManager) = I16Type
+
+    override fun generateI32Type(selectionManager: SelectionManager) = I32Type
+
+    override fun generateI64Type(selectionManager: SelectionManager) = I64Type
+
+    override fun generateI128Type(selectionManager: SelectionManager) = I128Type
+
+    override fun generateF32Type(selectionManager: SelectionManager) = F32Type
+
+    override fun generateF64Type(selectionManager: SelectionManager) = F64Type
+
+    override fun generateTupleType(selectionManager: SelectionManager): TupleType {
+        val numArgs = Random.nextInt(1, 5)
+        val argTypes = (0 until numArgs).map { generateType(selectionManager.incrementCount(TupleType::class)) }
+        return TupleType(argTypes)
     }
 }
