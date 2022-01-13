@@ -23,6 +23,7 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:3.3.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1")
     implementation("com.squareup:kotlinpoet:1.10.2")
+    implementation("me.tongfei:progressbar:0.9.2")
 }
 
 tasks.jar {
