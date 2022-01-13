@@ -9,6 +9,7 @@ sealed interface Statement : ASTNode {
     val symbolTable: SymbolTable
 }
 
+@GenNode
 data class ExpressionStatement(
     val expression: Expression,
     val addSemiColon: Boolean,

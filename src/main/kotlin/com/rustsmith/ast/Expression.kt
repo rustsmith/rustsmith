@@ -232,24 +232,15 @@ data class GroupedExpression(
 //    }
 // }
 
-sealed interface ExpressionAndStatement : Expression, Statement {
-    val isStatement: Boolean
-
-    fun addSemiColon(): String {
-        return if (isStatement) ";" else ""
-    }
-}
-
 @ExpressionGenNode(Type::class)
 data class FunctionCallExpression(
     val functionName: String,
     val args: List<Expression>,
-    override val isStatement: Boolean,
     override val symbolTable: SymbolTable
-) : ExpressionAndStatement {
+) : Expression {
 
     override fun toRust(): String {
-        return "$functionName(${args.joinToString(",") { it.toRust() }})${addSemiColon()}"
+        return "$functionName(${args.joinToString(",") { it.toRust() }})"
     }
 }
 
@@ -257,11 +248,10 @@ data class FunctionCallExpression(
 data class BlockExpression(
     val statement: Statement,
     val type: Type?,
-    override val isStatement: Boolean,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, ExpressionAndStatement {
+) : RecursiveExpression {
     override fun toRust(): String {
-        return "{\n${statement.toRust()}\n}${addSemiColon()}"
+        return "{\n${statement.toRust()}\n}"
     }
 }
 
@@ -270,11 +260,10 @@ data class IfElseExpression(
     val predicate: Expression,
     val ifBlock: BlockExpression,
     val elseBlock: BlockExpression,
-    override val isStatement: Boolean,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, ExpressionAndStatement {
+) : RecursiveExpression {
     override fun toRust(): String {
-        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}${addSemiColon()}"
+        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
     }
 }
 

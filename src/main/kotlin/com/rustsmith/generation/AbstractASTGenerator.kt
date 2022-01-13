@@ -10,6 +10,7 @@ import com.rustsmith.ast.ChainedStatement
 import com.rustsmith.ast.Declaration
 import com.rustsmith.ast.DivideExpression
 import com.rustsmith.ast.Expression
+import com.rustsmith.ast.ExpressionStatement
 import com.rustsmith.ast.F32Type
 import com.rustsmith.ast.F64Type
 import com.rustsmith.ast.Float32Literal
@@ -39,29 +40,22 @@ import com.rustsmith.generation.SelectionManager
 import kotlin.reflect.KClass
 
 public interface AbstractASTGenerator {
+    public fun generateExpressionStatement(selectionManager: SelectionManager): ExpressionStatement
+
     public fun generateDeclaration(selectionManager: SelectionManager): Declaration
 
     public fun generateAssignment(selectionManager: SelectionManager): Assignment
 
     public fun generateChainedStatement(selectionManager: SelectionManager): ChainedStatement
 
-    public fun generateFunctionCallExpression(selectionManager: SelectionManager):
-        FunctionCallExpression
-
-    public fun generateBlockExpression(selectionManager: SelectionManager): BlockExpression
-
-    public fun generateIfElseExpression(selectionManager: SelectionManager): IfElseExpression
-
     public fun selectRandomStatement(selectionManager: SelectionManager): KClass<out Statement>
 
     public fun generateStatement(selectionManager: SelectionManager): Statement =
         when (selectRandomStatement(selectionManager)) {
+            ExpressionStatement::class -> generateExpressionStatement(selectionManager)
             Declaration::class -> generateDeclaration(selectionManager)
             Assignment::class -> generateAssignment(selectionManager)
             ChainedStatement::class -> generateChainedStatement(selectionManager)
-            FunctionCallExpression::class -> generateFunctionCallExpression(selectionManager)
-            BlockExpression::class -> generateBlockExpression(selectionManager)
-            IfElseExpression::class -> generateIfElseExpression(selectionManager)
             else -> throw Exception("Unrecognized type")
         }
 
@@ -84,6 +78,9 @@ public interface AbstractASTGenerator {
     public fun generateTupleLiteral(type: Type, selectionManager: SelectionManager): TupleLiteral
 
     public fun generateVariable(type: Type, selectionManager: SelectionManager): Variable
+
+    public fun generateFunctionCallExpression(type: Type, selectionManager: SelectionManager):
+        FunctionCallExpression
 
     public fun generateGroupedExpression(type: Type, selectionManager: SelectionManager):
         GroupedExpression
@@ -116,9 +113,6 @@ public interface AbstractASTGenerator {
     public fun generateBitwiseAndLogicalXor(type: Type, selectionManager: SelectionManager):
         BitwiseAndLogicalXor
 
-    public fun generateFunctionCallExpression(type: Type, selectionManager: SelectionManager):
-        FunctionCallExpression
-
     public fun selectRandomExpression(type: Type, selectionManager: SelectionManager):
         KClass<out Expression>
 
@@ -134,6 +128,7 @@ public interface AbstractASTGenerator {
             BooleanLiteral::class -> generateBooleanLiteral(type, selectionManager)
             TupleLiteral::class -> generateTupleLiteral(type, selectionManager)
             Variable::class -> generateVariable(type, selectionManager)
+            FunctionCallExpression::class -> generateFunctionCallExpression(type, selectionManager)
             GroupedExpression::class -> generateGroupedExpression(type, selectionManager)
             BlockExpression::class -> generateBlockExpression(type, selectionManager)
             IfElseExpression::class -> generateIfElseExpression(type, selectionManager)
@@ -145,7 +140,6 @@ public interface AbstractASTGenerator {
             BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, selectionManager)
             BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, selectionManager)
             BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, selectionManager)
-            FunctionCallExpression::class -> generateFunctionCallExpression(type, selectionManager)
             else -> throw Exception("Unrecognized type")
         }
 

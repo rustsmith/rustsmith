@@ -51,7 +51,6 @@ object Reconditioner {
             is ChainedStatement -> node.copy(s1 = reconditionStatement(node.s1), s2 = reconditionStatement(node.s2))
             is Declaration -> node.copy(value = reconditionExpression(node.value))
             is Output -> node
-            is ExpressionAndStatement -> reconditionExpression(node) as ExpressionAndStatement
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
