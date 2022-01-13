@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.rustsmith.Random
 
-data class IdentifierData(val type: Type)
+data class IdentifierData(val type: Type, val mutable: Boolean)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     var current: SymbolTable? = null
@@ -64,7 +64,19 @@ data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: Functi
     }
 
     fun getRandomVariable(): Pair<String, IdentifierData>? {
-        return symbolMap.toList().randomOrNull(Random)
+        val overallMap = mutableMapOf<String, IdentifierData>()
+        for (table in iterator()) {
+            table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+        }
+        return overallMap.toList().randomOrNull(Random)
+    }
+
+    fun getRandomMutableVariable(): Pair<String, IdentifierData>? {
+        val overallMap = mutableMapOf<String, IdentifierData>()
+        for (table in iterator()) {
+            table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+        }
+        return overallMap.toList().filter { it.second.mutable }.randomOrNull(Random)
     }
 
     fun getRandomVariableOfType(type: Type): Pair<String, IdentifierData>? {

@@ -22,6 +22,7 @@ data class ExpressionStatement(
 
 @GenNode
 data class Declaration(
+    val mutable: Boolean,
     val type: Type,
     val variableName: String,
     val value: Expression,
@@ -29,7 +30,7 @@ data class Declaration(
 ) : Statement {
 
     override fun toRust(): String {
-        return "let mut $variableName: ${type.toRust()} = ${value.toRust()};"
+        return "let ${if (mutable) "mut" else ""} $variableName: ${type.toRust()} = ${value.toRust()};"
     }
 }
 

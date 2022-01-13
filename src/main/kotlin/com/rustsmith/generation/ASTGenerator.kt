@@ -37,21 +37,21 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateDeclaration(selectionManager: SelectionManager): Declaration {
         val declarationType = generateType(selectionManager)
-        return generateDependantDeclarationOfType(declarationType, selectionManager)
+        return generateDependantDeclarationOfType(declarationType, selectionManager=selectionManager)
     }
 
-    private fun generateDependantDeclarationOfType(type: Type, selectionManager: SelectionManager): Declaration {
+    private fun generateDependantDeclarationOfType(type: Type, mutable: Boolean = Random.nextBoolean(), selectionManager: SelectionManager): Declaration {
         val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, selectionManager.incrementCount(Declaration::class))
-        symbolTable[variableName] = IdentifierData(type)
-        return Declaration(type, variableName, expression, symbolTable)
+        symbolTable[variableName] = IdentifierData(type, mutable)
+        return Declaration(mutable, type, variableName, expression, symbolTable)
     }
 
     override fun generateAssignment(selectionManager: SelectionManager): Assignment {
-        val value = symbolTable.getRandomVariable()
+        val value = symbolTable.getRandomMutableVariable()
         return if (value == null) {
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDeclaration(selectionManager.incrementCount(Assignment::class))
+            val declaration = generateDependantDeclarationOfType(generateType(selectionManager), true, selectionManager.incrementCount(Assignment::class))
             statements.add(declaration)
             val expression = generateExpression(declaration.type, selectionManager.incrementCount(Assignment::class))
             Assignment(declaration.variableName, expression, symbolTable)
@@ -108,7 +108,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val value = symbolTable.getRandomVariableOfType(type)
         return if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDependantDeclarationOfType(type, selectionManager.incrementCount(Variable::class))
+            val declaration = generateDependantDeclarationOfType(type, selectionManager=selectionManager.incrementCount(Variable::class))
             statements.add(declaration)
             Variable(declaration.variableName, symbolTable)
         } else {
@@ -243,7 +243,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
                 ASTGenerator(SymbolTable(null, symbolTable.functionSymbolTable))(selectionManager.incrementCount(FunctionCallExpression::class), returnType)
             )
         val functionType = FunctionType(returnType, argTypes)
-        symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType)
+        symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType, false)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
     }
