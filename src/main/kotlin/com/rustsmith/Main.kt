@@ -19,7 +19,7 @@ import kotlin.random.Random as Random1
 lateinit var Random: Random1
 
 class RustSmith : CliktCommand() {
-    private val count: Int by option(help = "Number of files to generate", names = arrayOf("-n", "-count")).int().default(100)
+    private val count: Int by option(help = "Number of files to generate", names = arrayOf("-n", "-count")).int().default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")

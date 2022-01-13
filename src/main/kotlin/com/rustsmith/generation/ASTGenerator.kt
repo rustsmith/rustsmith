@@ -67,27 +67,6 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return ChainedStatement(s1, s2, symbolTable)
     }
 
-//    override fun generateFunctionCallExpression(selectionManager: SelectionManager): FunctionCallExpression {
-//        return generateFunctionCallExpression(VoidType, selectionManager)
-//    }
-//
-//    override fun generateBlockExpression(selectionManager: SelectionManager): BlockExpression {
-//        return BlockExpression(
-//            ASTGenerator(symbolTable.enterScope())(selectionManager.incrementCount(BlockExpression::class)),
-//            null,
-//            symbolTable
-//        )
-//    }
-//
-//    override fun generateIfElseExpression(selectionManager: SelectionManager): IfElseExpression {
-//        return IfElseExpression(
-//            generateExpression(BoolType, selectionManager.incrementCount(IfElseExpression::class)),
-//            generateBlockExpression(selectionManager.incrementCount(IfElseExpression::class)),
-//            generateBlockExpression(selectionManager.incrementCount(IfElseExpression::class)),
-//            symbolTable
-//        )
-//    }
-
     /** Expression generation **/
 
     override fun selectRandomExpression(type: Type, selectionManager: SelectionManager): KClass<out Expression> {
