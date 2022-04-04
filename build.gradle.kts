@@ -20,10 +20,10 @@ tasks.withType<KotlinCompile> {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.0")
-    implementation("com.github.ajalt.clikt:clikt:3.3.0")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1")
-    implementation("com.squareup:kotlinpoet:1.10.2")
-    implementation("me.tongfei:progressbar:0.9.2")
+    implementation("com.github.ajalt.clikt:clikt:3.4.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2")
+    implementation("com.squareup:kotlinpoet:1.11.0")
+    implementation("me.tongfei:progressbar:0.9.3")
 }
 
 tasks.jar {

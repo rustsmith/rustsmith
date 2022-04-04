@@ -32,7 +32,7 @@ interface SelectionManager {
 
     fun availableStatementsWeightings(ctx: Context): SelectionWeighting<KClass<out Statement>>
 
-    fun availableExpressionsWeightings(ctx: Context, type: Type):  SelectionWeighting<KClass<out Expression>>
+    fun availableExpressionsWeightings(ctx: Context, type: Type): SelectionWeighting<KClass<out Expression>>
 
     fun availableTypesWeightings(ctx: Context): Map<KClass<out Type>, Double>
 }

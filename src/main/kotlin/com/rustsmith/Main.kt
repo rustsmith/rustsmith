@@ -9,7 +9,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import com.rustsmith.ast.generateProgram
 import com.rustsmith.generation.IdentGenerator
-import com.rustsmith.generation.selection.BaseSelectionManager
+import com.rustsmith.generation.selection.OptimalSelectionManager
 import com.rustsmith.generation.selection.SelectionManager
 import com.rustsmith.recondition.Reconditioner
 import me.tongfei.progressbar.ProgressBarBuilder
@@ -33,7 +33,7 @@ class RustSmith : CliktCommand() {
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
     override fun run() {
-        selectionManager = BaseSelectionManager()
+        selectionManager = OptimalSelectionManager()
 
         if (!print) {
             File(directory).deleteRecursively()

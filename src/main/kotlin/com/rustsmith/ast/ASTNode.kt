@@ -18,7 +18,7 @@ data class FunctionDefinition(
 ) : ASTNode {
     override fun toRust(): String {
         return "fn $functionName(${
-        arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
+            arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
         }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
 }

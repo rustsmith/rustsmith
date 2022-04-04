@@ -11,7 +11,7 @@ import kotlin.reflect.full.isSubclassOf
  * Base Selection Manager where each option is associated with an equal weighting to choose from
  *
  */
-open class BaseSelectionManager: SelectionManager {
+open class BaseSelectionManager : SelectionManager {
 
     // Config describes what limit each specific ASTNode should have in terms of depth
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(

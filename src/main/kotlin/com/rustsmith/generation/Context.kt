@@ -1,9 +1,14 @@
 package com.rustsmith.generation
 
-import com.rustsmith.ast.*
+import com.rustsmith.ast.ASTNode
+import com.rustsmith.ast.SymbolTable
 import kotlin.reflect.KClass
 
-data class Context(val state: Map<KClass<out ASTNode>, Int>, val statementDepth: List<Int>, val symbolTable: SymbolTable) {
+data class Context(
+    val state: Map<KClass<out ASTNode>, Int>,
+    val statementDepth: List<Int>,
+    val symbolTable: SymbolTable
+) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
 
