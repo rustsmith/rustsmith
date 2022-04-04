@@ -35,7 +35,11 @@ data class Declaration(
 }
 
 @GenNode
-data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) :
+data class Assignment(
+    val variableName: String,
+    val value: Expression,
+    override val symbolTable: SymbolTable
+) :
     Statement {
 
     override fun toRust(): String {
@@ -43,20 +47,28 @@ data class Assignment(val variableName: String, val value: Expression, override 
     }
 }
 
-@GenNode(1)
-data class ChainedStatement(val s1: Statement, val s2: Statement, override val symbolTable: SymbolTable) : Statement {
+// @GenNode(1)
+// data class ChainedStatement(val s1: Statement, val s2: Statement, override val symbolTable: SymbolTable) : Statement {
+//
+//    companion object {
+//        fun createFromList(statements: List<Statement>, symbolTable: SymbolTable): Statement {
+//            if (statements.size == 1) {
+//                return statements.first()
+//            }
+//            return ChainedStatement(statements.first(), createFromList(statements.drop(1), symbolTable), symbolTable)
+//        }
+//    }
+//
+//    override fun toRust(): String {
+//        return "${s1.toRust()}\n${s2.toRust()}"
+//    }
+// }
 
-    companion object {
-        fun createFromList(statements: List<Statement>, symbolTable: SymbolTable): Statement {
-            if (statements.size == 1) {
-                return statements.first()
-            }
-            return ChainedStatement(statements.first(), createFromList(statements.drop(1), symbolTable), symbolTable)
-        }
-    }
+@GenNode
+data class StatementBlock(val statements: List<Statement>, val symbolTable: SymbolTable) : ASTNode {
 
     override fun toRust(): String {
-        return "${s1.toRust()}\n${s2.toRust()}"
+        return statements.joinToString("\n") { it.toRust() }
     }
 }
 

@@ -23,7 +23,8 @@ class FunctionSymbolTable {
     val functions = mutableListOf<FunctionDefinition>()
 
     fun getRandomFunctionOfType(type: Type): Pair<String, IdentifierData>? {
-        return symbolMap.toList().filter { (it.second.type as FunctionType).returnType == type }.randomOrNull(Random)
+        return symbolMap.toList().filter { (it.second.type as FunctionType).returnType == type }
+            .randomOrNull(Random)
     }
 
     operator fun get(key: String): IdentifierData? {
@@ -39,7 +40,8 @@ class FunctionSymbolTable {
     }
 }
 
-data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: FunctionSymbolTable) : Iterable<SymbolTable> {
+data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: FunctionSymbolTable) :
+    Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
 
     operator fun get(key: String): IdentifierData? {
@@ -53,6 +55,10 @@ data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: Functi
 
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
+    }
+
+    fun getLocalVariables(): Set<String> {
+        return symbolMap.keys
     }
 
     fun getCurrentVariables(): Set<String> {

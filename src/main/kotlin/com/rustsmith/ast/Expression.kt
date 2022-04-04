@@ -85,7 +85,8 @@ data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTa
 }
 
 @ExpressionGenNode(TupleType::class)
-data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) : Expression {
+data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) :
+    Expression {
 
     override fun toRust(): String {
         return "(${values.joinToString(",") { it.toRust() }})"
@@ -246,7 +247,7 @@ data class FunctionCallExpression(
 
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
-    val statement: Statement,
+    val statement: StatementBlock,
     val type: Type?,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression {
@@ -276,21 +277,30 @@ data class WrappingAdd(val addExpression: AddExpression, override val symbolTabl
     }
 }
 
-data class WrappingMul(val multiplyExpression: MultiplyExpression, override val symbolTable: SymbolTable) :
+data class WrappingMul(
+    val multiplyExpression: MultiplyExpression,
+    override val symbolTable: SymbolTable
+) :
     ReconditionedExpression {
     override fun toRust(): String {
         return "${multiplyExpression.expr1.toRust()}.wrapping_mul(${multiplyExpression.expr2.toRust()})"
     }
 }
 
-data class WrappingSubtract(val subtractExpression: SubtractExpression, override val symbolTable: SymbolTable) :
+data class WrappingSubtract(
+    val subtractExpression: SubtractExpression,
+    override val symbolTable: SymbolTable
+) :
     ReconditionedExpression {
     override fun toRust(): String {
         return "${subtractExpression.expr1.toRust()}.wrapping_sub(${subtractExpression.expr2.toRust()})"
     }
 }
 
-data class ReconditionedDivision(val divideExpression: DivideExpression, override val symbolTable: SymbolTable) :
+data class ReconditionedDivision(
+    val divideExpression: DivideExpression,
+    override val symbolTable: SymbolTable
+) :
     ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (divideExpression.expr1.toType() as NumberType).zero(symbolTable)
@@ -298,7 +308,10 @@ data class ReconditionedDivision(val divideExpression: DivideExpression, overrid
     }
 }
 
-data class ReconditionedMod(val modExpression: ModExpression, override val symbolTable: SymbolTable) :
+data class ReconditionedMod(
+    val modExpression: ModExpression,
+    override val symbolTable: SymbolTable
+) :
     ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (modExpression.expr1.toType() as NumberType).zero(symbolTable)

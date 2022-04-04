@@ -3,217 +3,318 @@ package com.rustsmith.generation
 import AbstractASTGenerator
 import com.rustsmith.Random
 import com.rustsmith.ast.*
+import com.rustsmith.generation.selection.randomByWeights
+import com.rustsmith.selectionManager
 import java.math.BigInteger
 import kotlin.random.asJavaRandom
 import kotlin.reflect.KClass
 
 class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator {
-    private val statements = mutableListOf<Statement>()
+    private val dependantStatements = mutableListOf<Statement>()
 
-    private fun combineStatementWithDependencies(statement: Statement): Statement {
-        return if (statements.isEmpty()) {
-            statement
-        } else {
-            ChainedStatement(ChainedStatement.createFromList(statements, symbolTable), statement, symbolTable)
+    operator fun invoke(ctx: Context, type: Type = VoidType): StatementBlock {
+        var currentSelectionManager = ctx.enterScope()
+        val statements = mutableListOf<Statement>()
+        while(selectionManager.createNewStatementWeightings(currentSelectionManager).randomByWeights()) {
+            val statement = generateStatement(currentSelectionManager)
+            statements.addAll(dependantStatements)
+            statements.add(statement)
+            dependantStatements.clear()
+            currentSelectionManager = currentSelectionManager.incrementStatementCount()
         }
-    }
-
-    operator fun invoke(selectionManager: SelectionManager, type: Type = VoidType): Statement {
-        val statement = generateStatement(selectionManager)
-        val finalStatement = combineStatementWithDependencies(statement)
-        statements.clear()
-        return if (type == VoidType) finalStatement else ChainedStatement(finalStatement, combineStatementWithDependencies(generateExpression(type, selectionManager).toStatement(false)), symbolTable)
+        val statementsWithDependants = dependantStatements + statements
+        return if (type == VoidType) {
+            StatementBlock(statementsWithDependants, symbolTable)
+        } else {
+            val finalExpression =
+                generateExpression(type, currentSelectionManager).toStatement(false)
+            StatementBlock(
+                statementsWithDependants + (dependantStatements + finalExpression),
+                symbolTable
+            )
+        }
     }
 
     /** Statement Generation **/
 
-    override fun selectRandomStatement(selectionManager: SelectionManager): KClass<out Statement> {
-        return selectionManager.availableStatements().random(Random)
+    override fun selectRandomStatement(ctx: Context): KClass<out Statement> {
+        return selectionManager.availableStatementsWeightings(ctx).randomByWeights()
     }
 
-    override fun generateExpressionStatement(selectionManager: SelectionManager): ExpressionStatement {
-        return ExpressionStatement(generateExpression(generateType(selectionManager), selectionManager), true, symbolTable)
+    override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
+        return ExpressionStatement(
+            generateExpression(
+                generateType(ctx),
+                ctx
+            ),
+            true, symbolTable
+        )
     }
 
-    override fun generateDeclaration(selectionManager: SelectionManager): Declaration {
-        val declarationType = generateType(selectionManager)
-        return generateDependantDeclarationOfType(declarationType, selectionManager=selectionManager)
+    override fun generateDeclaration(ctx: Context): Declaration {
+        val declarationType = generateType(ctx)
+        return generateDependantDeclarationOfType(
+            declarationType,
+            ctx = ctx
+        )
     }
 
-    private fun generateDependantDeclarationOfType(type: Type, mutable: Boolean = Random.nextBoolean(), selectionManager: SelectionManager): Declaration {
+    private fun generateDependantDeclarationOfType(
+        type: Type,
+        mutable: Boolean = Random.nextBoolean(),
+        ctx: Context
+    ): Declaration {
         val variableName = IdentGenerator.generateVariable()
-        val expression = generateExpression(type, selectionManager.incrementCount(Declaration::class))
+        val expression =
+            generateExpression(type, ctx.incrementCount(Declaration::class))
         symbolTable[variableName] = IdentifierData(type, mutable)
         return Declaration(mutable, type, variableName, expression, symbolTable)
     }
 
-    override fun generateAssignment(selectionManager: SelectionManager): Assignment {
+    override fun generateAssignment(ctx: Context): Assignment {
         val value = symbolTable.getRandomMutableVariable()
         return if (value == null) {
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDependantDeclarationOfType(generateType(selectionManager), true, selectionManager.incrementCount(Assignment::class))
-            statements.add(declaration)
-            val expression = generateExpression(declaration.type, selectionManager.incrementCount(Assignment::class))
+            val declaration = generateDependantDeclarationOfType(
+                generateType(ctx),
+                true,
+                ctx.incrementCount(Assignment::class)
+            )
+            dependantStatements.add(declaration)
+            val expression = generateExpression(
+                declaration.type,
+                ctx.incrementCount(Assignment::class)
+            )
             Assignment(declaration.variableName, expression, symbolTable)
         } else {
-            val expression = generateExpression(value.second.type, selectionManager.incrementCount(Assignment::class))
+            val expression = generateExpression(
+                value.second.type,
+                ctx.incrementCount(Assignment::class)
+            )
             Assignment(value.first, expression, symbolTable)
         }
     }
 
-    override fun generateChainedStatement(selectionManager: SelectionManager): ChainedStatement {
-        val s1 = ASTGenerator(symbolTable)(selectionManager.incrementCount(ChainedStatement::class))
-        val s2 = ASTGenerator(symbolTable)(selectionManager.incrementCount(ChainedStatement::class))
-        return ChainedStatement(s1, s2, symbolTable)
-    }
-
     /** Expression generation **/
 
-    override fun selectRandomExpression(type: Type, selectionManager: SelectionManager): KClass<out Expression> {
-        return selectionManager.availableExpressions(type).random(Random)
+    override fun selectRandomExpression(
+        type: Type,
+        ctx: Context
+    ): KClass<out Expression> {
+        return selectionManager.availableExpressionsWeightings(ctx, type).randomByWeights()
     }
 
-    override fun generateInt8Literal(type: Type, selectionManager: SelectionManager): Int8Literal =
+    override fun generateInt8Literal(type: Type, ctx: Context): Int8Literal =
         Int8Literal(Random.nextBits(7), symbolTable)
 
-    override fun generateInt16Literal(type: Type, selectionManager: SelectionManager): Int16Literal =
+    override fun generateInt16Literal(
+        type: Type,
+        ctx: Context
+    ): Int16Literal =
         Int16Literal(Random.nextBits(15), symbolTable)
 
-    override fun generateInt32Literal(type: Type, selectionManager: SelectionManager): Int32Literal =
+    override fun generateInt32Literal(
+        type: Type,
+        ctx: Context
+    ): Int32Literal =
         Int32Literal(Random.nextInt(), symbolTable)
 
-    override fun generateInt64Literal(type: Type, selectionManager: SelectionManager): Int64Literal =
+    override fun generateInt64Literal(
+        type: Type,
+        ctx: Context
+    ): Int64Literal =
         Int64Literal(Random.nextLong(), symbolTable)
 
-    override fun generateInt128Literal(type: Type, selectionManager: SelectionManager): Int128Literal =
+    override fun generateInt128Literal(
+        type: Type,
+        ctx: Context
+    ): Int128Literal =
         Int128Literal(BigInteger(127, Random.asJavaRandom()), symbolTable)
 
-    override fun generateFloat32Literal(type: Type, selectionManager: SelectionManager): Float32Literal =
+    override fun generateFloat32Literal(
+        type: Type,
+        ctx: Context
+    ): Float32Literal =
         Float32Literal(Random.nextFloat(), symbolTable)
 
-    override fun generateFloat64Literal(type: Type, selectionManager: SelectionManager): Float64Literal =
+    override fun generateFloat64Literal(
+        type: Type,
+        ctx: Context
+    ): Float64Literal =
         Float64Literal(Random.nextDouble(), symbolTable)
 
-    override fun generateBooleanLiteral(type: Type, selectionManager: SelectionManager): BooleanLiteral =
+    override fun generateBooleanLiteral(
+        type: Type,
+        ctx: Context
+    ): BooleanLiteral =
         BooleanLiteral(Random.nextBoolean(), symbolTable)
 
-    override fun generateTupleLiteral(type: Type, selectionManager: SelectionManager): TupleLiteral {
+    override fun generateTupleLiteral(
+        type: Type,
+        ctx: Context
+    ): TupleLiteral {
         if (type is TupleType) {
-            return TupleLiteral(type.types.map { generateExpression(it, selectionManager.incrementCount(TupleLiteral::class)) }, symbolTable)
+            return TupleLiteral(
+                type.types.map {
+                    generateExpression(
+                        it,
+                        ctx.incrementCount(TupleLiteral::class)
+                    )
+                },
+                symbolTable
+            )
         }
         throw Exception("Incompatible Type")
     }
 
-    override fun generateVariable(type: Type, selectionManager: SelectionManager): Variable {
+    override fun generateVariable(type: Type, ctx: Context): Variable {
         val value = symbolTable.getRandomVariableOfType(type)
         return if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDependantDeclarationOfType(type, selectionManager=selectionManager.incrementCount(Variable::class))
-            statements.add(declaration)
+            val declaration = generateDependantDeclarationOfType(
+                type,
+                ctx = ctx.incrementCount(Variable::class)
+            )
+
+            dependantStatements.add(declaration)
             Variable(declaration.variableName, symbolTable)
         } else {
             Variable(value.first, symbolTable)
         }
     }
 
-    override fun generateGroupedExpression(type: Type, selectionManager: SelectionManager): GroupedExpression =
+    override fun generateGroupedExpression(
+        type: Type,
+        ctx: Context
+    ): GroupedExpression =
         GroupedExpression(
-            generateExpression(type, selectionManager.incrementCount(GroupedExpression::class)),
+            generateExpression(type, ctx.incrementCount(GroupedExpression::class)),
             symbolTable
         )
 
-    override fun generateBlockExpression(type: Type, selectionManager: SelectionManager): BlockExpression {
+    override fun generateBlockExpression(
+        type: Type,
+        ctx: Context
+    ): BlockExpression {
         val newScope = symbolTable.enterScope()
-        val body = ASTGenerator(newScope)(selectionManager.incrementCount(BlockExpression::class), type)
+        val body =
+            ASTGenerator(newScope)(ctx.incrementCount(BlockExpression::class).withSymbolTable(newScope), type)
         return BlockExpression(body, type, symbolTable)
     }
 
-    override fun generateIfElseExpression(type: Type, selectionManager: SelectionManager): IfElseExpression {
+    override fun generateIfElseExpression(
+        type: Type,
+        ctx: Context
+    ): IfElseExpression {
         return IfElseExpression(
-            generateExpression(BoolType, selectionManager.incrementCount(IfElseExpression::class)),
-            generateBlockExpression(type, selectionManager.incrementCount(IfElseExpression::class)),
-            generateBlockExpression(type, selectionManager.incrementCount(IfElseExpression::class)),
+            generateExpression(BoolType, ctx.incrementCount(IfElseExpression::class)),
+            generateBlockExpression(type, ctx.incrementCount(IfElseExpression::class)),
+            generateBlockExpression(type, ctx.incrementCount(IfElseExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateAddExpression(type: Type, selectionManager: SelectionManager): AddExpression {
+    override fun generateAddExpression(
+        type: Type,
+        ctx: Context
+    ): AddExpression {
         return AddExpression(
-            generateExpression(type, selectionManager.incrementCount(AddExpression::class)),
-            generateExpression(type, selectionManager.incrementCount(AddExpression::class)),
+            generateExpression(type, ctx.incrementCount(AddExpression::class)),
+            generateExpression(type, ctx.incrementCount(AddExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateSubtractExpression(type: Type, selectionManager: SelectionManager): SubtractExpression {
+    override fun generateSubtractExpression(
+        type: Type,
+        ctx: Context
+    ): SubtractExpression {
         return SubtractExpression(
-            generateExpression(type, selectionManager.incrementCount(SubtractExpression::class)),
-            generateExpression(type, selectionManager.incrementCount(SubtractExpression::class)),
+            generateExpression(type, ctx.incrementCount(SubtractExpression::class)),
+            generateExpression(type, ctx.incrementCount(SubtractExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateDivideExpression(type: Type, selectionManager: SelectionManager): DivideExpression {
+    override fun generateDivideExpression(
+        type: Type,
+        ctx: Context
+    ): DivideExpression {
         return DivideExpression(
-            generateExpression(type, selectionManager.incrementCount(DivideExpression::class)),
-            generateExpression(type, selectionManager.incrementCount(DivideExpression::class)),
+            generateExpression(type, ctx.incrementCount(DivideExpression::class)),
+            generateExpression(type, ctx.incrementCount(DivideExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateMultiplyExpression(type: Type, selectionManager: SelectionManager): MultiplyExpression {
+    override fun generateMultiplyExpression(
+        type: Type,
+        ctx: Context
+    ): MultiplyExpression {
         return MultiplyExpression(
-            generateExpression(type, selectionManager.incrementCount(MultiplyExpression::class)),
-            generateExpression(type, selectionManager.incrementCount(MultiplyExpression::class)),
+            generateExpression(type, ctx.incrementCount(MultiplyExpression::class)),
+            generateExpression(type, ctx.incrementCount(MultiplyExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateModExpression(type: Type, selectionManager: SelectionManager): ModExpression {
+    override fun generateModExpression(
+        type: Type,
+        ctx: Context
+    ): ModExpression {
         return ModExpression(
-            generateExpression(type, selectionManager.incrementCount(ModExpression::class)),
-            generateExpression(type, selectionManager.incrementCount(ModExpression::class)),
+            generateExpression(type, ctx.incrementCount(ModExpression::class)),
+            generateExpression(type, ctx.incrementCount(ModExpression::class)),
             symbolTable
         )
     }
 
-    override fun generateBitwiseAndLogicalAnd(type: Type, selectionManager: SelectionManager): BitwiseAndLogicalAnd {
+    override fun generateBitwiseAndLogicalAnd(
+        type: Type,
+        ctx: Context
+    ): BitwiseAndLogicalAnd {
         return BitwiseAndLogicalAnd(
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalAnd::class)),
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalAnd::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalAnd::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalAnd::class)),
             symbolTable
         )
     }
 
-    override fun generateBitwiseAndLogicalOr(type: Type, selectionManager: SelectionManager): BitwiseAndLogicalOr {
+    override fun generateBitwiseAndLogicalOr(
+        type: Type,
+        ctx: Context
+    ): BitwiseAndLogicalOr {
         return BitwiseAndLogicalOr(
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalOr::class)),
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalOr::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalOr::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalOr::class)),
             symbolTable
         )
     }
 
-    override fun generateBitwiseAndLogicalXor(type: Type, selectionManager: SelectionManager): BitwiseAndLogicalXor {
+    override fun generateBitwiseAndLogicalXor(
+        type: Type,
+        ctx: Context
+    ): BitwiseAndLogicalXor {
         return BitwiseAndLogicalXor(
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalXor::class)),
-            generateExpression(type, selectionManager.incrementCount(BitwiseAndLogicalXor::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalXor::class)),
+            generateExpression(type, ctx.incrementCount(BitwiseAndLogicalXor::class)),
             symbolTable
         )
     }
 
     override fun generateFunctionCallExpression(
         type: Type,
-        selectionManager: SelectionManager
+        ctx: Context
     ): FunctionCallExpression {
         val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
         if (functionData == null) {
-            val newFunctionType = generateFunction(type, selectionManager)
+            val newFunctionType = generateFunction(type, ctx)
             return FunctionCallExpression(
                 newFunctionType.first,
                 newFunctionType.second.args.map {
                     generateExpression(
                         it,
-                        selectionManager.incrementCount(FunctionCallExpression::class)
+                        ctx.incrementCount(FunctionCallExpression::class)
                     )
                 },
                 symbolTable
@@ -224,7 +325,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
                 (functionData.second.type as FunctionType).args.map {
                     generateExpression(
                         it,
-                        selectionManager.incrementCount(FunctionCallExpression::class)
+                        ctx.incrementCount(FunctionCallExpression::class)
                     )
                 },
                 symbolTable
@@ -232,47 +333,59 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         }
     }
 
-    private fun generateFunction(returnType: Type, selectionManager: SelectionManager): Pair<String, FunctionType> {
+    private fun generateFunction(
+        returnType: Type,
+        ctx: Context
+    ): Pair<String, FunctionType> {
         val numArgs = Random.nextInt(5)
-        val argTypes = (0 until numArgs).map { generateType(selectionManager.incrementCount(FunctionType::class)) }
+        val argTypes =
+            (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
+        val symbolTableForFunction = SymbolTable(
+            null,
+            symbolTable.functionSymbolTable
+        )
         val functionDefinition =
             FunctionDefinition(
                 returnType,
                 IdentGenerator.generateFunctionName(),
                 argTypes.associateBy { IdentGenerator.generateVariable() },
-                ASTGenerator(SymbolTable(null, symbolTable.functionSymbolTable))(selectionManager.incrementCount(FunctionCallExpression::class), returnType)
+                ASTGenerator(
+                    symbolTableForFunction
+                )(ctx.incrementCount(FunctionCallExpression::class).withSymbolTable(symbolTableForFunction), returnType)
             )
         val functionType = FunctionType(returnType, argTypes)
-        symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType, false)
+        symbolTable.functionSymbolTable[functionDefinition.functionName] =
+            IdentifierData(functionType, false)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
     }
 
     /** Type generators **/
 
-    override fun selectRandomType(selectionManager: SelectionManager): KClass<out Type> {
-        return selectionManager.availableTypes().random(Random)
+    override fun selectRandomType(ctx: Context): KClass<out Type> {
+        return selectionManager.availableTypesWeightings(ctx).randomByWeights()
     }
 
-    override fun generateBoolType(selectionManager: SelectionManager) = BoolType
+    override fun generateBoolType(ctx: Context) = BoolType
 
-    override fun generateI8Type(selectionManager: SelectionManager) = I8Type
+    override fun generateI8Type(ctx: Context) = I8Type
 
-    override fun generateI16Type(selectionManager: SelectionManager) = I16Type
+    override fun generateI16Type(ctx: Context) = I16Type
 
-    override fun generateI32Type(selectionManager: SelectionManager) = I32Type
+    override fun generateI32Type(ctx: Context) = I32Type
 
-    override fun generateI64Type(selectionManager: SelectionManager) = I64Type
+    override fun generateI64Type(ctx: Context) = I64Type
 
-    override fun generateI128Type(selectionManager: SelectionManager) = I128Type
+    override fun generateI128Type(ctx: Context) = I128Type
 
-    override fun generateF32Type(selectionManager: SelectionManager) = F32Type
+    override fun generateF32Type(ctx: Context) = F32Type
 
-    override fun generateF64Type(selectionManager: SelectionManager) = F64Type
+    override fun generateF64Type(ctx: Context) = F64Type
 
-    override fun generateTupleType(selectionManager: SelectionManager): TupleType {
+    override fun generateTupleType(ctx: Context): TupleType {
         val numArgs = Random.nextInt(1, 5)
-        val argTypes = (0 until numArgs).map { generateType(selectionManager.incrementCount(TupleType::class)) }
+        val argTypes =
+            (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) }
         return TupleType(argTypes)
     }
 }

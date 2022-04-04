@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.rustsmith.generation.ASTGenerator
-import com.rustsmith.generation.SelectionManager
+import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
@@ -14,14 +14,20 @@ data class FunctionDefinition(
     val returnType: Type = VoidType,
     val functionName: String,
     val arguments: Map<String, Type>,
-    val body: Statement
+    val body: StatementBlock
 ) : ASTNode {
     override fun toRust(): String {
-        return "fn $functionName(${arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")}) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
+        return "fn $functionName(${
+        arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
+        }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
 }
 
-data class Program(val seed: Long, val structs: List<Any> = emptyList(), val functions: List<FunctionDefinition>) :
+data class Program(
+    val seed: Long,
+    val structs: List<Any> = emptyList(),
+    val functions: List<FunctionDefinition>
+) :
     ASTNode {
     override fun toRust(): String {
         return "#![allow(warnings, unused, unconditional_panic)]\n${functions.joinToString("\n") { it.toRust() }}"
@@ -31,15 +37,13 @@ data class Program(val seed: Long, val structs: List<Any> = emptyList(), val fun
 fun generateProgram(programSeed: Long): Program {
     val functionSymbolTable = FunctionSymbolTable()
     val symbolTable = SymbolTable(null, functionSymbolTable)
-    val body = ChainedStatement(
-        ASTGenerator(symbolTable)(SelectionManager(mapOf())),
-        Output(symbolTable, programSeed),
-        symbolTable
-    )
+    val body = ASTGenerator(symbolTable)(Context(mapOf(), listOf(), symbolTable))
+    val bodyWithOutput =
+        StatementBlock(body.statements + Output(symbolTable, programSeed), symbolTable)
     val mainFunction = FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
-        body = body
+        body = bodyWithOutput
     )
     return Program(programSeed, emptyList(), functionSymbolTable.functions + mainFunction)
 }

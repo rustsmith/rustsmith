@@ -1,179 +1,126 @@
-import com.rustsmith.ast.AddExpression
-import com.rustsmith.ast.Assignment
-import com.rustsmith.ast.BitwiseAndLogicalAnd
-import com.rustsmith.ast.BitwiseAndLogicalOr
-import com.rustsmith.ast.BitwiseAndLogicalXor
-import com.rustsmith.ast.BlockExpression
-import com.rustsmith.ast.BoolType
-import com.rustsmith.ast.BooleanLiteral
-import com.rustsmith.ast.ChainedStatement
-import com.rustsmith.ast.Declaration
-import com.rustsmith.ast.DivideExpression
-import com.rustsmith.ast.Expression
-import com.rustsmith.ast.ExpressionStatement
-import com.rustsmith.ast.F32Type
-import com.rustsmith.ast.F64Type
-import com.rustsmith.ast.Float32Literal
-import com.rustsmith.ast.Float64Literal
-import com.rustsmith.ast.FunctionCallExpression
-import com.rustsmith.ast.GroupedExpression
-import com.rustsmith.ast.I128Type
-import com.rustsmith.ast.I16Type
-import com.rustsmith.ast.I32Type
-import com.rustsmith.ast.I64Type
-import com.rustsmith.ast.I8Type
-import com.rustsmith.ast.IfElseExpression
-import com.rustsmith.ast.Int128Literal
-import com.rustsmith.ast.Int16Literal
-import com.rustsmith.ast.Int32Literal
-import com.rustsmith.ast.Int64Literal
-import com.rustsmith.ast.Int8Literal
-import com.rustsmith.ast.ModExpression
-import com.rustsmith.ast.MultiplyExpression
-import com.rustsmith.ast.Statement
-import com.rustsmith.ast.SubtractExpression
-import com.rustsmith.ast.TupleLiteral
-import com.rustsmith.ast.TupleType
-import com.rustsmith.ast.Type
-import com.rustsmith.ast.Variable
-import com.rustsmith.generation.SelectionManager
+import com.rustsmith.ast.*
+import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
-public interface AbstractASTGenerator {
-    public fun generateExpressionStatement(selectionManager: SelectionManager): ExpressionStatement
+interface AbstractASTGenerator {
+    fun generateExpressionStatement(ctx: Context): ExpressionStatement
 
-    public fun generateDeclaration(selectionManager: SelectionManager): Declaration
+    fun generateDeclaration(ctx: Context): Declaration
 
-    public fun generateAssignment(selectionManager: SelectionManager): Assignment
+    fun generateAssignment(ctx: Context): Assignment
 
-    public fun generateChainedStatement(selectionManager: SelectionManager): ChainedStatement
+    fun selectRandomStatement(ctx: Context): KClass<out Statement>
 
-    public fun selectRandomStatement(selectionManager: SelectionManager): KClass<out Statement>
+    fun generateStatement(ctx: Context): Statement = when (selectRandomStatement(ctx)) {
+        ExpressionStatement::class -> generateExpressionStatement(ctx)
+        Declaration::class -> generateDeclaration(ctx)
+        Assignment::class -> generateAssignment(ctx)
+        else -> throw Exception("Unrecognized type")
+    }
 
-    public fun generateStatement(selectionManager: SelectionManager): Statement =
-        when (selectRandomStatement(selectionManager)) {
-            ExpressionStatement::class -> generateExpressionStatement(selectionManager)
-            Declaration::class -> generateDeclaration(selectionManager)
-            Assignment::class -> generateAssignment(selectionManager)
-            ChainedStatement::class -> generateChainedStatement(selectionManager)
+    fun generateInt8Literal(type: Type, ctx: Context): Int8Literal
+
+    fun generateInt16Literal(type: Type, ctx: Context): Int16Literal
+
+    fun generateInt32Literal(type: Type, ctx: Context): Int32Literal
+
+    fun generateInt64Literal(type: Type, ctx: Context): Int64Literal
+
+    fun generateInt128Literal(type: Type, ctx: Context): Int128Literal
+
+    fun generateFloat32Literal(type: Type, ctx: Context): Float32Literal
+
+    fun generateFloat64Literal(type: Type, ctx: Context): Float64Literal
+
+    fun generateBooleanLiteral(type: Type, ctx: Context): BooleanLiteral
+
+    fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral
+
+    fun generateVariable(type: Type, ctx: Context): Variable
+
+    fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
+
+    fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
+
+    fun generateBlockExpression(type: Type, ctx: Context): BlockExpression
+
+    fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression
+
+    fun generateAddExpression(type: Type, ctx: Context): AddExpression
+
+    fun generateSubtractExpression(type: Type, ctx: Context): SubtractExpression
+
+    fun generateDivideExpression(type: Type, ctx: Context): DivideExpression
+
+    fun generateMultiplyExpression(type: Type, ctx: Context): MultiplyExpression
+
+    fun generateModExpression(type: Type, ctx: Context): ModExpression
+
+    fun generateBitwiseAndLogicalAnd(type: Type, ctx: Context): BitwiseAndLogicalAnd
+
+    fun generateBitwiseAndLogicalOr(type: Type, ctx: Context): BitwiseAndLogicalOr
+
+    fun generateBitwiseAndLogicalXor(type: Type, ctx: Context): BitwiseAndLogicalXor
+
+    fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression>
+
+    fun generateExpression(type: Type, ctx: Context): Expression =
+        when (selectRandomExpression(type, ctx)) {
+            Int8Literal::class -> generateInt8Literal(type, ctx)
+            Int16Literal::class -> generateInt16Literal(type, ctx)
+            Int32Literal::class -> generateInt32Literal(type, ctx)
+            Int64Literal::class -> generateInt64Literal(type, ctx)
+            Int128Literal::class -> generateInt128Literal(type, ctx)
+            Float32Literal::class -> generateFloat32Literal(type, ctx)
+            Float64Literal::class -> generateFloat64Literal(type, ctx)
+            BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
+            TupleLiteral::class -> generateTupleLiteral(type, ctx)
+            Variable::class -> generateVariable(type, ctx)
+            FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
+            GroupedExpression::class -> generateGroupedExpression(type, ctx)
+            BlockExpression::class -> generateBlockExpression(type, ctx)
+            IfElseExpression::class -> generateIfElseExpression(type, ctx)
+            AddExpression::class -> generateAddExpression(type, ctx)
+            SubtractExpression::class -> generateSubtractExpression(type, ctx)
+            DivideExpression::class -> generateDivideExpression(type, ctx)
+            MultiplyExpression::class -> generateMultiplyExpression(type, ctx)
+            ModExpression::class -> generateModExpression(type, ctx)
+            BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, ctx)
+            BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, ctx)
+            BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, ctx)
             else -> throw Exception("Unrecognized type")
         }
 
-    public fun generateInt8Literal(type: Type, selectionManager: SelectionManager): Int8Literal
+    fun generateTupleType(ctx: Context): TupleType
 
-    public fun generateInt16Literal(type: Type, selectionManager: SelectionManager): Int16Literal
+    fun generateBoolType(ctx: Context): BoolType
 
-    public fun generateInt32Literal(type: Type, selectionManager: SelectionManager): Int32Literal
+    fun generateI8Type(ctx: Context): I8Type
 
-    public fun generateInt64Literal(type: Type, selectionManager: SelectionManager): Int64Literal
+    fun generateI16Type(ctx: Context): I16Type
 
-    public fun generateInt128Literal(type: Type, selectionManager: SelectionManager): Int128Literal
+    fun generateI32Type(ctx: Context): I32Type
 
-    public fun generateFloat32Literal(type: Type, selectionManager: SelectionManager): Float32Literal
+    fun generateI64Type(ctx: Context): I64Type
 
-    public fun generateFloat64Literal(type: Type, selectionManager: SelectionManager): Float64Literal
+    fun generateI128Type(ctx: Context): I128Type
 
-    public fun generateBooleanLiteral(type: Type, selectionManager: SelectionManager): BooleanLiteral
+    fun generateF32Type(ctx: Context): F32Type
 
-    public fun generateTupleLiteral(type: Type, selectionManager: SelectionManager): TupleLiteral
+    fun generateF64Type(ctx: Context): F64Type
 
-    public fun generateVariable(type: Type, selectionManager: SelectionManager): Variable
+    fun selectRandomType(ctx: Context): KClass<out Type>
 
-    public fun generateFunctionCallExpression(type: Type, selectionManager: SelectionManager):
-        FunctionCallExpression
-
-    public fun generateGroupedExpression(type: Type, selectionManager: SelectionManager):
-        GroupedExpression
-
-    public fun generateBlockExpression(type: Type, selectionManager: SelectionManager):
-        BlockExpression
-
-    public fun generateIfElseExpression(type: Type, selectionManager: SelectionManager):
-        IfElseExpression
-
-    public fun generateAddExpression(type: Type, selectionManager: SelectionManager): AddExpression
-
-    public fun generateSubtractExpression(type: Type, selectionManager: SelectionManager):
-        SubtractExpression
-
-    public fun generateDivideExpression(type: Type, selectionManager: SelectionManager):
-        DivideExpression
-
-    public fun generateMultiplyExpression(type: Type, selectionManager: SelectionManager):
-        MultiplyExpression
-
-    public fun generateModExpression(type: Type, selectionManager: SelectionManager): ModExpression
-
-    public fun generateBitwiseAndLogicalAnd(type: Type, selectionManager: SelectionManager):
-        BitwiseAndLogicalAnd
-
-    public fun generateBitwiseAndLogicalOr(type: Type, selectionManager: SelectionManager):
-        BitwiseAndLogicalOr
-
-    public fun generateBitwiseAndLogicalXor(type: Type, selectionManager: SelectionManager):
-        BitwiseAndLogicalXor
-
-    public fun selectRandomExpression(type: Type, selectionManager: SelectionManager):
-        KClass<out Expression>
-
-    public fun generateExpression(type: Type, selectionManager: SelectionManager): Expression =
-        when (selectRandomExpression(type, selectionManager)) {
-            Int8Literal::class -> generateInt8Literal(type, selectionManager)
-            Int16Literal::class -> generateInt16Literal(type, selectionManager)
-            Int32Literal::class -> generateInt32Literal(type, selectionManager)
-            Int64Literal::class -> generateInt64Literal(type, selectionManager)
-            Int128Literal::class -> generateInt128Literal(type, selectionManager)
-            Float32Literal::class -> generateFloat32Literal(type, selectionManager)
-            Float64Literal::class -> generateFloat64Literal(type, selectionManager)
-            BooleanLiteral::class -> generateBooleanLiteral(type, selectionManager)
-            TupleLiteral::class -> generateTupleLiteral(type, selectionManager)
-            Variable::class -> generateVariable(type, selectionManager)
-            FunctionCallExpression::class -> generateFunctionCallExpression(type, selectionManager)
-            GroupedExpression::class -> generateGroupedExpression(type, selectionManager)
-            BlockExpression::class -> generateBlockExpression(type, selectionManager)
-            IfElseExpression::class -> generateIfElseExpression(type, selectionManager)
-            AddExpression::class -> generateAddExpression(type, selectionManager)
-            SubtractExpression::class -> generateSubtractExpression(type, selectionManager)
-            DivideExpression::class -> generateDivideExpression(type, selectionManager)
-            MultiplyExpression::class -> generateMultiplyExpression(type, selectionManager)
-            ModExpression::class -> generateModExpression(type, selectionManager)
-            BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, selectionManager)
-            BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, selectionManager)
-            BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, selectionManager)
-            else -> throw Exception("Unrecognized type")
-        }
-
-    public fun generateTupleType(selectionManager: SelectionManager): TupleType
-
-    public fun generateBoolType(selectionManager: SelectionManager): BoolType
-
-    public fun generateI8Type(selectionManager: SelectionManager): I8Type
-
-    public fun generateI16Type(selectionManager: SelectionManager): I16Type
-
-    public fun generateI32Type(selectionManager: SelectionManager): I32Type
-
-    public fun generateI64Type(selectionManager: SelectionManager): I64Type
-
-    public fun generateI128Type(selectionManager: SelectionManager): I128Type
-
-    public fun generateF32Type(selectionManager: SelectionManager): F32Type
-
-    public fun generateF64Type(selectionManager: SelectionManager): F64Type
-
-    public fun selectRandomType(selectionManager: SelectionManager): KClass<out Type>
-
-    public fun generateType(selectionManager: SelectionManager): Type =
-        when (selectRandomType(selectionManager)) {
-            TupleType::class -> generateTupleType(selectionManager)
-            BoolType::class -> generateBoolType(selectionManager)
-            I8Type::class -> generateI8Type(selectionManager)
-            I16Type::class -> generateI16Type(selectionManager)
-            I32Type::class -> generateI32Type(selectionManager)
-            I64Type::class -> generateI64Type(selectionManager)
-            I128Type::class -> generateI128Type(selectionManager)
-            F32Type::class -> generateF32Type(selectionManager)
-            F64Type::class -> generateF64Type(selectionManager)
-            else -> throw Exception("Unrecognized type")
-        }
+    fun generateType(ctx: Context): Type = when (selectRandomType(ctx)) {
+        TupleType::class -> generateTupleType(ctx)
+        BoolType::class -> generateBoolType(ctx)
+        I8Type::class -> generateI8Type(ctx)
+        I16Type::class -> generateI16Type(ctx)
+        I32Type::class -> generateI32Type(ctx)
+        I64Type::class -> generateI64Type(ctx)
+        I128Type::class -> generateI128Type(ctx)
+        F32Type::class -> generateF32Type(ctx)
+        F64Type::class -> generateF64Type(ctx)
+        else -> throw Exception("Unrecognized type")
+    }
 }
