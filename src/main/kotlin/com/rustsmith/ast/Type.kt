@@ -1,5 +1,6 @@
 package com.rustsmith.ast
 
+import com.rustsmith.subclasses
 import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation

@@ -2,38 +2,41 @@ package com.rustsmith.generation
 
 import com.rustsmith.ast.ASTNode
 import com.rustsmith.ast.SymbolTable
+import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 
 data class Context(
-    val state: Map<KClass<out ASTNode>, Int>,
-    val statementDepth: List<Int>,
+    private val nodeDepthState: Map<KClass<out ASTNode>, Int>,
+    val statementsPerScope: List<Int>,
     val symbolTable: SymbolTable
 ) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
 
-    val currentState: Map<KClass<out ASTNode>, Int> = state.toMutableMap().withDefault { 0 }
+    fun getDepth(kClass: KClass<out ASTNode>): Int {
+        return kClass.subclasses().sumOf { nodeDepthState[it] ?: 0 }
+    }
 
     fun withSymbolTable(symbolTable: SymbolTable): Context {
-        val stateCopy = currentState.toMutableMap().withDefault { 0 }
-        return Context(stateCopy, statementDepth.toMutableList(), symbolTable)
+        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
+        return Context(stateCopy, statementsPerScope.toMutableList(), symbolTable)
     }
 
     fun incrementCount(kClass: KClass<out ASTNode>): Context {
-        val stateCopy = currentState.toMutableMap().withDefault { 0 }
+        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
         stateCopy[kClass] = stateCopy.getValue(kClass) + 1
-        return Context(stateCopy, statementDepth.toMutableList(), symbolTable)
+        return Context(stateCopy, statementsPerScope.toMutableList(), symbolTable)
     }
 
     fun incrementStatementCount(): Context {
-        val stateCopy = currentState.toMutableMap().withDefault { 0 }
-        val statementDepthCopy = statementDepth.toMutableList()
+        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
+        val statementDepthCopy = statementsPerScope.toMutableList()
         statementDepthCopy[statementDepthCopy.lastIndex]++
         return Context(stateCopy, statementDepthCopy, symbolTable)
     }
 
     fun enterScope(): Context {
-        val stateCopy = currentState.toMutableMap().withDefault { 0 }
-        return Context(stateCopy, listOf(*statementDepth.toTypedArray(), 0), symbolTable)
+        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
+        return Context(stateCopy, listOf(*statementsPerScope.toTypedArray(), 0), symbolTable)
     }
 }

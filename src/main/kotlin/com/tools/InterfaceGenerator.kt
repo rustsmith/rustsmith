@@ -2,6 +2,7 @@ package com.tools
 
 import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
+import com.rustsmith.subclasses
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.io.File

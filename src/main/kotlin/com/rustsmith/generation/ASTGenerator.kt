@@ -3,7 +3,7 @@ package com.rustsmith.generation
 import AbstractASTGenerator
 import com.rustsmith.Random
 import com.rustsmith.ast.*
-import com.rustsmith.generation.selection.randomByWeights
+import com.rustsmith.randomByWeights
 import com.rustsmith.selectionManager
 import java.math.BigInteger
 import kotlin.random.asJavaRandom
@@ -13,20 +13,20 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     private val dependantStatements = mutableListOf<Statement>()
 
     operator fun invoke(ctx: Context, type: Type = VoidType): StatementBlock {
-        var currentSelectionManager = ctx.enterScope()
+        var currentCtx = ctx.enterScope()
         val statements = mutableListOf<Statement>()
-        while (selectionManager.createNewStatementWeightings(currentSelectionManager).randomByWeights()) {
-            val statement = generateStatement(currentSelectionManager)
+        while (selectionManager.createNewStatementWeightings(currentCtx).randomByWeights()) {
+            val statement = generateStatement(currentCtx)
             statements.addAll(dependantStatements)
             statements.add(statement)
             dependantStatements.clear()
-            currentSelectionManager = currentSelectionManager.incrementStatementCount()
+            currentCtx = currentCtx.incrementStatementCount()
         }
         val statementsWithDependants = dependantStatements + statements
         return if (type == VoidType) {
             StatementBlock(statementsWithDependants, symbolTable)
         } else {
-            val finalExpression = generateExpression(type, currentSelectionManager).toStatement(false)
+            val finalExpression = generateExpression(type, currentCtx).toStatement(false)
             StatementBlock(
                 statementsWithDependants + (dependantStatements + finalExpression), symbolTable
             )
@@ -36,14 +36,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Statement Generation **/
 
     override fun selectRandomStatement(ctx: Context): KClass<out Statement> {
-        return selectionManager.availableStatementsWeightings(ctx).randomByWeights()
+        return selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
     }
 
     override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
         return ExpressionStatement(
             generateExpression(
                 generateType(ctx), ctx
-            ), true, symbolTable
+            ),
+            true, symbolTable
         )
     }
 
@@ -55,7 +56,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     private fun generateDependantDeclarationOfType(
-        type: Type, mutable: Boolean = Random.nextBoolean(), ctx: Context
+        type: Type,
+        mutable: Boolean = Random.nextBoolean(),
+        ctx: Context
     ): Declaration {
         val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, ctx.incrementCount(Declaration::class))
@@ -70,14 +73,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val declaration =
                 generateDependantDeclarationOfType(generateType(ctx), true, ctx.incrementCount(Assignment::class))
             dependantStatements.add(declaration)
-            val expression = generateExpression(
-                declaration.type, ctx.incrementCount(Assignment::class)
-            )
+            val expression = generateExpression(declaration.type, ctx.incrementCount(Assignment::class))
             Assignment(declaration.variableName, expression, symbolTable)
         } else {
-            val expression = generateExpression(
-                value.second.type, ctx.incrementCount(Assignment::class)
-            )
+            val expression = generateExpression(value.second.type, ctx.incrementCount(Assignment::class))
             Assignment(value.first, expression, symbolTable)
         }
     }
@@ -85,7 +84,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Expression generation **/
 
     override fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression> {
-        return selectionManager.availableExpressionsWeightings(ctx, type).randomByWeights()
+        return selectionManager.availableExpressionsWeightings(ctx, type).pickRandomByWeight()
     }
 
     override fun generateInt8Literal(type: Type, ctx: Context): Int8Literal =
@@ -115,11 +114,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral {
         if (type is TupleType) {
             return TupleLiteral(
-                type.types.map {
-                    generateExpression(
-                        it, ctx.incrementCount(TupleLiteral::class)
-                    )
-                }, symbolTable
+                type.types.map { generateExpression(it, ctx.incrementCount(TupleLiteral::class)) },
+                symbolTable
             )
         }
         throw Exception("Incompatible Type")
@@ -228,19 +224,23 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (functionData == null) {
             val newFunctionType = generateFunction(type, ctx)
             return FunctionCallExpression(
-                newFunctionType.first, newFunctionType.second.args.map {
+                newFunctionType.first,
+                newFunctionType.second.args.map {
                     generateExpression(
                         it, ctx.incrementCount(FunctionCallExpression::class)
                     )
-                }, symbolTable
+                },
+                symbolTable
             )
         } else {
             return FunctionCallExpression(
-                functionData.first, (functionData.second.type as FunctionType).args.map {
+                functionData.first,
+                (functionData.second.type as FunctionType).args.map {
                     generateExpression(
                         it, ctx.incrementCount(FunctionCallExpression::class)
                     )
-                }, symbolTable
+                },
+                symbolTable
             )
         }
     }
@@ -268,7 +268,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Type generators **/
 
     override fun selectRandomType(ctx: Context): KClass<out Type> {
-        return selectionManager.availableTypesWeightings(ctx).randomByWeights()
+        return selectionManager.availableTypesWeightings(ctx).pickRandomByWeight()
     }
 
     override fun generateBoolType(ctx: Context) = BoolType

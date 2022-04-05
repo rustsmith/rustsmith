@@ -3,7 +3,6 @@ package com.rustsmith.ast
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.rustsmith.generation.ASTGenerator
 import com.rustsmith.generation.Context
-import kotlin.reflect.KClass
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 sealed interface ASTNode {
@@ -46,16 +45,4 @@ fun generateProgram(programSeed: Long): Program {
         body = bodyWithOutput
     )
     return Program(programSeed, emptyList(), functionSymbolTable.functions + mainFunction)
-}
-
-fun <T : Any> KClass<T>.subclasses(): Set<KClass<out T>> {
-    if (this.isFinal) {
-        return setOf(this)
-    }
-    val nonFinalClasses = this.sealedSubclasses.filter { !it.isFinal }
-    val result = mutableSetOf<KClass<out T>>()
-    for (nonFinalClass in nonFinalClasses) {
-        result.addAll(nonFinalClass.subclasses())
-    }
-    return this.sealedSubclasses.filter { it.isFinal }.toSet() + result
 }

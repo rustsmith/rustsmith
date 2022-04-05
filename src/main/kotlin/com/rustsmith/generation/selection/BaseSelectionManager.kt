@@ -2,6 +2,7 @@ package com.rustsmith.generation.selection
 
 import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
+import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
@@ -23,22 +24,27 @@ open class BaseSelectionManager : SelectionManager {
     /* Block size for statement blocks */
     override fun createNewStatementWeightings(ctx: Context) = mapOf(true to 0.7, false to 0.3)
 
-    override fun availableStatementsWeightings(ctx: Context): SelectionWeighting<KClass<out Statement>> {
+    override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() }
-        return filterNodes(allStatements.toMutableList(), ctx).associateWith { 1.0 }
+        val filteredStatements = filterNodes(allStatements.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        return NodeSelectionWeighting(filteredStatements)
     }
 
-    override fun availableExpressionsWeightings(ctx: Context, type: Type): SelectionWeighting<KClass<out Expression>> {
+    override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val allExpressions =
             Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.filter {
                 it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()
                     ?.contains(type::class) ?: false
             }
-        return filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }
+        val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        return NodeSelectionWeighting(filteredExpressions)
+
     }
 
-    override fun availableTypesWeightings(ctx: Context): Map<KClass<out Type>, Double> {
-        return filterNodes(Type::class.genSubClasses().toMutableList(), ctx).associateWith { 1.0 }
+    override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
+        val allTypes =
+            filterNodes(Type::class.genSubClasses().toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        return NodeSelectionWeighting(allTypes)
     }
 
     private fun <T : ASTNode> filterNodes(
@@ -46,13 +52,13 @@ open class BaseSelectionManager : SelectionManager {
         ctx: Context
     ): List<KClass<out T>> {
         config.filterKeys { !it.isFinal }.forEach { entry ->
-            val totalForSubclasses = entry.key.subclasses().sumOf { ctx.currentState.getValue(it) }
+            val totalForSubclasses = entry.key.subclasses().sumOf { ctx.getDepth(it) }
             if (totalForSubclasses >= entry.value) {
                 val elements = nodes.filter { it.isSubclassOf(entry.key) }.toSet()
                 nodes.removeAll(elements)
             }
         }
-        nodes.removeIf { ctx.currentState.getValue(it) >= config.getValue(it) }
+        nodes.removeIf { ctx.getDepth(it) >= config.getValue(it) }
         return nodes
     }
 }
