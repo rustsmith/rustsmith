@@ -89,6 +89,13 @@ data class TupleType(val types: List<Type>) : Type {
     }
 }
 
+@GenNode
+data class StructType(val structName: String, val types: List<Pair<String, Type>>) : Type {
+    override fun toRust(): String {
+        return structName
+    }
+}
+
 data class FunctionType(val returnType: Type, val args: List<Type>) : Type {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"

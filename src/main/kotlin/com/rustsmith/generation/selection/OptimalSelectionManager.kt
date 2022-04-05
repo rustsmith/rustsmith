@@ -8,13 +8,14 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
         RecursiveExpression::class to 100,
-        FunctionCallExpression::class to 3,
+        FunctionCallExpression::class to 300,
+        StructType::class to 300,
         TupleType::class to 3
     ).withDefault { Int.MAX_VALUE }
 
     override fun createNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.createNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 30.0 / (ctx.numberOfDeclarationsInScope.value + 1)
+        newStatementWeightings[true] = 50.0 / (ctx.numberOfDeclarationsInScope.value + 1)
         return newStatementWeightings
     }
 
@@ -24,6 +25,16 @@ class OptimalSelectionManager : BaseSelectionManager() {
             RecursiveExpression::class,
             1.0 / (ctx.getDepth(RecursiveExpression::class) + 100)
         )
+        expressionWeightings.updateWeighting(
+            FunctionCallExpression::class,
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) + 10)
+        )
         return expressionWeightings
+    }
+
+    override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
+        val typeWeightings =  super.availableTypesWeightings(ctx)
+        typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 10))
+        return typeWeightings
     }
 }

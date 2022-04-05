@@ -66,6 +66,7 @@ object Reconditioner {
             )
             is FunctionCallExpression -> node.copy(args = node.args.map { reconditionExpression(it) })
             is TupleLiteral -> node.copy(values = node.values.map { reconditionExpression(it) })
+            is StructInstantiationExpression -> node.copy(args = node.args.map { it.first to reconditionExpression(it.second) })
         }
     }
 
@@ -100,6 +101,7 @@ object Reconditioner {
             is FunctionDefinition -> node
             is Type -> node
             is StatementBlock -> node
+            is StructDefinition -> node
         }
     }
 }

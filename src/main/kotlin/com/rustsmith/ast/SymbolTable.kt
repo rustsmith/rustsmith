@@ -40,7 +40,32 @@ class FunctionSymbolTable {
     }
 }
 
-data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: FunctionSymbolTable) :
+class StructSymbolTable {
+    private val symbolMap = mutableMapOf<String, IdentifierData>()
+    val structs = mutableListOf<StructDefinition>()
+
+    fun getRandomStruct(): Pair<String, IdentifierData>? {
+        return symbolMap.toList().randomOrNull(Random)
+    }
+
+    operator fun get(key: String): IdentifierData? {
+        return symbolMap[key]
+    }
+
+    operator fun set(key: String, value: IdentifierData) {
+        symbolMap[key] = value
+    }
+
+    fun addStruct(structDefinition: StructDefinition) {
+        structs.add(structDefinition)
+    }
+}
+
+data class SymbolTable(
+    val parent: SymbolTable?,
+    val functionSymbolTable: FunctionSymbolTable,
+    val structSymbolTable: StructSymbolTable
+) :
     Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
 
@@ -94,7 +119,7 @@ data class SymbolTable(val parent: SymbolTable?, val functionSymbolTable: Functi
     }
 
     fun enterScope(): SymbolTable {
-        return SymbolTable(this, functionSymbolTable)
+        return SymbolTable(this, functionSymbolTable, structSymbolTable)
     }
 
     override fun iterator() = SymbolTableIterator(this)

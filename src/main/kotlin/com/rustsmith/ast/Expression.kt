@@ -245,6 +245,18 @@ data class FunctionCallExpression(
     }
 }
 
+@ExpressionGenNode(StructType::class)
+data class StructInstantiationExpression(
+    val structName: String,
+    val args: List<Pair<String, Expression>>,
+    override val symbolTable: SymbolTable
+) : Expression {
+
+    override fun toRust(): String {
+        return "$structName {${args.joinToString(" ") { "${it.first}: ${it.second.toRust()}," }}}"
+    }
+}
+
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: StatementBlock,
@@ -342,6 +354,7 @@ fun Expression.toType(): Type {
         is IfElseExpression -> this.ifBlock.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
         is TupleLiteral -> TupleType(this.values.map { it.toType() })
+        is StructInstantiationExpression -> TODO()
     }
 }
 

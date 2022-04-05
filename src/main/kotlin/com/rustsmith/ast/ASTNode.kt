@@ -24,20 +24,28 @@ data class FunctionDefinition(
     }
 }
 
+data class StructDefinition(val structName: String, val arguments: List<Pair<String, Type>>, ) : ASTNode {
+    override fun toRust(): String {
+        return "#[derive(Debug, Clone, Copy)]\nstruct $structName {\n ${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }} \n}\n"
+    }
+}
+
+
 data class Program(
     val seed: Long,
-    val structs: List<Any> = emptyList(),
+    val structs: List<StructDefinition> = emptyList(),
     val functions: List<FunctionDefinition>
 ) :
     ASTNode {
     override fun toRust(): String {
-        return "#![allow(warnings, unused, unconditional_panic)]\n${functions.joinToString("\n") { it.toRust() }}"
+        return "#![allow(warnings, unused, unconditional_panic)]\n${structs.joinToString("\n") { it.toRust() }}\n${functions.joinToString("\n") { it.toRust() }}"
     }
 }
 
 fun generateProgram(programSeed: Long): Program {
     val functionSymbolTable = FunctionSymbolTable()
-    val symbolTable = SymbolTable(null, functionSymbolTable)
+    val structSymbolTable = StructSymbolTable()
+    val symbolTable = SymbolTable(null, functionSymbolTable, structSymbolTable)
     val body = ASTGenerator(symbolTable)(Context(mapOf(), listOf(), symbolTable))
     val bodyWithOutput =
         StatementBlock(body.statements + Output(symbolTable, programSeed), symbolTable)
@@ -46,5 +54,5 @@ fun generateProgram(programSeed: Long): Program {
         arguments = emptyMap(),
         body = bodyWithOutput
     )
-    return Program(programSeed, emptyList(), functionSymbolTable.functions + mainFunction)
+    return Program(programSeed, structSymbolTable.structs, functionSymbolTable.functions + mainFunction)
 }

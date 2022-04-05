@@ -249,7 +249,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val numArgs = Random.nextInt(5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
         val symbolTableForFunction = SymbolTable(
-            null, symbolTable.functionSymbolTable
+            null, symbolTable.functionSymbolTable, symbolTable.structSymbolTable
         )
         val functionDefinition = FunctionDefinition(
             returnType,
@@ -263,6 +263,20 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType, false)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
+    }
+
+    override fun generateStructInstantiationExpression(type: Type, ctx: Context): StructInstantiationExpression {
+        if (type !is StructType) {
+            throw IllegalArgumentException("Type is not a struct type")
+        } else {
+            val structInstantiation = StructInstantiationExpression(
+                structName = type.structName,
+                args = type.types.map { it.first to generateExpression(it.second, ctx.incrementCount(StructInstantiationExpression::class)) },
+                symbolTable
+            )
+            symbolTable.structSymbolTable[structInstantiation.structName] = IdentifierData(type, false)
+            return structInstantiation
+        }
     }
 
     /** Type generators **/
@@ -291,5 +305,19 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val numArgs = Random.nextInt(1, 5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) }
         return TupleType(argTypes)
+    }
+
+    override fun generateStructType(ctx: Context): StructType {
+        val randomStructType = symbolTable.structSymbolTable.getRandomStruct()
+        return if (randomStructType != null) {
+            randomStructType.second.type as StructType
+        } else {
+            val structName = IdentGenerator.generateStructName()
+            /* Generate Struct Definition */
+            val numArgs = Random.nextInt(1, 5)
+            val argTypes = (0 until numArgs).map { IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class)) }
+            symbolTable.structSymbolTable.addStruct(StructDefinition(structName, argTypes))
+            StructType(structName, argTypes)
+        }
     }
 }
