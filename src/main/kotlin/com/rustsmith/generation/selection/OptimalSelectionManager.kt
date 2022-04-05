@@ -13,8 +13,8 @@ class OptimalSelectionManager : BaseSelectionManager() {
         TupleType::class to 3
     ).withDefault { Int.MAX_VALUE }
 
-    override fun createNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
-        val newStatementWeightings = super.createNewStatementWeightings(ctx).toMutableMap()
+    override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
+        val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
         newStatementWeightings[true] = 50.0 / (ctx.numberOfDeclarationsInScope.value + 1)
         return newStatementWeightings
     }

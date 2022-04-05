@@ -15,7 +15,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     operator fun invoke(ctx: Context, type: Type = VoidType): StatementBlock {
         var currentCtx = ctx.enterScope()
         val statements = mutableListOf<Statement>()
-        while (selectionManager.createNewStatementWeightings(currentCtx).randomByWeights()) {
+        while (selectionManager.choiceGenerateNewStatementWeightings(currentCtx).randomByWeights()) {
             val statement = generateStatement(currentCtx)
             statements.addAll(dependantStatements)
             statements.add(statement)
@@ -125,9 +125,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val value = symbolTable.getRandomVariableOfType(type)
         return if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDependantDeclarationOfType(
-                type, ctx = ctx.incrementCount(Variable::class)
-            )
+            val declaration = generateDependantDeclarationOfType(type, ctx = ctx.incrementCount(Variable::class))
 
             dependantStatements.add(declaration)
             Variable(declaration.variableName, symbolTable)
@@ -221,14 +219,12 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression {
         val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
-        if (functionData == null) {
+        if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
             val newFunctionType = generateFunction(type, ctx)
             return FunctionCallExpression(
                 newFunctionType.first,
                 newFunctionType.second.args.map {
-                    generateExpression(
-                        it, ctx.incrementCount(FunctionCallExpression::class)
-                    )
+                    generateExpression(it, ctx.incrementCount(FunctionCallExpression::class))
                 },
                 symbolTable
             )
@@ -255,9 +251,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             returnType,
             IdentGenerator.generateFunctionName(),
             argTypes.associateBy { IdentGenerator.generateVariable() },
-            ASTGenerator(
-                symbolTableForFunction
-            )(ctx.incrementCount(FunctionCallExpression::class).withSymbolTable(symbolTableForFunction), returnType)
+            ASTGenerator(symbolTableForFunction)
+            (ctx.incrementCount(FunctionCallExpression::class).withSymbolTable(symbolTableForFunction), returnType)
         )
         val functionType = FunctionType(returnType, argTypes)
         symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType, false)
@@ -312,9 +307,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateStructType(ctx: Context): StructType {
         val randomStructType = symbolTable.structSymbolTable.getRandomStruct()
-        return if (randomStructType != null) {
-            randomStructType.second.type as StructType
-        } else {
+        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
             val structName = IdentGenerator.generateStructName()
             /* Generate Struct Definition */
             val numArgs = Random.nextInt(1, 5)
@@ -323,7 +318,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val structType = StructType(structName, argTypes)
             symbolTable.structSymbolTable[structName] = IdentifierData(structType, false)
             symbolTable.structSymbolTable.addStruct(StructDefinition(structName, argTypes))
-            structType
+            return structType
+        } else {
+            return randomStructType.second.type as StructType
         }
     }
 }

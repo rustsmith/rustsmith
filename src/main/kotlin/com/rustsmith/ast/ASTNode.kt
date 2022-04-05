@@ -19,7 +19,7 @@ data class FunctionDefinition(
 ) : ASTNode {
     override fun toRust(): String {
         return "fn $functionName(${
-            arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
+        arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
         }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
 }
@@ -30,7 +30,6 @@ data class StructDefinition(val structName: String, val arguments: List<Pair<Str
     }
 }
 
-
 data class Program(
     val seed: Long,
     val structs: List<StructDefinition> = emptyList(),
@@ -39,9 +38,9 @@ data class Program(
     ASTNode {
     override fun toRust(): String {
         return "#![allow(warnings, unused, unconditional_panic)]\n${structs.joinToString("\n") { it.toRust() }}\n${
-            functions.joinToString(
-                "\n"
-            ) { it.toRust() }
+        functions.joinToString(
+            "\n"
+        ) { it.toRust() }
         }"
     }
 }

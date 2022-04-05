@@ -11,7 +11,11 @@ interface SelectionManager {
 
     val config: Map<KClass<out ASTNode>, Int>
 
-    fun createNewStatementWeightings(ctx: Context): Map<Boolean, Double>
+    fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double>
+
+    fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double>
+
+    fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double>
 
     fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement>
 

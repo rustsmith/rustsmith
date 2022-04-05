@@ -22,7 +22,14 @@ open class BaseSelectionManager : SelectionManager {
     ).withDefault { Int.MAX_VALUE }
 
     /* Block size for statement blocks */
-    override fun createNewStatementWeightings(ctx: Context) = mapOf(true to 0.7, false to 0.3)
+    override fun choiceGenerateNewStatementWeightings(ctx: Context) = mapOf(true to 0.7, false to 0.3)
+
+    /* Both false as default. Eg: never create a new struct or function if a struct already exists or a function
+       with the return type required already exists
+     */
+    override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
+
+    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5)
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() }
@@ -38,7 +45,6 @@ open class BaseSelectionManager : SelectionManager {
             }
         val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         return NodeSelectionWeighting(filteredExpressions)
-
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {

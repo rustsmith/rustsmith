@@ -41,7 +41,7 @@ public interface AbstractASTGenerator {
     public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
 
     public fun generateStructInstantiationExpression(type: Type, ctx: Context):
-            StructInstantiationExpression
+        StructInstantiationExpression
 
     public fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
 
