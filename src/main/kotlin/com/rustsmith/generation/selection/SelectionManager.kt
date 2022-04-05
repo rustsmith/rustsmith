@@ -8,7 +8,6 @@ import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
 interface SelectionManager {
-
     val config: Map<KClass<out ASTNode>, Int>
 
     fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double>

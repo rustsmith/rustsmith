@@ -19,6 +19,16 @@ class OptimalSelectionManager : BaseSelectionManager() {
         return newStatementWeightings
     }
 
+    override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> {
+        val createNewStruct = 1.0 / (ctx.numberOfStructsDefined.value + 1)
+        return mapOf(true to createNewStruct, false to 1 - createNewStruct)
+    }
+
+    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double>  {
+        val createNewFunction = 1.0 / (ctx.numberOfFunctionsDefined.value + 1)
+        return mapOf(true to createNewFunction, false to 1 - createNewFunction)
+    }
+
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
