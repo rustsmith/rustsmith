@@ -50,7 +50,7 @@ class RustSmith : CliktCommand() {
             val path = Path(directory, "file$it")
             path.toFile().mkdir()
             path.resolve("file$it.rs").toFile().writeText(program.toRust())
-            path.resolve("file$it.json").toFile().writeText("{}")
+            path.resolve("file$it.json").toFile().writeText(mapper.writeValueAsString(program))
             IdentGenerator.reset()
             progressBar.step()
         }
