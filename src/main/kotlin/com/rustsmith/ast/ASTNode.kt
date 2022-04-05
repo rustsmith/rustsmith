@@ -24,9 +24,9 @@ data class FunctionDefinition(
     }
 }
 
-data class StructDefinition(val structName: String, val arguments: List<Pair<String, Type>>, ) : ASTNode {
+data class StructDefinition(val structName: String, val arguments: List<Pair<String, Type>>) : ASTNode {
     override fun toRust(): String {
-        return "#[derive(Debug, Clone, Copy)]\nstruct $structName {\n ${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }} \n}\n"
+        return "#[derive(Debug, Clone, Copy)]\nstruct $structName {\n${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
     }
 }
 
@@ -38,7 +38,11 @@ data class Program(
 ) :
     ASTNode {
     override fun toRust(): String {
-        return "#![allow(warnings, unused, unconditional_panic)]\n${structs.joinToString("\n") { it.toRust() }}\n${functions.joinToString("\n") { it.toRust() }}"
+        return "#![allow(warnings, unused, unconditional_panic)]\n${structs.joinToString("\n") { it.toRust() }}\n${
+            functions.joinToString(
+                "\n"
+            ) { it.toRust() }
+        }"
     }
 }
 

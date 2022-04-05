@@ -2,7 +2,7 @@ package com.rustsmith.generation
 
 const val VARIABLE_PREFIX = "var"
 const val FUNCTION_PREFIX = "fun"
-const val STRUCT_PREFIX = "struct"
+const val STRUCT_PREFIX = "Struct"
 
 object IdentGenerator {
     private val prefixMap = mutableMapOf<String, Int>().withDefault { 0 }

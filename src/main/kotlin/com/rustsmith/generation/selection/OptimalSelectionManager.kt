@@ -33,8 +33,8 @@ class OptimalSelectionManager : BaseSelectionManager() {
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
-        val typeWeightings =  super.availableTypesWeightings(ctx)
-        typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 10))
+        val typeWeightings = super.availableTypesWeightings(ctx)
+        typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
         return typeWeightings
     }
 }

@@ -269,13 +269,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (type !is StructType) {
             throw IllegalArgumentException("Type is not a struct type")
         } else {
-            val structInstantiation = StructInstantiationExpression(
+            return StructInstantiationExpression(
                 structName = type.structName,
-                args = type.types.map { it.first to generateExpression(it.second, ctx.incrementCount(StructInstantiationExpression::class)) },
+                args = type.types.map {
+                    it.first to generateExpression(
+                        it.second,
+                        ctx.incrementCount(StructInstantiationExpression::class)
+                    )
+                },
                 symbolTable
             )
-            symbolTable.structSymbolTable[structInstantiation.structName] = IdentifierData(type, false)
-            return structInstantiation
         }
     }
 
@@ -315,9 +318,12 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val structName = IdentGenerator.generateStructName()
             /* Generate Struct Definition */
             val numArgs = Random.nextInt(1, 5)
-            val argTypes = (0 until numArgs).map { IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class)) }
+            val argTypes =
+                (0 until numArgs).map { IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class)) }
+            val structType = StructType(structName, argTypes)
+            symbolTable.structSymbolTable[structName] = IdentifierData(structType, false)
             symbolTable.structSymbolTable.addStruct(StructDefinition(structName, argTypes))
-            StructType(structName, argTypes)
+            structType
         }
     }
 }

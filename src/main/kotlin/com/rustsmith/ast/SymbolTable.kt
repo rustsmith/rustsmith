@@ -5,7 +5,7 @@ import com.rustsmith.Random
 data class IdentifierData(val type: Type, val mutable: Boolean)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
-    var current: SymbolTable? = null
+    private var current: SymbolTable? = null
 
     override fun hasNext(): Boolean = current == null || current?.parent != null
 
