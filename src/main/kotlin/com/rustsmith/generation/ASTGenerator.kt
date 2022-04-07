@@ -123,15 +123,21 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
         val value = symbolTable.getRandomVariableOfType(type)
-        return if (value == null) {
+        val variableNode = if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(type, ctx = ctx.incrementCount(Variable::class))
-
             dependantStatements.add(declaration)
             Variable(declaration.variableName, symbolTable)
         } else {
             Variable(value.first, symbolTable)
         }
+
+        /* Variable is being references inside an ownership moving expression (such as struct instantiation or function
+           call) */
+        if (ctx.getDepth(OwnershipMovingNode::class) >= 1) {
+            symbolTable.removeVariableOwnership(variableNode.value)
+        }
+        return variableNode
     }
 
     override fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression = GroupedExpression(
@@ -267,10 +273,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             return StructInstantiationExpression(
                 structName = type.structName,
                 args = type.types.map {
-                    it.first to generateExpression(
-                        it.second,
-                        ctx.incrementCount(StructInstantiationExpression::class)
-                    )
+                    it.first to generateExpression(it.second, ctx.incrementCount(StructInstantiationExpression::class))
                 },
                 symbolTable
             )

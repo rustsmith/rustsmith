@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.rustsmith.Random
 
-data class IdentifierData(val type: Type, val mutable: Boolean)
+data class IdentifierData(val type: Type, val mutable: Boolean, val ownedByScope: Boolean = true)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     private var current: SymbolTable? = null
@@ -78,10 +78,21 @@ data class SymbolTable(
         return functionSymbolTable[key]
     }
 
+    fun removeVariableOwnership(key: String) {
+        for (table in iterator()) {
+            if (table.symbolMap.containsKey(key)) {
+                table.symbolMap[key] = table.symbolMap[key]!!.copy(ownedByScope = false)
+                return
+            }
+        }
+        throw IllegalArgumentException("Variable not found to remove")
+    }
+
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
     }
 
+    /* Not affected by ownership of variables as it is a statistic used by weighting strategy */
     fun getLocalVariables(): Set<String> {
         return symbolMap.keys
     }
@@ -94,12 +105,12 @@ data class SymbolTable(
         return currentVariables
     }
 
-    fun getRandomVariable(): Pair<String, IdentifierData>? {
+    fun getOwnedVariables(): Set<String> {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().randomOrNull(Random)
+        return overallMap.toList().filter { it.second.ownedByScope }.map { it.first }.toSet()
     }
 
     fun getRandomMutableVariable(): Pair<String, IdentifierData>? {
@@ -107,7 +118,7 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.mutable }.randomOrNull(Random)
+        return overallMap.toList().filter { it.second.mutable }.filter { it.second.ownedByScope }.randomOrNull(Random)
     }
 
     fun getRandomVariableOfType(type: Type): Pair<String, IdentifierData>? {
@@ -115,7 +126,8 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.type == type }.randomOrNull(Random)
+        return overallMap.toList().filter { it.second.type == type }.filter { it.second.ownedByScope }
+            .randomOrNull(Random)
     }
 
     fun enterScope(): SymbolTable {

@@ -26,7 +26,8 @@ data class FunctionDefinition(
 
 data class StructDefinition(val structName: String, val arguments: List<Pair<String, Type>>) : ASTNode {
     override fun toRust(): String {
-        return "#[derive(Debug, Clone, Copy)]\nstruct $structName {\n${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
+        val traits = "#[derive(Debug)]\n"
+        return "${traits}struct $structName {\n${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
     }
 }
 

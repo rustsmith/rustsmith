@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.math.BigInteger
 import kotlin.reflect.KClass
 
-annotation class ExpressionGenNode(val compatibleType: KClass<out Type>, val weight: Int = 1)
+annotation class ExpressionGenNode(val compatibleType: KClass<out Type>)
 
 @JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface Expression : ASTNode {
@@ -233,12 +233,15 @@ data class GroupedExpression(
 //    }
 // }
 
+/* Nodes that affect the change of ownership of variables */
+sealed interface OwnershipMovingNode : ASTNode
+
 @ExpressionGenNode(Type::class)
 data class FunctionCallExpression(
     val functionName: String,
     val args: List<Expression>,
     override val symbolTable: SymbolTable
-) : Expression {
+) : OwnershipMovingNode, Expression {
 
     override fun toRust(): String {
         return "$functionName(${args.joinToString(",") { it.toRust() }})"
@@ -250,7 +253,7 @@ data class StructInstantiationExpression(
     val structName: String,
     val args: List<Pair<String, Expression>>,
     override val symbolTable: SymbolTable
-) : Expression {
+) : OwnershipMovingNode, Expression {
 
     override fun toRust(): String {
         return "$structName {${args.joinToString(" ") { "${it.first}: ${it.second.toRust()}," }}}"

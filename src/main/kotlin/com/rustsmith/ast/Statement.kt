@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-annotation class GenNode(val weight: Int = 1)
+annotation class GenNode
 
 @JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface Statement : ASTNode {
@@ -27,7 +27,7 @@ data class Declaration(
     val variableName: String,
     val value: Expression,
     override val symbolTable: SymbolTable
-) : Statement {
+) : Statement, OwnershipMovingNode {
 
     override fun toRust(): String {
         return "let ${if (mutable) "mut" else ""} $variableName: ${type.toRust()} = ${value.toRust()};"
@@ -77,7 +77,7 @@ data class Output(override val symbolTable: SymbolTable, val programSeed: Long) 
     override fun toRust(): String {
         val hashString = mutableListOf<String>()
         hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
-        symbolTable.getCurrentVariables().sorted().forEach {
+        symbolTable.getOwnedVariables().sorted().forEach {
             hashString.add("println!(\"{:?}\", ${"\"$it\"" to it});")
         }
         return hashString.joinToString("\n")
