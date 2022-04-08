@@ -85,7 +85,6 @@ data class TupleType(val types: List<Type>) : Type {
     }
 }
 
-
 @GenNode
 data class StructType(val structName: String, val types: List<Pair<String, Type>>) : Type {
     override fun toRust(): String {
