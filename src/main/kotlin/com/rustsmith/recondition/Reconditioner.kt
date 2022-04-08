@@ -2,41 +2,40 @@ package com.rustsmith.recondition
 
 import com.rustsmith.ast.*
 
-object Reconditioner {
+class Reconditioner {
+
+    private val reconditioningMacros = mutableSetOf<Macros>()
 
     private fun reconditionBinOpExpression(node: BinOpExpression): Expression {
         val (expr1, expr2) = reconditionExpression(node.expr1) to reconditionExpression(node.expr2)
         val symbolTable = node.symbolTable
         return when (node) {
             is AddExpression -> if (node.toType() is IntType) WrappingAdd(
-                node.copy(
-                    expr1 = expr1,
-                    expr2 = expr2
-                ),
+                node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
             is MultiplyExpression -> if (node.toType() is IntType) WrappingMul(
-                node.copy(
-                    expr1 = expr1,
-                    expr2 = expr2
-                ),
+                node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
             is SubtractExpression -> if (node.toType() is IntType) WrappingSubtract(
-                node.copy(
-                    expr1 = expr1,
-                    expr2 = expr2
-                ),
+                node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
-            is DivideExpression -> ReconditionedDivision(
-                node.copy(expr1 = expr1, expr2 = expr2),
-                symbolTable
-            )
-            is ModExpression -> ReconditionedMod(
-                node.copy(expr1 = expr1, expr2 = expr2),
-                symbolTable
-            )
+            is DivideExpression -> {
+                reconditioningMacros.add(ReconditionedDivision)
+                ReconditionedDivisionExpression(
+                    node.copy(expr1 = expr1, expr2 = expr2),
+                    symbolTable
+                )
+            }
+            is ModExpression -> {
+                reconditioningMacros.add(ReconditionedMod)
+                ReconditionedModExpression(
+                    node.copy(expr1 = expr1, expr2 = expr2),
+                    symbolTable
+                )
+            }
             is BitwiseAndLogicalAnd -> node.copy(expr1 = expr1, expr2 = expr2)
             is BitwiseAndLogicalOr -> node.copy(expr1 = expr1, expr2 = expr2)
             is BitwiseAndLogicalXor -> node.copy(expr1 = expr1, expr2 = expr2)
@@ -71,13 +70,7 @@ object Reconditioner {
     }
 
     private fun reconditionStatementBlock(statementBlock: StatementBlock): StatementBlock {
-        return statementBlock.copy(
-            statements = statementBlock.statements.map {
-                reconditionStatement(
-                    it
-                )
-            }
-        )
+        return statementBlock.copy(statements = statementBlock.statements.map { reconditionStatement(it) })
     }
 
     private fun reconditionStatement(node: Statement): Statement {
@@ -91,11 +84,15 @@ object Reconditioner {
 
     fun recondition(node: ASTNode): ASTNode {
         return when (node) {
-            is Program -> Program(
-                node.seed,
-                node.structs,
-                node.functions.map { it.copy(body = reconditionStatementBlock(it.body)) }
-            )
+            is Program -> {
+                val reconditionedFunctions = node.functions.map { it.copy(body = reconditionStatementBlock(it.body)) }
+                Program(
+                    node.seed,
+                    reconditioningMacros,
+                    node.structs,
+                    reconditionedFunctions
+                )
+            }
             is Expression -> reconditionExpression(node)
             is Statement -> reconditionStatement(node)
             is FunctionDefinition -> node

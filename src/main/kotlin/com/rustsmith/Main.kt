@@ -41,7 +41,8 @@ class RustSmith : CliktCommand() {
         repeat(count) {
             val randomSeed = seed ?: Random1.nextLong()
             Random = Random1(randomSeed)
-            val program = Reconditioner.recondition(generateProgram(randomSeed))
+            val reconditioner = Reconditioner()
+            val program = reconditioner.recondition(generateProgram(randomSeed))
             if (print) {
                 println(program.toRust())
                 return

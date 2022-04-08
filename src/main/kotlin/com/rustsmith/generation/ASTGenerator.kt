@@ -134,7 +134,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
         /* Variable is being references inside an ownership moving expression (such as struct instantiation or function
            call) */
-        if (ctx.getDepth(OwnershipMovingNode::class) >= 1) {
+        if (type.getOwnership() == OwnershipModel.MOVE) {
             symbolTable.removeVariableOwnership(variableNode.value)
         }
         return variableNode

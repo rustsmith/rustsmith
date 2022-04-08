@@ -66,12 +66,8 @@ object F64Type : FloatType {
 
 // @GenNode
 // object StringType : Type {
-//    override fun generateLiteral(symbolTable: SymbolTable): Expression {
-//        return StringLiteral.createRandom(symbolTable, this)
-//    }
-//
 //    override fun toRust(): String {
-//        return "&str"
+//        return "String"
 //    }
 // }
 
@@ -88,6 +84,7 @@ data class TupleType(val types: List<Type>) : Type {
         return "(${types.joinToString(",") { it.toRust() }})"
     }
 }
+
 
 @GenNode
 data class StructType(val structName: String, val types: List<Pair<String, Type>>) : Type {
@@ -117,6 +114,30 @@ fun NumberType.zero(symbolTable: SymbolTable): Expression {
         I32Type -> Int32Literal(0, symbolTable = symbolTable)
         I64Type -> Int64Literal(0, symbolTable = symbolTable)
         I128Type -> Int128Literal(BigInteger.ZERO, symbolTable = symbolTable)
+    }
+}
+
+enum class OwnershipModel {
+    COPY,
+    MOVE
+}
+
+fun Type.getOwnership(): OwnershipModel {
+    return when (this) {
+        BoolType -> OwnershipModel.COPY
+        I8Type -> OwnershipModel.COPY
+        I16Type -> OwnershipModel.COPY
+        I32Type -> OwnershipModel.COPY
+        I64Type -> OwnershipModel.COPY
+        I128Type -> OwnershipModel.COPY
+        F32Type -> OwnershipModel.COPY
+        F64Type -> OwnershipModel.COPY
+//        StringType -> OwnershipModel.MOVE
+        is TupleType -> this.types.map { it.getOwnership() }.firstOrNull { it == OwnershipModel.MOVE }
+            ?: OwnershipModel.COPY
+        is StructType -> OwnershipModel.MOVE
+        is FunctionType -> OwnershipModel.COPY
+        VoidType -> OwnershipModel.COPY
     }
 }
 

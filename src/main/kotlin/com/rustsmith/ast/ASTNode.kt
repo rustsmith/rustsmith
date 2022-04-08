@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.rustsmith.generation.ASTGenerator
 import com.rustsmith.generation.Context
+import com.rustsmith.recondition.Macros
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 @JsonIgnoreProperties(value = ["symbolTable"])
@@ -33,12 +34,13 @@ data class StructDefinition(val structName: String, val arguments: List<Pair<Str
 
 data class Program(
     val seed: Long,
+    val macros: Set<Macros>,
     val structs: List<StructDefinition> = emptyList(),
     val functions: List<FunctionDefinition>
 ) :
     ASTNode {
     override fun toRust(): String {
-        return "#![allow(warnings, unused, unconditional_panic)]\n${structs.joinToString("\n") { it.toRust() }}\n${
+        return "#![allow(warnings, unused, unconditional_panic)]\n${macros.joinToString("\n") { it.toRust() }}\n${structs.joinToString("\n") { it.toRust() }}\n${
         functions.joinToString(
             "\n"
         ) { it.toRust() }
@@ -58,5 +60,5 @@ fun generateProgram(programSeed: Long): Program {
         arguments = emptyMap(),
         body = bodyWithOutput
     )
-    return Program(programSeed, structSymbolTable.structs, functionSymbolTable.functions + mainFunction)
+    return Program(programSeed, setOf(), structSymbolTable.structs, functionSymbolTable.functions + mainFunction)
 }

@@ -1,6 +1,8 @@
 package com.rustsmith.ast
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.rustsmith.recondition.ReconditionedDivision
+import com.rustsmith.recondition.ReconditionedMod
 import java.math.BigInteger
 import kotlin.reflect.KClass
 
@@ -85,8 +87,7 @@ data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTa
 }
 
 @ExpressionGenNode(TupleType::class)
-data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) :
-    Expression {
+data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) : Expression {
 
     override fun toRust(): String {
         return "(${values.joinToString(",") { it.toRust() }})"
@@ -234,14 +235,13 @@ data class GroupedExpression(
 // }
 
 /* Nodes that affect the change of ownership of variables */
-sealed interface OwnershipMovingNode : ASTNode
 
 @ExpressionGenNode(Type::class)
 data class FunctionCallExpression(
     val functionName: String,
     val args: List<Expression>,
     override val symbolTable: SymbolTable
-) : OwnershipMovingNode, Expression {
+) : Expression {
 
     override fun toRust(): String {
         return "$functionName(${args.joinToString(",") { it.toRust() }})"
@@ -253,7 +253,7 @@ data class StructInstantiationExpression(
     val structName: String,
     val args: List<Pair<String, Expression>>,
     override val symbolTable: SymbolTable
-) : OwnershipMovingNode, Expression {
+) : Expression {
 
     override fun toRust(): String {
         return "$structName {${args.joinToString(" ") { "${it.first}: ${it.second.toRust()}," }}}"
@@ -312,25 +312,25 @@ data class WrappingSubtract(
     }
 }
 
-data class ReconditionedDivision(
+data class ReconditionedDivisionExpression(
     val divideExpression: DivideExpression,
     override val symbolTable: SymbolTable
 ) :
     ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (divideExpression.expr1.toType() as NumberType).zero(symbolTable)
-        return "(if (${divideExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${divideExpression.toRust()}} else {${zeroExpression.toRust()}})"
+        return "${ReconditionedDivision.macroName}!(${divideExpression.expr1.toRust()}, ${divideExpression.expr2.toRust()}, ${zeroExpression.toRust()})"
     }
 }
 
-data class ReconditionedMod(
+data class ReconditionedModExpression(
     val modExpression: ModExpression,
     override val symbolTable: SymbolTable
 ) :
     ReconditionedExpression {
     override fun toRust(): String {
         val zeroExpression = (modExpression.expr1.toType() as NumberType).zero(symbolTable)
-        return "(if (${modExpression.expr2.toRust()} != ${zeroExpression.toRust()}) {${modExpression.toRust()}} else {${zeroExpression.toRust()}})"
+        return "${ReconditionedMod.macroName}!(${modExpression.expr1.toRust()}, ${modExpression.expr2.toRust()}, ${zeroExpression.toRust()})"
     }
 }
 
@@ -349,11 +349,11 @@ fun Expression.toType(): Type {
         is WrappingAdd -> this.addExpression.toType()
         is WrappingMul -> this.multiplyExpression.toType()
         is WrappingSubtract -> this.subtractExpression.toType()
-        is ReconditionedDivision -> this.divideExpression.toType()
+        is ReconditionedDivisionExpression -> this.divideExpression.toType()
         is BinOpExpression -> this.expr1.toType()
         is GroupedExpression -> this.expression.toType()
         is BlockExpression -> this.type!!
-        is ReconditionedMod -> this.modExpression.toType()
+        is ReconditionedModExpression -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
         is TupleLiteral -> TupleType(this.values.map { it.toType() })

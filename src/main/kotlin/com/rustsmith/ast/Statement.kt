@@ -27,42 +27,21 @@ data class Declaration(
     val variableName: String,
     val value: Expression,
     override val symbolTable: SymbolTable
-) : Statement, OwnershipMovingNode {
+) : Statement {
 
     override fun toRust(): String {
-        return "let ${if (mutable) "mut" else ""} $variableName: ${type.toRust()} = ${value.toRust()};"
+        return "let ${if (mutable) "mut " else ""}$variableName: ${type.toRust()} = ${value.toRust()};"
     }
 }
 
 @GenNode
-data class Assignment(
-    val variableName: String,
-    val value: Expression,
-    override val symbolTable: SymbolTable
-) :
+data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) :
     Statement {
 
     override fun toRust(): String {
         return "$variableName = ${value.toRust()};"
     }
 }
-
-// @GenNode(1)
-// data class ChainedStatement(val s1: Statement, val s2: Statement, override val symbolTable: SymbolTable) : Statement {
-//
-//    companion object {
-//        fun createFromList(statements: List<Statement>, symbolTable: SymbolTable): Statement {
-//            if (statements.size == 1) {
-//                return statements.first()
-//            }
-//            return ChainedStatement(statements.first(), createFromList(statements.drop(1), symbolTable), symbolTable)
-//        }
-//    }
-//
-//    override fun toRust(): String {
-//        return "${s1.toRust()}\n${s2.toRust()}"
-//    }
-// }
 
 @GenNode
 data class StatementBlock(val statements: List<Statement>, val symbolTable: SymbolTable) : ASTNode {

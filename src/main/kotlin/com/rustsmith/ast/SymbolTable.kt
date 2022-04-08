@@ -2,7 +2,7 @@ package com.rustsmith.ast
 
 import com.rustsmith.Random
 
-data class IdentifierData(val type: Type, val mutable: Boolean, val ownedByScope: Boolean = true)
+data class IdentifierData(val type: Type, val mutable: Boolean, val valid: Boolean = true)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     private var current: SymbolTable? = null
@@ -81,11 +81,10 @@ data class SymbolTable(
     fun removeVariableOwnership(key: String) {
         for (table in iterator()) {
             if (table.symbolMap.containsKey(key)) {
-                table.symbolMap[key] = table.symbolMap[key]!!.copy(ownedByScope = false)
+                table.symbolMap[key] = table.symbolMap[key]!!.copy(valid = false)
                 return
             }
         }
-        throw IllegalArgumentException("Variable not found to remove")
     }
 
     operator fun set(key: String, value: IdentifierData) {
@@ -110,7 +109,7 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.ownedByScope }.map { it.first }.toSet()
+        return overallMap.toList().filter { it.second.valid }.map { it.first }.toSet()
     }
 
     fun getRandomMutableVariable(): Pair<String, IdentifierData>? {
@@ -118,7 +117,7 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.mutable }.filter { it.second.ownedByScope }.randomOrNull(Random)
+        return overallMap.toList().filter { it.second.mutable }.filter { it.second.valid }.randomOrNull(Random)
     }
 
     fun getRandomVariableOfType(type: Type): Pair<String, IdentifierData>? {
@@ -126,7 +125,7 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.type == type }.filter { it.second.ownedByScope }
+        return overallMap.toList().filter { it.second.type == type }.filter { it.second.valid }
             .randomOrNull(Random)
     }
 
