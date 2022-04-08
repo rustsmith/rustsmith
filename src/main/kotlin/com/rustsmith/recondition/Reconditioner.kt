@@ -46,7 +46,7 @@ class Reconditioner {
         return when (node) {
             is Float32Literal -> node
             is Int32Literal -> node
-//            is StringLiteral -> node
+            is StringLiteral -> node
             is Variable -> node
             is BooleanLiteral -> node
             is Float64Literal -> node

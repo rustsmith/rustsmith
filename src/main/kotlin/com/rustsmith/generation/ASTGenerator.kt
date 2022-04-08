@@ -108,6 +108,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateFloat64Literal(type: Type, ctx: Context): Float64Literal =
         Float64Literal(Random.nextDouble(), symbolTable)
 
+    override fun generateStringLiteral(type: Type, ctx: Context): StringLiteral {
+        val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+        return StringLiteral(
+            (1..Random.nextInt(100)).map { charPool[Random.nextInt(0, charPool.size)] }
+                .joinToString(""),
+            symbolTable
+        )
+    }
+
     override fun generateBooleanLiteral(type: Type, ctx: Context): BooleanLiteral =
         BooleanLiteral(Random.nextBoolean(), symbolTable)
 
@@ -301,6 +310,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateF32Type(ctx: Context) = F32Type
 
     override fun generateF64Type(ctx: Context) = F64Type
+
+    override fun generateStringType(ctx: Context) = StringType
 
     override fun generateTupleType(ctx: Context): TupleType {
         val numArgs = Random.nextInt(1, 5)

@@ -70,13 +70,13 @@ data class Float64Literal(val value: Double, override val symbolTable: SymbolTab
     }
 }
 
-// @ExpressionGenNode(StringType::class)
-// data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : Expression {
-//
-//    override fun toRust(): String {
-//        return "\"$value\""
-//    }
-// }
+ @ExpressionGenNode(StringType::class)
+ data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : Expression {
+
+    override fun toRust(): String {
+        return "String::from(\"$value\")"
+    }
+ }
 
 @ExpressionGenNode(BoolType::class)
 data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTable) : Expression {
@@ -343,7 +343,7 @@ fun Expression.toType(): Type {
         is Int128Literal -> I128Type
         is Float32Literal -> F32Type
         is Float64Literal -> F64Type
-//        is StringLiteral -> StringType
+        is StringLiteral -> StringType
         is BooleanLiteral -> BoolType
         is Variable -> symbolTable[this.value]!!.type
         is WrappingAdd -> this.addExpression.toType()
