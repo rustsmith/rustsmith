@@ -129,13 +129,33 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             tupleWithType = generateTupleTypeWithType(type, ctx)
         }
         val tupleExpression = generateExpression(tupleWithType, ctx.incrementCount(TupleElementAccessExpression::class))
-        return TupleElementAccessExpression(tupleExpression, tupleWithType.types.indexOf(type to true), symbolTable)
+        // Collect all indices that have required type
+        val typeIndices =
+            tupleWithType.types.mapIndexed { index, pair -> pair to index }.filter { it.first == type to true }
+        return TupleElementAccessExpression(tupleExpression, typeIndices.random(Random).second, symbolTable)
     }
 
     private fun generateTupleTypeWithType(type: Type, ctx: Context): TupleType {
         val numArgs = Random.nextInt(2, 5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) } + type
-        return TupleType(argTypes.map { it to true })
+        return TupleType(argTypes.shuffled(Random).map { it to true })
+    }
+
+    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
+        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
+        if (structTypeWithType == null) {
+            structTypeWithType = generateStructTypeWithType(type, ctx)
+        }
+        val structExpression =
+            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class))
+        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
+            .filter { it.first.second == type }
+            .map { it.first.first }
+        return StructElementAccessExpression(structExpression, typeIndices.random(Random), symbolTable)
+    }
+
+    private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
+        return createNewStructType(ctx, type)
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
@@ -342,28 +362,31 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
         if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
-            val structName = IdentGenerator.generateStructName()
-            /* Generate Struct Definition */
-            val numArgs = Random.nextInt(1, 5)
-            val argTypes =
-                (0 until numArgs).map {
-                    Triple(
-                        IdentGenerator.generateVariable(),
-                        generateType(ctx.incrementCount(StructType::class)),
-                        true
-                    )
-                }
-            val structType = StructType(structName, argTypes)
-            symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false)
-            symbolTable.globalSymbolTable.addStruct(
-                StructDefinition(
-                    structName,
-                    argTypes.map { it.first to it.second }
-                )
-            )
-            return structType
+            return createNewStructType(ctx)
         } else {
             return randomStructType.second.type as StructType
         }
+    }
+
+    private fun createNewStructType(ctx: Context, specificType: Type? = null): StructType {
+        val structName = IdentGenerator.generateStructName()
+        /* Generate Struct Definition */
+        val numArgs = Random.nextInt(1, 5)
+        val argTypes =
+            (0 until numArgs).map {
+                Triple(
+                    IdentGenerator.generateVariable(),
+                    generateType(ctx.incrementCount(StructType::class)),
+                    true
+                )
+            }.toMutableList()
+
+        if (specificType != null) {
+            argTypes += Triple(IdentGenerator.generateVariable(), specificType, true)
+        }
+        val structType = StructType(structName, argTypes)
+        symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false)
+        symbolTable.globalSymbolTable.addStruct(StructDefinition(structName, argTypes.map { it.first to it.second }))
+        return structType
     }
 }

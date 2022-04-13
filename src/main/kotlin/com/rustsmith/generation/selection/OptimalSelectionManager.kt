@@ -40,10 +40,14 @@ class OptimalSelectionManager : BaseSelectionManager() {
             RecursiveExpression::class,
             1.0 / (ctx.getDepth(RecursiveExpression::class).shl(4) + 10)
         )
-        expressionWeightings.updateWeighting(
-            TupleElementAccessExpression::class,
-            1.0 / (ctx.getDepth(TupleElementAccessExpression::class).shl(2) + 1)
-        )
+//        expressionWeightings.updateWeighting(
+//            TupleElementAccessExpression::class,
+//            1.0 / (ctx.getDepth(TupleElementAccessExpression::class) + 10)
+//        )
+//        expressionWeightings.updateWeighting(
+//            StructElementAccessExpression::class,
+//            1.0 / (ctx.getDepth(StructElementAccessExpression::class) + 10)
+//        )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
             1.0 / (ctx.getDepth(FunctionCallExpression::class) + 10)

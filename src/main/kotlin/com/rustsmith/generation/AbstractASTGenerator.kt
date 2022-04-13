@@ -32,6 +32,7 @@ import com.rustsmith.ast.MultiplyExpression
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
+import com.rustsmith.ast.StructElementAccessExpression
 import com.rustsmith.ast.StructInstantiationExpression
 import com.rustsmith.ast.StructType
 import com.rustsmith.ast.SubtractExpression
@@ -82,6 +83,9 @@ public interface AbstractASTGenerator {
     public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
         TupleElementAccessExpression
 
+    public fun generateStructElementAccessExpression(type: Type, ctx: Context):
+        StructElementAccessExpression
+
     public fun generateVariable(type: Type, ctx: Context): Variable
 
     public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
@@ -126,6 +130,7 @@ public interface AbstractASTGenerator {
             BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
             TupleLiteral::class -> generateTupleLiteral(type, ctx)
             TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
+            StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
             Variable::class -> generateVariable(type, ctx)
             FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
             StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)

@@ -59,6 +59,12 @@ class GlobalSymbolTable {
 
     fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().randomOrNull(Random)
 
+    fun findStructWithType(type: Type): StructType? {
+        val structDefinition =
+            structs.filter { structDef -> structDef.arguments.any { it.second == type } }.randomOrNull()
+        return symbolMap[structDefinition?.structName]?.type as StructType?
+    }
+
     /* Tuple methods */
 
     fun addTupleType(type: TupleType) = tupleTypes.add(type)
