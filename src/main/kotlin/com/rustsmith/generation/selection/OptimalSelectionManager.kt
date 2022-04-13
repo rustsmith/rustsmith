@@ -10,7 +10,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         RecursiveExpression::class to 100,
         FunctionCallExpression::class to 300,
         StructType::class to 300,
-        TupleType::class to 3
+        TupleType::class to 300
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
@@ -38,16 +38,8 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class).shl(4) + 10)
+            1.0 / (ctx.getDepth(RecursiveExpression::class)*4 + 10)
         )
-//        expressionWeightings.updateWeighting(
-//            TupleElementAccessExpression::class,
-//            1.0 / (ctx.getDepth(TupleElementAccessExpression::class) + 10)
-//        )
-//        expressionWeightings.updateWeighting(
-//            StructElementAccessExpression::class,
-//            1.0 / (ctx.getDepth(StructElementAccessExpression::class) + 10)
-//        )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
             1.0 / (ctx.getDepth(FunctionCallExpression::class) + 10)
@@ -58,6 +50,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val typeWeightings = super.availableTypesWeightings(ctx)
         typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
+        typeWeightings.updateWeighting(TupleType::class, 1.0 / (ctx.getDepth(TupleType::class) + 1))
         return typeWeightings
     }
 }
