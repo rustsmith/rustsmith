@@ -64,12 +64,12 @@ object F64Type : FloatType {
     }
 }
 
- @GenNode
- object StringType : Type {
+@GenNode
+object StringType : Type {
     override fun toRust(): String {
         return "String"
     }
- }
+}
 
 @GenNode
 object BoolType : BitWiseCompatibleType {
@@ -79,14 +79,14 @@ object BoolType : BitWiseCompatibleType {
 }
 
 @GenNode
-data class TupleType(val types: List<Type>) : Type {
+data class TupleType(val types: List<Pair<Type, Boolean>>) : Type {
     override fun toRust(): String {
-        return "(${types.joinToString(",") { it.toRust() }})"
+        return "(${types.joinToString(",") { it.first.toRust() }})"
     }
 }
 
 @GenNode
-data class StructType(val structName: String, val types: List<Pair<String, Type>>) : Type {
+data class StructType(val structName: String, val types: List<Triple<String, Type, Boolean>>) : Type {
     override fun toRust(): String {
         return structName
     }
@@ -132,8 +132,8 @@ fun Type.getOwnership(): OwnershipModel {
         F32Type -> OwnershipModel.COPY
         F64Type -> OwnershipModel.COPY
         StringType -> OwnershipModel.MOVE
-        is TupleType -> this.types.map { it.getOwnership() }.firstOrNull { it == OwnershipModel.MOVE }
-            ?: OwnershipModel.COPY
+        is TupleType -> this.types.map { it.first.getOwnership() }
+            .firstOrNull { it == OwnershipModel.MOVE } ?: OwnershipModel.COPY
         is StructType -> OwnershipModel.MOVE
         is FunctionType -> OwnershipModel.COPY
         VoidType -> OwnershipModel.COPY

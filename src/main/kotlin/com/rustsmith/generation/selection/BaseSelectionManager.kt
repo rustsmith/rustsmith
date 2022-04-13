@@ -29,6 +29,8 @@ open class BaseSelectionManager : SelectionManager {
      */
     override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
+    override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
+
     override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5)
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {

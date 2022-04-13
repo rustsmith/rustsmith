@@ -50,8 +50,8 @@ data class Program(
 
 fun generateProgram(programSeed: Long): Program {
     val functionSymbolTable = FunctionSymbolTable()
-    val structSymbolTable = StructSymbolTable()
-    val symbolTable = SymbolTable(null, functionSymbolTable, structSymbolTable)
+    val globalSymbolTable = GlobalSymbolTable()
+    val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
     val body = ASTGenerator(symbolTable)(Context(mapOf(), listOf(), symbolTable))
     val bodyWithOutput =
         StatementBlock(body.statements + Output(symbolTable, programSeed), symbolTable)
@@ -60,5 +60,5 @@ fun generateProgram(programSeed: Long): Program {
         arguments = emptyMap(),
         body = bodyWithOutput
     )
-    return Program(programSeed, setOf(), structSymbolTable.structs, functionSymbolTable.functions + mainFunction)
+    return Program(programSeed, setOf(), globalSymbolTable.structs, functionSymbolTable.functions + mainFunction)
 }

@@ -24,6 +24,11 @@ class OptimalSelectionManager : BaseSelectionManager() {
         return mapOf(true to createNewStruct, false to 1 - createNewStruct)
     }
 
+    override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> {
+        val createNewTuple = 1.0 / (ctx.numberOfTuplesDefined.value + 1)
+        return mapOf(true to createNewTuple, false to 1 - createNewTuple)
+    }
+
     override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> {
         val createNewFunction = 1.0 / (ctx.numberOfFunctionsDefined.value + 1)
         return mapOf(true to createNewFunction, false to 1 - createNewFunction)
@@ -34,6 +39,10 @@ class OptimalSelectionManager : BaseSelectionManager() {
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
             1.0 / (ctx.getDepth(RecursiveExpression::class).shl(4) + 10)
+        )
+        expressionWeightings.updateWeighting(
+            TupleElementAccessExpression::class,
+            1.0 / (ctx.getDepth(TupleElementAccessExpression::class).shl(2) + 1)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

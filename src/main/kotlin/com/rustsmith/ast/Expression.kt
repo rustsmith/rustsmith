@@ -70,13 +70,13 @@ data class Float64Literal(val value: Double, override val symbolTable: SymbolTab
     }
 }
 
- @ExpressionGenNode(StringType::class)
- data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : Expression {
+@ExpressionGenNode(StringType::class)
+data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : Expression {
 
     override fun toRust(): String {
         return "String::from(\"$value\")"
     }
- }
+}
 
 @ExpressionGenNode(BoolType::class)
 data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTable) : Expression {
@@ -91,6 +91,18 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 
     override fun toRust(): String {
         return "(${values.joinToString(",") { it.toRust() }})"
+    }
+}
+
+@ExpressionGenNode(Type::class)
+data class TupleElementAccessExpression(
+    val expression: Expression,
+    val index: Int,
+    override val symbolTable: SymbolTable
+) : Expression {
+
+    override fun toRust(): String {
+        return "${expression.toRust()}.$index"
     }
 }
 
@@ -356,8 +368,9 @@ fun Expression.toType(): Type {
         is ReconditionedModExpression -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
-        is TupleLiteral -> TupleType(this.values.map { it.toType() })
-        is StructInstantiationExpression -> TODO()
+        is TupleLiteral -> TupleType(this.values.map { it.toType() to true })
+        is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type
+        is TupleElementAccessExpression -> (this.expression.toType() as TupleType).types[this.index].first
     }
 }
 

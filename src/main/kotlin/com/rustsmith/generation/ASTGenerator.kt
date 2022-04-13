@@ -40,19 +40,12 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
-        return ExpressionStatement(
-            generateExpression(
-                generateType(ctx), ctx
-            ),
-            true, symbolTable
-        )
+        return ExpressionStatement(generateExpression(generateType(ctx), ctx), true, symbolTable)
     }
 
     override fun generateDeclaration(ctx: Context): Declaration {
         val declarationType = generateType(ctx)
-        return generateDependantDeclarationOfType(
-            declarationType, ctx = ctx
-        )
+        return generateDependantDeclarationOfType(declarationType, ctx = ctx)
     }
 
     private fun generateDependantDeclarationOfType(
@@ -62,7 +55,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     ): Declaration {
         val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, ctx.incrementCount(Declaration::class))
-        symbolTable[variableName] = IdentifierData(type, mutable)
+        symbolTable[variableName] = IdentifierData(expression.toType(), mutable)
         return Declaration(mutable, type, variableName, expression, symbolTable)
     }
 
@@ -123,11 +116,26 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral {
         if (type is TupleType) {
             return TupleLiteral(
-                type.types.map { generateExpression(it, ctx.incrementCount(TupleLiteral::class)) },
+                type.types.map { generateExpression(it.first, ctx.incrementCount(TupleLiteral::class)) },
                 symbolTable
             )
         }
         throw Exception("Incompatible Type")
+    }
+
+    override fun generateTupleElementAccessExpression(type: Type, ctx: Context): TupleElementAccessExpression {
+        var tupleWithType = symbolTable.globalSymbolTable.findTupleWithType(type)
+        if (tupleWithType == null) {
+            tupleWithType = generateTupleTypeWithType(type, ctx)
+        }
+        val tupleExpression = generateExpression(tupleWithType, ctx.incrementCount(TupleElementAccessExpression::class))
+        return TupleElementAccessExpression(tupleExpression, tupleWithType.types.indexOf(type to true), symbolTable)
+    }
+
+    private fun generateTupleTypeWithType(type: Type, ctx: Context): TupleType {
+        val numArgs = Random.nextInt(2, 5)
+        val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) } + type
+        return TupleType(argTypes.map { it to true })
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
@@ -260,7 +268,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val numArgs = Random.nextInt(5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
         val symbolTableForFunction = SymbolTable(
-            null, symbolTable.functionSymbolTable, symbolTable.structSymbolTable
+            null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
         val functionDefinition = FunctionDefinition(
             returnType,
@@ -314,13 +322,23 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateStringType(ctx: Context) = StringType
 
     override fun generateTupleType(ctx: Context): TupleType {
-        val numArgs = Random.nextInt(1, 5)
-        val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) }
-        return TupleType(argTypes)
+        val randomTupleType = symbolTable.globalSymbolTable.getRandomTuple()
+        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (randomTupleType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+            /* Generate Tuple Definition */
+            val numArgs = Random.nextInt(2, 5)
+            val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) }
+            val tupleType = TupleType(argTypes.map { it to true })
+            symbolTable.globalSymbolTable.addTupleType(tupleType)
+            return tupleType
+        } else {
+            return randomTupleType
+        }
     }
 
     override fun generateStructType(ctx: Context): StructType {
-        val randomStructType = symbolTable.structSymbolTable.getRandomStruct()
+        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()
         /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
         if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
@@ -328,10 +346,21 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             /* Generate Struct Definition */
             val numArgs = Random.nextInt(1, 5)
             val argTypes =
-                (0 until numArgs).map { IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class)) }
+                (0 until numArgs).map {
+                    Triple(
+                        IdentGenerator.generateVariable(),
+                        generateType(ctx.incrementCount(StructType::class)),
+                        true
+                    )
+                }
             val structType = StructType(structName, argTypes)
-            symbolTable.structSymbolTable[structName] = IdentifierData(structType, false)
-            symbolTable.structSymbolTable.addStruct(StructDefinition(structName, argTypes))
+            symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false)
+            symbolTable.globalSymbolTable.addStruct(
+                StructDefinition(
+                    structName,
+                    argTypes.map { it.first to it.second }
+                )
+            )
             return structType
         } else {
             return randomStructType.second.type as StructType

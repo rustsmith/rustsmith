@@ -13,7 +13,8 @@ data class Context(
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
     val numberOfFunctionsDefined = lazy { symbolTable.functionSymbolTable.functions.size }
-    val numberOfStructsDefined = lazy { symbolTable.structSymbolTable.structs.size }
+    val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
+    val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
 
     fun getDepth(kClass: KClass<out ASTNode>): Int {
         return kClass.subclasses().sumOf { nodeDepthState[it] ?: 0 }

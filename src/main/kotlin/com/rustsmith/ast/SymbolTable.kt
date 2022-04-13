@@ -40,13 +40,10 @@ class FunctionSymbolTable {
     }
 }
 
-class StructSymbolTable {
+class GlobalSymbolTable {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
     val structs = mutableListOf<StructDefinition>()
-
-    fun getRandomStruct(): Pair<String, IdentifierData>? {
-        return symbolMap.toList().randomOrNull(Random)
-    }
+    val tupleTypes = mutableListOf<TupleType>()
 
     operator fun get(key: String): IdentifierData? {
         return symbolMap[key]
@@ -56,17 +53,28 @@ class StructSymbolTable {
         symbolMap[key] = value
     }
 
-    fun addStruct(structDefinition: StructDefinition) {
-        structs.add(structDefinition)
+    /* Struct methods */
+
+    fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
+
+    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().randomOrNull(Random)
+
+    /* Tuple methods */
+
+    fun addTupleType(type: TupleType) = tupleTypes.add(type)
+
+    fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(Random)
+
+    fun findTupleWithType(type: Type): TupleType? {
+        return tupleTypes.filter { it.types.contains(type to true) }.randomOrNull()
     }
 }
 
 data class SymbolTable(
     val parent: SymbolTable?,
     val functionSymbolTable: FunctionSymbolTable,
-    val structSymbolTable: StructSymbolTable
-) :
-    Iterable<SymbolTable> {
+    val globalSymbolTable: GlobalSymbolTable
+) : Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
 
     operator fun get(key: String): IdentifierData? {
@@ -129,8 +137,24 @@ data class SymbolTable(
             .randomOrNull(Random)
     }
 
+    fun getRandomTupleAccessOfType(type: Type): Pair<String, Pair<Type, Int>>? {
+        val overallMap = mutableMapOf<String, Pair<Type, Int>>()
+        for (table in iterator()) {
+            table.symbolMap.forEach {
+                if (it.value.valid && it.value.type is TupleType && (it.value.type as TupleType).types.contains(type to true)) {
+                    val indexOfTupleAccess = (it.value.type as TupleType).types.indexOf(type to true)
+//                    val typesList = (it.value.type as TupleType).types.toMutableList()
+//                    typesList[indexOfTupleAccess] = typesList[indexOfTupleAccess].copy(second = false)
+//                    table.symbolMap[it.key] =  table.symbolMap[it.key]!!.copy(type = (it.value.type as TupleType).copy(types = typesList), valid = false)
+                    overallMap.putIfAbsent(it.key, it.value.type to indexOfTupleAccess)
+                }
+            }
+        }
+        return overallMap.toList().randomOrNull(Random)
+    }
+
     fun enterScope(): SymbolTable {
-        return SymbolTable(this, functionSymbolTable, structSymbolTable)
+        return SymbolTable(this, functionSymbolTable, globalSymbolTable)
     }
 
     override fun iterator() = SymbolTableIterator(this)
