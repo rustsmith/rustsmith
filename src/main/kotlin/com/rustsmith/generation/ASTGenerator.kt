@@ -1,10 +1,11 @@
 package com.rustsmith.generation
 
 import AbstractASTGenerator
-import com.rustsmith.Random
+import com.rustsmith.CustomRandom
 import com.rustsmith.ast.*
 import com.rustsmith.randomByWeights
 import com.rustsmith.selectionManager
+import com.rustsmith.subclasses
 import java.math.BigInteger
 import kotlin.random.asJavaRandom
 import kotlin.reflect.KClass
@@ -50,13 +51,13 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     private fun generateDependantDeclarationOfType(
         type: Type,
-        mutable: Boolean = Random.nextBoolean(),
+        mutable: Boolean = CustomRandom.nextBoolean(),
         ctx: Context
     ): Declaration {
         val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, ctx.incrementCount(Declaration::class))
-        symbolTable[variableName] = IdentifierData(expression.toType(), mutable)
-        return Declaration(mutable, type, variableName, expression, symbolTable)
+        symbolTable[variableName] = IdentifierData(expression.toType().clone(), mutable, OwnershipState.VALID)
+        return Declaration(mutable, type.clone(), variableName, expression, symbolTable)
     }
 
     override fun generateAssignment(ctx: Context): Assignment {
@@ -81,42 +82,42 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateInt8Literal(type: Type, ctx: Context): Int8Literal =
-        Int8Literal(Random.nextBits(7), symbolTable)
+        Int8Literal(CustomRandom.nextBits(7), symbolTable)
 
     override fun generateInt16Literal(type: Type, ctx: Context): Int16Literal =
-        Int16Literal(Random.nextBits(15), symbolTable)
+        Int16Literal(CustomRandom.nextBits(15), symbolTable)
 
     override fun generateInt32Literal(type: Type, ctx: Context): Int32Literal =
-        Int32Literal(Random.nextInt(), symbolTable)
+        Int32Literal(CustomRandom.nextInt(), symbolTable)
 
     override fun generateInt64Literal(type: Type, ctx: Context): Int64Literal =
-        Int64Literal(Random.nextLong(), symbolTable)
+        Int64Literal(CustomRandom.nextLong(), symbolTable)
 
     override fun generateInt128Literal(type: Type, ctx: Context): Int128Literal =
-        Int128Literal(BigInteger(127, Random.asJavaRandom()), symbolTable)
+        Int128Literal(BigInteger(127, CustomRandom.asJavaRandom()), symbolTable)
 
     override fun generateFloat32Literal(type: Type, ctx: Context): Float32Literal =
-        Float32Literal(Random.nextFloat(), symbolTable)
+        Float32Literal(CustomRandom.nextFloat(), symbolTable)
 
     override fun generateFloat64Literal(type: Type, ctx: Context): Float64Literal =
-        Float64Literal(Random.nextDouble(), symbolTable)
+        Float64Literal(CustomRandom.nextDouble(), symbolTable)
 
     override fun generateStringLiteral(type: Type, ctx: Context): StringLiteral {
         val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
         return StringLiteral(
-            (1..Random.nextInt(100)).map { charPool[Random.nextInt(0, charPool.size)] }
+            (1..CustomRandom.nextInt(100)).map { charPool[CustomRandom.nextInt(0, charPool.size)] }
                 .joinToString(""),
             symbolTable
         )
     }
 
     override fun generateBooleanLiteral(type: Type, ctx: Context): BooleanLiteral =
-        BooleanLiteral(Random.nextBoolean(), symbolTable)
+        BooleanLiteral(CustomRandom.nextBoolean(), symbolTable)
 
     override fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral {
         if (type is TupleType) {
             return TupleLiteral(
-                type.types.map { generateExpression(it.first, ctx.incrementCount(TupleLiteral::class)) },
+                type.types.map { generateExpression(it, ctx.incrementCount(TupleLiteral::class)) },
                 symbolTable
             )
         }
@@ -128,38 +129,59 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (tupleWithType == null) {
             tupleWithType = generateTupleTypeWithType(type, ctx)
         }
-        val tupleExpression = generateExpression(tupleWithType, ctx.incrementCount(TupleElementAccessExpression::class))
+        val tupleExpression = generateExpression(
+            tupleWithType,
+            ctx.incrementCount(TupleElementAccessExpression::class).setRequiredType(type)
+        )
         // Collect all indices that have required type
-        val typeIndices =
-            tupleWithType.types.mapIndexed { index, pair -> pair to index }.filter { it.first == type to true }
-        return TupleElementAccessExpression(tupleExpression, typeIndices.random(Random).second, symbolTable)
+        val tupleType = tupleExpression.toType() as TupleType
+        val typeIndices = tupleType.types
+            .mapIndexed { index, pair -> pair to index }.filter { it.first == type }.map { it.second }
+            .filter { tupleType.argumentsToOwnershipMap[it].second != OwnershipState.INVALID }
+        val chosenIndex = typeIndices.random(CustomRandom)
+        if (type.getOwnership() == OwnershipModel.MOVE) {
+            if (tupleExpression is Variable && tupleExpression.value == "var137" && chosenIndex == 1) {
+                val x = tupleExpression.toType()
+                println("HERE")
+            }
+            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+                /* A partial move, so set the ownership state to partially valid */
+                OwnershipState.PARTIALLY_VALID
+            } else {
+                /* Not a partial move, so set the ownership state to completely invalid */
+                OwnershipState.INVALID
+            }
+            tupleType.argumentsToOwnershipMap[chosenIndex] =
+                tupleType.argumentsToOwnershipMap[chosenIndex].copy(second = newOwnershipState)
+        }
+        return TupleElementAccessExpression(tupleExpression, chosenIndex, symbolTable)
     }
 
     private fun generateTupleTypeWithType(type: Type, ctx: Context): TupleType {
-        val numArgs = Random.nextInt(2, 5)
-        val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) } + type
-        return TupleType(argTypes.shuffled(Random).map { it to true })
+        val numArgs = CustomRandom.nextInt(2, 5)
+        val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) } + type.clone()
+        return TupleType(argTypes.shuffled(CustomRandom))
     }
 
-    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
-        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
-        if (structTypeWithType == null) {
-            structTypeWithType = generateStructTypeWithType(type, ctx)
-        }
-        val structExpression =
-            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class))
-        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
-            .filter { it.first.second == type }
-            .map { it.first.first }
-        return StructElementAccessExpression(structExpression, typeIndices.random(Random), symbolTable)
-    }
+//    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
+//        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
+//        if (structTypeWithType == null) {
+//            structTypeWithType = generateStructTypeWithType(type, ctx)
+//        }
+//        val structExpression =
+//            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class))
+//        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
+//            .filter { it.first.second == type }
+//            .map { it.first.first }
+//        return StructElementAccessExpression(structExpression, typeIndices.random(Random), symbolTable)
+//    }
 
     private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
-        return createNewStructType(ctx, type)
+        return createNewStructType(ctx, type.clone())
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
-        val value = symbolTable.getRandomVariableOfType(type)
+        val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType)
         val variableNode = if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(type, ctx = ctx.incrementCount(Variable::class))
@@ -169,10 +191,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             Variable(value.first, symbolTable)
         }
 
-        /* Variable is being references inside an ownership moving expression (such as struct instantiation or function
-           call) */
+        /* The variable is to be moved instead of copied */
         if (type.getOwnership() == OwnershipModel.MOVE) {
-            symbolTable.removeVariableOwnership(variableNode.value)
+            if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+                /* A partial move, so set the ownership state to partially valid */
+                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.PARTIALLY_VALID)
+            } else {
+                /* Not a partial move, so set the ownership state to completely invalid */
+                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.INVALID)
+            }
         }
         return variableNode
     }
@@ -184,7 +211,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateBlockExpression(type: Type, ctx: Context): BlockExpression {
         val newScope = symbolTable.enterScope()
         val body = ASTGenerator(newScope)(ctx.incrementCount(BlockExpression::class).withSymbolTable(newScope), type)
-        return BlockExpression(body, type, symbolTable)
+        return BlockExpression(body, type.clone(), symbolTable)
     }
 
     override fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression {
@@ -263,7 +290,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression {
         val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
         if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
-            val newFunctionType = generateFunction(type, ctx)
+            val newFunctionType = generateFunction(type.clone(), ctx)
             return FunctionCallExpression(
                 newFunctionType.first,
                 newFunctionType.second.args.map {
@@ -285,7 +312,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     private fun generateFunction(returnType: Type, ctx: Context): Pair<String, FunctionType> {
-        val numArgs = Random.nextInt(5)
+        val numArgs = CustomRandom.nextInt(5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
         val symbolTableForFunction = SymbolTable(
             null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
@@ -298,7 +325,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             (ctx.incrementCount(FunctionCallExpression::class).withSymbolTable(symbolTableForFunction), returnType)
         )
         val functionType = FunctionType(returnType, argTypes)
-        symbolTable.functionSymbolTable[functionDefinition.functionName] = IdentifierData(functionType, false)
+        symbolTable.functionSymbolTable[functionDefinition.functionName] =
+            IdentifierData(functionType, false, OwnershipState.VALID)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
     }
@@ -347,9 +375,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
            currently available */
         if (randomTupleType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
             /* Generate Tuple Definition */
-            val numArgs = Random.nextInt(2, 5)
+            val numArgs = CustomRandom.nextInt(2, 5)
             val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(TupleType::class)) }
-            val tupleType = TupleType(argTypes.map { it to true })
+            val tupleType = TupleType(argTypes)
             symbolTable.globalSymbolTable.addTupleType(tupleType)
             return tupleType
         } else {
@@ -364,28 +392,24 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
             return createNewStructType(ctx)
         } else {
-            return randomStructType.second.type as StructType
+            return randomStructType.second.type.clone() as StructType
         }
     }
 
     private fun createNewStructType(ctx: Context, specificType: Type? = null): StructType {
         val structName = IdentGenerator.generateStructName()
         /* Generate Struct Definition */
-        val numArgs = Random.nextInt(1, 5)
+        val numArgs = CustomRandom.nextInt(1, 5)
         val argTypes =
             (0 until numArgs).map {
-                Triple(
-                    IdentGenerator.generateVariable(),
-                    generateType(ctx.incrementCount(StructType::class)),
-                    true
-                )
+                IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class))
             }.toMutableList()
 
         if (specificType != null) {
-            argTypes += Triple(IdentGenerator.generateVariable(), specificType, true)
+            argTypes += IdentGenerator.generateVariable() to specificType
         }
         val structType = StructType(structName, argTypes)
-        symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false)
+        symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false, OwnershipState.VALID)
         symbolTable.globalSymbolTable.addStruct(StructDefinition(structName, argTypes.map { it.first to it.second }))
         return structType
     }

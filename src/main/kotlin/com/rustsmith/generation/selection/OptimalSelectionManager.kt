@@ -10,7 +10,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         RecursiveExpression::class to 100,
         FunctionCallExpression::class to 300,
         StructType::class to 300,
-        TupleType::class to 300
+        TupleType::class to 300,
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
@@ -38,7 +38,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class)*4 + 10)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + 10)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

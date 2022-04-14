@@ -8,7 +8,7 @@ fun <T> pickRandomByWeight(weightingsMap: List<Pair<T, Double>>): T {
     var acc = 0.0
     val cumulativeProbabilityWeights =
         normalisedWeightingsMap.map { acc += it.second; it.first to acc }
-    val selectedProbability = Random.nextDouble(0.0, 1.0)
+    val selectedProbability = CustomRandom.nextDouble(0.0, 1.0)
     return cumulativeProbabilityWeights.first { it.second > selectedProbability }.first
 }
 

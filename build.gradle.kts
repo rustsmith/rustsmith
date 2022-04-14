@@ -18,6 +18,8 @@ tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "15"
 }
 dependencies {
+    testImplementation(kotlin("test"))
+    implementation("org.mockito:mockito-core:3.9.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.0")
     implementation("com.github.ajalt.clikt:clikt:3.4.0")
@@ -67,6 +69,9 @@ application {
     mainClass.set("com.rustsmith.MainKt")
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
 
 kotlinter{
     disabledRules = arrayOf("no-wildcard-imports")

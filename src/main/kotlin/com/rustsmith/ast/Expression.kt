@@ -94,29 +94,31 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
     }
 }
 
+sealed interface PartialMoveExpression : ASTNode
+
 @ExpressionGenNode(Type::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : RecursiveExpression, PartialMoveExpression {
 
     override fun toRust(): String {
         return "${expression.toRust()}.$index"
     }
 }
 
-@ExpressionGenNode(Type::class)
-data class StructElementAccessExpression(
-    val expression: Expression,
-    val elementName: String,
-    override val symbolTable: SymbolTable
-) : RecursiveExpression {
-
-    override fun toRust(): String {
-        return "${expression.toRust()}.$elementName"
-    }
-}
+// @ExpressionGenNode(Type::class)
+// data class StructElementAccessExpression(
+//    val expression: Expression,
+//    val elementName: String,
+//    override val symbolTable: SymbolTable
+// ) : RecursiveExpression, PartialMoveExpression {
+//
+//    override fun toRust(): String {
+//        return "${expression.toRust()}.$elementName"
+//    }
+// }
 
 @ExpressionGenNode(Type::class)
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
@@ -380,10 +382,10 @@ fun Expression.toType(): Type {
         is ReconditionedModExpression -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
-        is TupleLiteral -> TupleType(this.values.map { it.toType() to true })
+        is TupleLiteral -> TupleType(this.values.map { it.toType() })
         is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type
-        is TupleElementAccessExpression -> (this.expression.toType() as TupleType).types[this.index].first
-        is StructElementAccessExpression -> (this.expression.toType() as StructType).types.first { it.first == elementName }.second
+        is TupleElementAccessExpression -> (this.expression.toType() as TupleType).types[this.index]
+//        is StructElementAccessExpression -> (this.expression.toType() as StructType).types.first { it.first == elementName }.second
     }
 }
 

@@ -5,7 +5,9 @@ import java.math.BigInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
 
-sealed interface Type : ASTNode
+sealed interface Type : ASTNode {
+    fun clone(): Type
+}
 
 sealed interface BitWiseCompatibleType : Type
 
@@ -18,6 +20,7 @@ object I8Type : IntType {
     override fun toRust(): String {
         return "i8"
     }
+    override fun clone() = I8Type
 }
 
 @GenNode
@@ -25,6 +28,8 @@ object I16Type : IntType {
     override fun toRust(): String {
         return "i16"
     }
+
+    override fun clone() = I16Type
 }
 
 @GenNode
@@ -32,6 +37,8 @@ object I32Type : IntType {
     override fun toRust(): String {
         return "i32"
     }
+
+    override fun clone() = I32Type
 }
 
 @GenNode
@@ -39,6 +46,8 @@ object I64Type : IntType {
     override fun toRust(): String {
         return "i64"
     }
+
+    override fun clone() = I64Type
 }
 
 @GenNode
@@ -46,6 +55,8 @@ object I128Type : IntType {
     override fun toRust(): String {
         return "i128"
     }
+
+    override fun clone() = I128Type
 }
 
 sealed interface FloatType : NumberType
@@ -55,6 +66,8 @@ object F32Type : FloatType {
     override fun toRust(): String {
         return "f32"
     }
+
+    override fun clone() = F32Type
 }
 
 @GenNode
@@ -62,6 +75,8 @@ object F64Type : FloatType {
     override fun toRust(): String {
         return "f64"
     }
+
+    override fun clone() = F64Type
 }
 
 @GenNode
@@ -69,6 +84,8 @@ object StringType : Type {
     override fun toRust(): String {
         return "String"
     }
+
+    override fun clone() = StringType
 }
 
 @GenNode
@@ -76,32 +93,50 @@ object BoolType : BitWiseCompatibleType {
     override fun toRust(): String {
         return "bool"
     }
+
+    override fun clone() = BoolType
+}
+
+sealed interface RecursiveType : Type {
+    val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>>
 }
 
 @GenNode
-data class TupleType(val types: List<Pair<Type, Boolean>>) : Type {
+data class TupleType(val types: List<Type>) : RecursiveType {
+    override val argumentsToOwnershipMap = types.map { it to OwnershipState.VALID }.toMutableList()
+
     override fun toRust(): String {
-        return "(${types.joinToString(",") { it.first.toRust() }})"
+        return "(${types.joinToString(",") { it.toRust() }})"
     }
+
+    override fun clone() = TupleType(types.map { it.clone() })
 }
 
 @GenNode
-data class StructType(val structName: String, val types: List<Triple<String, Type, Boolean>>) : Type {
+data class StructType(val structName: String, val types: List<Pair<String, Type>>) : RecursiveType {
+    override val argumentsToOwnershipMap = types.map { it.second to OwnershipState.VALID }.toMutableList()
+
     override fun toRust(): String {
         return structName
     }
+
+    override fun clone() = StructType(structName, types.map { it.first to it.second.clone() })
 }
 
 data class FunctionType(val returnType: Type, val args: List<Type>) : Type {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
     }
+
+    override fun clone() = FunctionType(returnType.clone(), args.map { it.clone() })
 }
 
 object VoidType : Type {
     override fun toRust(): String {
         return "()"
     }
+
+    override fun clone() = VoidType
 }
 
 fun NumberType.zero(symbolTable: SymbolTable): Expression {
@@ -132,7 +167,7 @@ fun Type.getOwnership(): OwnershipModel {
         F32Type -> OwnershipModel.COPY
         F64Type -> OwnershipModel.COPY
         StringType -> OwnershipModel.MOVE
-        is TupleType -> this.types.map { it.first.getOwnership() }
+        is TupleType -> this.types.map { it.getOwnership() }
             .firstOrNull { it == OwnershipModel.MOVE } ?: OwnershipModel.COPY
         is StructType -> OwnershipModel.MOVE
         is FunctionType -> OwnershipModel.COPY

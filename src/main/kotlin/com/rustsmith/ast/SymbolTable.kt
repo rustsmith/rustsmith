@@ -1,8 +1,14 @@
 package com.rustsmith.ast
 
-import com.rustsmith.Random
+import com.rustsmith.CustomRandom
 
-data class IdentifierData(val type: Type, val mutable: Boolean, val valid: Boolean = true)
+enum class OwnershipState {
+    VALID,
+    PARTIALLY_VALID,
+    INVALID
+}
+
+data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     private var current: SymbolTable? = null
@@ -24,7 +30,7 @@ class FunctionSymbolTable {
 
     fun getRandomFunctionOfType(type: Type): Pair<String, IdentifierData>? {
         return symbolMap.toList().filter { (it.second.type as FunctionType).returnType == type }
-            .randomOrNull(Random)
+            .randomOrNull(CustomRandom)
     }
 
     operator fun get(key: String): IdentifierData? {
@@ -57,7 +63,7 @@ class GlobalSymbolTable {
 
     fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
 
-    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().randomOrNull(Random)
+    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().randomOrNull(CustomRandom)
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
@@ -69,10 +75,10 @@ class GlobalSymbolTable {
 
     fun addTupleType(type: TupleType) = tupleTypes.add(type)
 
-    fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(Random)
+    fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(CustomRandom)
 
     fun findTupleWithType(type: Type): TupleType? {
-        return tupleTypes.filter { it.types.contains(type to true) }.randomOrNull()
+        return tupleTypes.filter { it.types.contains(type) }.randomOrNull()
     }
 }
 
@@ -92,10 +98,10 @@ data class SymbolTable(
         return functionSymbolTable[key]
     }
 
-    fun removeVariableOwnership(key: String) {
+    fun setVariableOwnershipState(key: String, ownershipState: OwnershipState) {
         for (table in iterator()) {
             if (table.symbolMap.containsKey(key)) {
-                table.symbolMap[key] = table.symbolMap[key]!!.copy(valid = false)
+                table.symbolMap[key] = table.symbolMap[key]!!.copy(validity = ownershipState)
                 return
             }
         }
@@ -123,7 +129,7 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.valid }.map { it.first }.toSet()
+        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.map { it.first }.toSet()
     }
 
     fun getRandomMutableVariable(): Pair<String, IdentifierData>? {
@@ -131,32 +137,29 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.mutable }.filter { it.second.valid }.randomOrNull(Random)
+        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity == OwnershipState.VALID }
+            .randomOrNull(CustomRandom)
     }
 
-    fun getRandomVariableOfType(type: Type): Pair<String, IdentifierData>? {
+    fun getRandomVariableOfType(type: Type, requiredType: Type?): Pair<String, IdentifierData>? {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.type == type }.filter { it.second.valid }
-            .randomOrNull(Random)
-    }
-
-    fun getRandomTupleAccessOfType(type: Type): Pair<String, Pair<Type, Int>>? {
-        val overallMap = mutableMapOf<String, Pair<Type, Int>>()
-        for (table in iterator()) {
-            table.symbolMap.forEach {
-                if (it.value.valid && it.value.type is TupleType && (it.value.type as TupleType).types.contains(type to true)) {
-                    val indexOfTupleAccess = (it.value.type as TupleType).types.indexOf(type to true)
-//                    val typesList = (it.value.type as TupleType).types.toMutableList()
-//                    typesList[indexOfTupleAccess] = typesList[indexOfTupleAccess].copy(second = false)
-//                    table.symbolMap[it.key] =  table.symbolMap[it.key]!!.copy(type = (it.value.type as TupleType).copy(types = typesList), valid = false)
-                    overallMap.putIfAbsent(it.key, it.value.type to indexOfTupleAccess)
-                }
+        if (requiredType != null && type is RecursiveType) {
+            val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
+                .filter { it.second.validity != OwnershipState.INVALID }
+            if ("var137" in partiallyOrCompletelyValidVariables.map { it.first }) {
+                println("HERE2")
             }
+            return partiallyOrCompletelyValidVariables.filter { variable ->
+                (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
+                    (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
+            }.randomOrNull()
         }
-        return overallMap.toList().randomOrNull(Random)
+        return overallMap.toList().filter { it.second.type == type }
+            .filter { it.second.validity == OwnershipState.VALID }
+            .randomOrNull(CustomRandom)
     }
 
     fun enterScope(): SymbolTable {

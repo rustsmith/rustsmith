@@ -16,9 +16,9 @@ import me.tongfei.progressbar.ProgressBarBuilder
 import me.tongfei.progressbar.ProgressBarStyle
 import java.io.File
 import kotlin.io.path.Path
-import kotlin.random.Random as Random1
+import kotlin.random.Random
 
-lateinit var Random: Random1
+lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand() {
@@ -39,8 +39,8 @@ class RustSmith : CliktCommand() {
             ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
                 .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build()
         repeat(count) {
-            val randomSeed = seed ?: Random1.nextLong()
-            Random = Random1(randomSeed)
+            val randomSeed = seed ?: Random.nextLong()
+            CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()
             val program = reconditioner.recondition(generateProgram(randomSeed))
             if (print) {
