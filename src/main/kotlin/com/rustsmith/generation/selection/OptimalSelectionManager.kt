@@ -38,7 +38,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + 10)
+            1.0 / (ctx.getDepth(RecursiveExpression::class).shl(2) + 5)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

@@ -108,17 +108,17 @@ data class TupleElementAccessExpression(
     }
 }
 
-// @ExpressionGenNode(Type::class)
-// data class StructElementAccessExpression(
-//    val expression: Expression,
-//    val elementName: String,
-//    override val symbolTable: SymbolTable
-// ) : RecursiveExpression, PartialMoveExpression {
-//
-//    override fun toRust(): String {
-//        return "${expression.toRust()}.$elementName"
-//    }
-// }
+@ExpressionGenNode(Type::class)
+data class StructElementAccessExpression(
+    val expression: Expression,
+    val elementName: String,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression, PartialMoveExpression {
+
+    override fun toRust(): String {
+        return "${expression.toRust()}.$elementName"
+    }
+}
 
 @ExpressionGenNode(Type::class)
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
@@ -381,11 +381,11 @@ fun Expression.toType(): Type {
         is BlockExpression -> this.type!!
         is ReconditionedModExpression -> this.modExpression.toType()
         is IfElseExpression -> this.ifBlock.type!!
-        is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType
+        is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType.clone()
         is TupleLiteral -> TupleType(this.values.map { it.toType() })
-        is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type
+        is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type.clone()
         is TupleElementAccessExpression -> (this.expression.toType() as TupleType).types[this.index]
-//        is StructElementAccessExpression -> (this.expression.toType() as StructType).types.first { it.first == elementName }.second
+        is StructElementAccessExpression -> (this.expression.toType() as StructType).types.first { it.first == elementName }.second
     }
 }
 

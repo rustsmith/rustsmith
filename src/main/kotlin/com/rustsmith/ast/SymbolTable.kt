@@ -149,9 +149,6 @@ data class SymbolTable(
         if (requiredType != null && type is RecursiveType) {
             val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
                 .filter { it.second.validity != OwnershipState.INVALID }
-            if ("var137" in partiallyOrCompletelyValidVariables.map { it.first }) {
-                println("HERE2")
-            }
             return partiallyOrCompletelyValidVariables.filter { variable ->
                 (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
                     (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }

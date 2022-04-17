@@ -140,10 +140,6 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             .filter { tupleType.argumentsToOwnershipMap[it].second != OwnershipState.INVALID }
         val chosenIndex = typeIndices.random(CustomRandom)
         if (type.getOwnership() == OwnershipModel.MOVE) {
-            if (tupleExpression is Variable && tupleExpression.value == "var137" && chosenIndex == 1) {
-                val x = tupleExpression.toType()
-                println("HERE")
-            }
             val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
                 /* A partial move, so set the ownership state to partially valid */
                 OwnershipState.PARTIALLY_VALID
@@ -163,21 +159,36 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return TupleType(argTypes.shuffled(CustomRandom))
     }
 
-//    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
-//        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
-//        if (structTypeWithType == null) {
-//            structTypeWithType = generateStructTypeWithType(type, ctx)
-//        }
-//        val structExpression =
-//            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class))
-//        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
-//            .filter { it.first.second == type }
-//            .map { it.first.first }
-//        return StructElementAccessExpression(structExpression, typeIndices.random(Random), symbolTable)
-//    }
+    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
+        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
+        if (structTypeWithType == null) {
+            structTypeWithType = generateStructTypeWithType(type, ctx)
+        }
+        val structExpression =
+            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type))
+        val structType = structExpression.toType() as StructType
+        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
+            .filter { it.first.second == type }
+            .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
+            .map { it.first.first }
+        val chosenElement = typeIndices.random(CustomRandom)
+        if (type.getOwnership() == OwnershipModel.MOVE) {
+            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+                /* A partial move, so set the ownership state to partially valid */
+                OwnershipState.PARTIALLY_VALID
+            } else {
+                /* Not a partial move, so set the ownership state to completely invalid */
+                OwnershipState.INVALID
+            }
+            val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
+            structType.argumentsToOwnershipMap[elementIndex] =
+                structType.argumentsToOwnershipMap[elementIndex].copy(second = newOwnershipState)
+        }
+        return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
+    }
 
     private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
-        return createNewStructType(ctx, type.clone())
+        return createNewStructType(ctx, type)
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
