@@ -35,9 +35,8 @@ class RustSmith : CliktCommand() {
             File(directory).mkdirs()
         }
         val mapper = jacksonObjectMapper().writerWithDefaultPrettyPrinter()
-        val progressBar =
-            ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
-                .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build()
+        val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
+                .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
         repeat(count) {
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
@@ -52,9 +51,9 @@ class RustSmith : CliktCommand() {
             path.resolve("file$it.rs").toFile().writeText(program.toRust())
             path.resolve("file$it.json").toFile().writeText(mapper.writeValueAsString(program))
             IdentGenerator.reset()
-            progressBar.step()
+            progressBar?.step()
         }
-        progressBar.close()
+        progressBar?.close()
     }
 }
 
