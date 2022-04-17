@@ -165,7 +165,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             structTypeWithType = generateStructTypeWithType(type, ctx)
         }
         val structExpression =
-            generateExpression(structTypeWithType, ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type))
+            generateExpression(
+                structTypeWithType,
+                ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type)
+            )
         val structType = structExpression.toType() as StructType
         val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
             .filter { it.first.second == type }

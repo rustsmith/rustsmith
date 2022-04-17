@@ -94,7 +94,7 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
     }
 }
 
-sealed interface PartialMoveExpression : ASTNode
+sealed interface PartialMoveExpression : Expression
 
 @ExpressionGenNode(Type::class)
 data class TupleElementAccessExpression(
