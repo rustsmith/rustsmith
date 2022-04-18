@@ -31,9 +31,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: ${{ env.GIT_COMMIT_AUTHOR_NAME }}
-          GIT_AUTHOR_EMAIL: ${{ env.GIT_COMMIT_AUTHOR_EMAIL }}
+          GIT_AUTHOR_EMAIL: ${{ github.event.pusher.email }}
           GIT_COMMITTER_NAME: ${{ env.GIT_COMMIT_COMMITTER_NAME }}
-          GIT_COMMITTER_EMAIL: ${{ env.GIT_COMMIT_COMMITTER_EMAIL }}
+          GIT_COMMITTER_EMAIL: ${{ github.event.pusher.email }}
         run: npx semantic-release
 #      - uses: "marvinpinto/action-automatic-releases@latest"
 #        with:
