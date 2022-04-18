@@ -35,6 +35,8 @@ class RustSmith : CliktCommand() {
             File(directory).mkdirs()
         }
         val mapper = jacksonObjectMapper().writerWithDefaultPrettyPrinter()
+
+        // Don't make progress bar if printing out the program
         val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
         repeat(count) {
