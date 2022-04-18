@@ -42,7 +42,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 3 + 10)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 2 + 10)
         )
         return expressionWeightings
     }
