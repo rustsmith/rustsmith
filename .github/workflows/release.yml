@@ -11,6 +11,8 @@ jobs:
     runs-on: "ubuntu-latest"
 
     steps:
+      - name: Expose git commit data
+        uses: rlespinasse/git-commit-data-action@v1
       - uses: actions/checkout@v3
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -21,13 +23,25 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           arguments: build shadowJarExecutable
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: false
-          title: "Latest Build"
-          files: |
-            LICENSE.txt
-            ./run/rustsmith
-            ./build/libs/*.jar
+      - name: Add plugin for conventional commits
+        run: npm install conventional-changelog-conventionalcommits
+        working-directory: ./.github/workflows
+      - name: Release to GitHub
+        working-directory: ./.github/workflows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: ${{ env.GIT_COMMIT_AUTHOR_NAME }}
+          GIT_AUTHOR_EMAIL: ${{ env.GIT_COMMIT_AUTHOR_EMAIL }}
+          GIT_COMMITTER_NAME: ${{ env.GIT_COMMIT_COMMITTER_NAME }}
+          GIT_COMMITTER_EMAIL: ${{ env.GIT_COMMIT_COMMITTER_EMAIL }}
+        run: npx semantic-release
+#      - uses: "marvinpinto/action-automatic-releases@latest"
+#        with:
+#          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+#          automatic_release_tag: "latest"
+#          prerelease: false
+#          title: "Latest Build"
+#          files: |
+#            LICENSE.txt
+#            ./run/rustsmith
+#            ./build/libs/*.jar
