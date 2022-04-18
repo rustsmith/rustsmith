@@ -31,10 +31,7 @@ jobs:
     - name: Build with Gradle
     - uses: gradle/gradle-build-action@v2
       with:
-        arguments: build
-    - uses: gradle/gradle-build-action@v2
-      with:
-        arguments: shadowJarExecutable
+        arguments: build shadowJarExecutable
     - name: Create Release Automatically
     - uses: marvinpinto/action-automatic-releases@latest
       with:
