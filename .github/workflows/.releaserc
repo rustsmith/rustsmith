@@ -9,7 +9,16 @@
       }
     ],
     ["@semantic-release/github", {
-      "assets": "./run/rustsmith"
+      "assets": [
+        {
+          "path": "../../run/rustsmith",
+          "label": "RustSmith Executable"
+        },
+        {
+          "path": "../../build/libs/RustSmith-1.0-SNAPSHOT.jar",
+          "label": "RustSmith JAR File"
+        }
+      ]
     }]
   ]
 }
