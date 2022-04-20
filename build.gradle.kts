@@ -64,6 +64,10 @@ tasks.register<JavaExec>("generateInterface") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+tasks.named("build") {
+    dependsOn("shadowJarExecutable")
+}
+
 application {
     applicationName = "rustsmith"
     mainClass.set("com.rustsmith.MainKt")
