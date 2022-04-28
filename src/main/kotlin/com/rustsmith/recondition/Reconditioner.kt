@@ -81,6 +81,7 @@ class Reconditioner {
             is Declaration -> node.copy(value = reconditionExpression(node.value))
             is Output -> node
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
+            is ReturnStatement -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
 

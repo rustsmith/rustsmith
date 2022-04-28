@@ -36,6 +36,9 @@ open class BaseSelectionManager : SelectionManager {
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() }
         val filteredStatements = filterNodes(allStatements.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.returnExpressionType == null) {
+            filteredStatements.remove(ReturnStatement::class)
+        }
         return NodeSelectionWeighting(filteredStatements)
     }
 

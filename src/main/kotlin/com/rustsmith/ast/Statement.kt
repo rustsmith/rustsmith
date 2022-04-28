@@ -44,6 +44,16 @@ data class Assignment(val variableName: String, val value: Expression, override 
 }
 
 @GenNode
+data class ReturnStatement(
+    val expression: Expression,
+    override val symbolTable: SymbolTable
+) : Statement {
+    override fun toRust(): String {
+        return "return ${expression.toRust()};"
+    }
+}
+
+@GenNode
 data class StatementBlock(val statements: List<Statement>, val symbolTable: SymbolTable) : ASTNode {
 
     override fun toRust(): String {

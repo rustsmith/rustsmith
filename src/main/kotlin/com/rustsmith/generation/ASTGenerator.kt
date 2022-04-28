@@ -21,7 +21,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             statements.addAll(dependantStatements)
             statements.add(statement)
             dependantStatements.clear()
-            currentCtx = currentCtx.incrementStatementCount()
+            currentCtx = currentCtx.incrementStatementCount(statement::class)
         }
         val statementsWithDependants = dependantStatements + statements
         return if (type == VoidType) {
@@ -73,6 +73,11 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val expression = generateExpression(value.second.type, ctx.incrementCount(Assignment::class))
             Assignment(value.first, expression, symbolTable)
         }
+    }
+
+    override fun generateReturnStatement(ctx: Context): ReturnStatement {
+        val expression = generateExpression(ctx.returnExpressionType!!, ctx)
+        return ReturnStatement(expression, symbolTable)
     }
 
     /** Expression generation **/
@@ -336,7 +341,13 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             IdentGenerator.generateFunctionName(),
             argTypes.associateBy { IdentGenerator.generateVariable() },
             ASTGenerator(symbolTableForFunction)
-            (ctx.incrementCount(FunctionCallExpression::class).withSymbolTable(symbolTableForFunction), returnType)
+            (
+                ctx.incrementCount(FunctionCallExpression::class)
+                    .resetContextForFunction()
+                    .setReturnExpressionType(returnType)
+                    .withSymbolTable(symbolTableForFunction),
+                returnType
+            )
         )
         val functionType = FunctionType(returnType, argTypes)
         symbolTable.functionSymbolTable[functionDefinition.functionName] =

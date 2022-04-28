@@ -29,6 +29,7 @@ import com.rustsmith.ast.Int64Literal
 import com.rustsmith.ast.Int8Literal
 import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
+import com.rustsmith.ast.ReturnStatement
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
@@ -51,12 +52,15 @@ public interface AbstractASTGenerator {
 
     public fun generateAssignment(ctx: Context): Assignment
 
+    public fun generateReturnStatement(ctx: Context): ReturnStatement
+
     public fun selectRandomStatement(ctx: Context): KClass<out Statement>
 
     public fun generateStatement(ctx: Context): Statement = when (selectRandomStatement(ctx)) {
         ExpressionStatement::class -> generateExpressionStatement(ctx)
         Declaration::class -> generateDeclaration(ctx)
         Assignment::class -> generateAssignment(ctx)
+        ReturnStatement::class -> generateReturnStatement(ctx)
         else -> throw Exception("Unrecognized type")
     }
 

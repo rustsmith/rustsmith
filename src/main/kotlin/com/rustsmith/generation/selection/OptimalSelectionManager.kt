@@ -15,7 +15,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 10.0 / (ctx.statementsPerScope.last() + 1)
+        newStatementWeightings[true] = 10.0 / (ctx.statementsPerScope.last().size + 1)
         return newStatementWeightings
     }
 
@@ -38,13 +38,23 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class).shl(3) + 10)
+            1.0 / (ctx.getDepth(RecursiveExpression::class).shl(4) + 10)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 2 + 10)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 10)
         )
         return expressionWeightings
+    }
+
+    override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
+        val statementWeightings = super.availableStatementsWeightings(ctx)
+        if (ctx.statementsPerScope.last().contains(ReturnStatement::class)) {
+            statementWeightings.updateWeighting(ReturnStatement::class, 0.0)
+        } else {
+            statementWeightings.updateWeighting(ReturnStatement::class, ctx.statementsPerScope.size - 1.0)
+        }
+        return statementWeightings
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
