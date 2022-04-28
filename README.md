@@ -4,7 +4,7 @@
 
 ## RustSmith: A randomized program generator for Rust
 
-RustSmith is a fuzzer built for the [Rust](https://github.com/3b1b/manim) programming language with
+RustSmith is a fuzzer built for the [Rust](https://www.rust-lang.org) programming language with
 the purpose of fuzzing the Rust compiler (rustc) and find compiler crashes and mis-compilations
 within the compiler. This repo contains the source code of the generator along with information on
 how to install and use it.
@@ -81,6 +81,6 @@ Contributions are all welcome! If you would like to contribute, please see the
 corresponding [guidelines][contributing]. By contributing, you are agreeing to
 our [code of conduct][code-of-conduct].
 
-[contributing]: https://github.com/VAlgoLang/VAlgoLang/blob/master/CONTRIBUTING.md
+[contributing]: https://github.com/rustsmith/rustsmith/blob/master/CONTRIBUTING.md
 
-[code-of-conduct]: https://github.com/VAlgoLang/VAlgoLang/blob/master/CODE_OF_CONDUCT.md
+[code-of-conduct]: https://github.com/rustsmith/rustsmith/blob/master/CODE_OF_CONDUCT.md
