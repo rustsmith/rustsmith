@@ -5,7 +5,7 @@ import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 
 data class Context(
-    private val nodeDepthState: Map<KClass<out ASTNode>, Int>,
+    private val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
     val statementsPerScope: List<List<KClass<out Statement>>>,
     val symbolTable: SymbolTable,
     val requiredType: Type? = null,
@@ -27,17 +27,21 @@ data class Context(
     }
 
     fun getDepth(kClass: KClass<out ASTNode>): Int {
-        return kClass.subclasses().sumOf { nodeDepthState[it] ?: 0 }
+        return kClass.subclasses().sumOf { nodeDepthState.sumOf { map -> map[it] ?: 0 } }
     }
 
     fun withSymbolTable(symbolTable: SymbolTable): Context {
-        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
-        return this.copy(nodeDepthState = stateCopy, statementsPerScope = statementsPerScope.toMutableList(), symbolTable = symbolTable)
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }
+        return this.copy(
+            nodeDepthState = stateCopy,
+            statementsPerScope = statementsPerScope.toMutableList(),
+            symbolTable = symbolTable
+        )
     }
 
     fun incrementCount(kClass: KClass<out ASTNode>): Context {
-        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
-        stateCopy[kClass] = stateCopy.getValue(kClass) + 1
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }
+        stateCopy.last()[kClass] = stateCopy.last().getValue(kClass) + 1
         return this.copy(
             nodeDepthState = stateCopy,
             statementsPerScope = statementsPerScope.toMutableList(),
@@ -46,18 +50,36 @@ data class Context(
     }
 
     fun incrementStatementCount(statement: KClass<out Statement>): Context {
-        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }
         val statementDepthCopy = statementsPerScope.toMutableList()
-        statementDepthCopy[statementDepthCopy.lastIndex] = listOf(*statementDepthCopy[statementDepthCopy.lastIndex].toTypedArray(), statement)
-        return this.copy(nodeDepthState = stateCopy, statementsPerScope = statementDepthCopy)
+        statementDepthCopy[statementDepthCopy.lastIndex] =
+            listOf(*statementDepthCopy[statementDepthCopy.lastIndex].toTypedArray(), statement)
+        return this.copy(nodeDepthState = stateCopy, statementsPerScope = statementDepthCopy, requiredType = null)
     }
 
     fun enterScope(): Context {
-        val stateCopy = nodeDepthState.toMutableMap().withDefault { 0 }
-        return this.copy(nodeDepthState = stateCopy, statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf()))
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
+        stateCopy.add(mutableMapOf())
+        return this.copy(
+            nodeDepthState = stateCopy,
+            statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf())
+        )
     }
 
     fun resetContextForFunction(): Context {
-        return this.copy(statementsPerScope = listOf(), previousIncrement = null)
+        return this.copy(statementsPerScope = listOf(), requiredType = null)
+    }
+
+    fun forNewStatement(): Context {
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
+        stateCopy.add(mutableMapOf())
+        return this.copy(nodeDepthState = stateCopy, requiredType = null)
+    }
+
+    fun forDependantDeclaration(): Context {
+        val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
+        stateCopy.removeLast()
+        stateCopy.add(mutableMapOf())
+        return this.copy(nodeDepthState = stateCopy)
     }
 }

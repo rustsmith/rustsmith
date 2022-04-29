@@ -60,8 +60,8 @@ class Reconditioner {
             is BlockExpression -> node.copy(statement = reconditionStatementBlock(node.statement))
             is IfElseExpression -> node.copy(
                 predicate = reconditionExpression(node.predicate),
-                ifBlock = reconditionExpression(node.ifBlock) as BlockExpression,
-                elseBlock = reconditionExpression(node.elseBlock) as BlockExpression
+                ifBlock = reconditionStatementBlock(node.ifBlock),
+                elseBlock = reconditionStatementBlock(node.elseBlock)
             )
             is FunctionCallExpression -> node.copy(args = node.args.map { reconditionExpression(it) })
             is TupleLiteral -> node.copy(values = node.values.map { reconditionExpression(it) })

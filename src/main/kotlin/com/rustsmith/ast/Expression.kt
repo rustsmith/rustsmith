@@ -300,12 +300,13 @@ data class BlockExpression(
 @ExpressionGenNode(Type::class)
 data class IfElseExpression(
     val predicate: Expression,
-    val ifBlock: BlockExpression,
-    val elseBlock: BlockExpression,
+    val ifBlock: StatementBlock,
+    val elseBlock: StatementBlock,
+    val type: Type?,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression {
     override fun toRust(): String {
-        return "if (${predicate.toRust()}) \n {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
+        return "if (${predicate.toRust()}) {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
     }
 }
 
@@ -380,7 +381,7 @@ fun Expression.toType(): Type {
         is GroupedExpression -> this.expression.toType()
         is BlockExpression -> this.type!!
         is ReconditionedModExpression -> this.modExpression.toType()
-        is IfElseExpression -> this.ifBlock.type!!
+        is IfElseExpression -> this.type!!
         is FunctionCallExpression -> (symbolTable.functionSymbolTable[this.functionName]!!.type as FunctionType).returnType.clone()
         is TupleLiteral -> TupleType(this.values.map { it.toType() })
         is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type.clone()

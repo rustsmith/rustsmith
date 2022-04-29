@@ -1,6 +1,8 @@
 package com.rustsmith.ast
 
 import com.rustsmith.CustomRandom
+import com.rustsmith.generation.Context
+import com.rustsmith.subclasses
 
 enum class OwnershipState {
     VALID,
@@ -67,7 +69,7 @@ class GlobalSymbolTable {
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
-            structs.filter { structDef -> structDef.arguments.any { it.second == type } }.randomOrNull()
+            structs.filter { structDef -> structDef.arguments.any { it.second == type } }.randomOrNull(CustomRandom)
         return symbolMap[structDefinition?.structName]?.type as StructType?
     }
 
@@ -78,7 +80,7 @@ class GlobalSymbolTable {
     fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(CustomRandom)
 
     fun findTupleWithType(type: Type): TupleType? {
-        return tupleTypes.filter { it.types.contains(type) }.randomOrNull()
+        return tupleTypes.filter { it.types.contains(type) }.randomOrNull(CustomRandom)
     }
 }
 
@@ -141,18 +143,21 @@ data class SymbolTable(
             .randomOrNull(CustomRandom)
     }
 
-    fun getRandomVariableOfType(type: Type, requiredType: Type?): Pair<String, IdentifierData>? {
+    fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context): Pair<String, IdentifierData>? {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        if (requiredType != null && type is RecursiveType) {
+        if (requiredType != null && type is RecursiveType && ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
             val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
                 .filter { it.second.validity != OwnershipState.INVALID }
             return partiallyOrCompletelyValidVariables.filter { variable ->
                 (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
-                    (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
-            }.randomOrNull()
+                    if (ctx.getDepth(PartialMoveExpression::class) > 1)
+                        (variable.second.type as RecursiveType)
+                            .argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
+                    else false
+            }.randomOrNull(CustomRandom)
         }
         return overallMap.toList().filter { it.second.type == type }
             .filter { it.second.validity == OwnershipState.VALID }

@@ -52,7 +52,7 @@ fun generateProgram(programSeed: Long): Program {
     val functionSymbolTable = FunctionSymbolTable()
     val globalSymbolTable = GlobalSymbolTable()
     val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
-    val body = ASTGenerator(symbolTable)(Context(mapOf(), listOf(), symbolTable))
+    val body = ASTGenerator(symbolTable)(Context(listOf(mapOf()), listOf(), symbolTable))
     val bodyWithOutput =
         StatementBlock(body.statements + Output(symbolTable, programSeed), symbolTable)
     val mainFunction = FunctionDefinition(
