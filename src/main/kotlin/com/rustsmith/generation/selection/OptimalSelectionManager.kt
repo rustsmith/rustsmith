@@ -15,7 +15,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 20.0 / (ctx.statementsPerScope.last().size + 1)
+        newStatementWeightings[true] = 15.0 / (ctx.statementsPerScope.last().size + 1)
         return newStatementWeightings
     }
 
