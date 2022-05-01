@@ -16,5 +16,13 @@ class NodeSelectionWeighting<T : ASTNode>(private val weightings: MutableMap<KCl
         }
     }
 
+    fun removeWeighting(kClass: KClass<out T>) {
+        kClass.subclasses().forEach {
+            if (weightings.containsKey(it)) {
+                weightings.remove(it)
+            }
+        }
+    }
+
     fun pickRandomByWeight() = weightings.randomByWeights()
 }

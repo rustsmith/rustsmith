@@ -7,7 +7,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import com.rustsmith.ast.generateProgram
+import com.rustsmith.ast.*
 import com.rustsmith.generation.IdentGenerator
 import com.rustsmith.generation.selection.OptimalSelectionManager
 import com.rustsmith.generation.selection.SelectionManager
@@ -28,8 +28,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
     override fun run() {
-        selectionManager = OptimalSelectionManager()
-
+        val currentConfig = getRandomConfiguration()
+        selectionManager = OptimalSelectionManager(currentConfig)
         if (!print) {
             File(directory).deleteRecursively()
             File(directory).mkdirs()
@@ -51,7 +51,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             val path = Path(directory, "file$it")
             path.toFile().mkdir()
             path.resolve("file$it.rs").toFile().writeText(program.toRust())
-            path.resolve("file$it.json").toFile().writeText(mapper.writeValueAsString(program))
+            path.resolve("file$it.json").toFile().writeText("{}")
             IdentGenerator.reset()
             progressBar?.step()
         }

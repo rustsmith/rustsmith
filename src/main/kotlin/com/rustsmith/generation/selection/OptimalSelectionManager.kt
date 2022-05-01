@@ -4,13 +4,13 @@ import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
-class OptimalSelectionManager : BaseSelectionManager() {
+open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expression>>) : SwarmBasedSelectionManager(expressionConfiguration) {
 
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
-        RecursiveExpression::class to 100,
-        FunctionCallExpression::class to 300,
-        StructType::class to 300,
-        TupleType::class to 300,
+        RecursiveExpression::class to 5,
+        FunctionCallExpression::class to 5,
+        StructType::class to 5,
+        TupleType::class to 5,
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
@@ -37,13 +37,14 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
+        val currentRecursiveExpressions = ctx.statementsPerScope.last().count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class) * 8 + 5)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 8 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 10)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 8 + 1)
         )
         return expressionWeightings
     }
@@ -51,13 +52,13 @@ class OptimalSelectionManager : BaseSelectionManager() {
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val statementWeightings = super.availableStatementsWeightings(ctx)
         statementWeightings.updateWeighting(ExpressionStatement::class, 2.0)
-        if (ctx.statementsPerScope.last().contains(ReturnStatement::class)) {
+        if (ctx.statementsPerScope.last().count { it is ReturnStatement } > 0) {
             statementWeightings.updateWeighting(ReturnStatement::class, 0.0)
         } else {
             statementWeightings.updateWeighting(ReturnStatement::class, 0.3)
         }
 
-        if (ctx.statementsPerScope.last().contains(BreakStatement::class)) {
+        if (ctx.statementsPerScope.last().count { it is BreakStatement } > 0) {
             statementWeightings.updateWeighting(BreakStatement::class, 0.0)
         } else {
             statementWeightings.updateWeighting(BreakStatement::class, 0.3)

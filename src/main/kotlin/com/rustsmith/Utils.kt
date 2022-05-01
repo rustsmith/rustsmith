@@ -1,10 +1,21 @@
 package com.rustsmith
 
+import com.rustsmith.ast.Expression
+import com.rustsmith.ast.ExpressionGenNode
+import com.rustsmith.ast.SwarmNode
 import kotlin.reflect.KClass
+import kotlin.reflect.full.hasAnnotation
+
+fun getRandomConfiguration(): List<KClass<out Expression>> {
+    val expressionConfigurableNodes = Expression::class.subclasses()
+        .filter { it.hasAnnotation<ExpressionGenNode>() && it.hasAnnotation<SwarmNode>() }
+    val numberNodesToTurnOff = (4..expressionConfigurableNodes.size).random()
+    return expressionConfigurableNodes.shuffled().take(numberNodesToTurnOff)
+}
 
 fun <T> pickRandomByWeight(weightingsMap: List<Pair<T, Double>>): T {
     val sum = weightingsMap.sumOf { it.second }
-    val normalisedWeightingsMap = weightingsMap.map { it.first to it.second / sum }
+    val normalisedWeightingsMap = weightingsMap.map { it.first to it.second / sum }.shuffled(CustomRandom)
     var acc = 0.0
     val cumulativeProbabilityWeights =
         normalisedWeightingsMap.map { acc += it.second; it.first to acc }

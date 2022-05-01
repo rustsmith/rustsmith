@@ -21,7 +21,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             statements.addAll(dependantStatements)
             statements.add(statement)
             dependantStatements.clear()
-            currentCtx = currentCtx.incrementStatementCount(statement::class)
+            currentCtx = currentCtx.incrementStatementCount(statement)
             if (statement::class in BlockEndingStatement::class.subclasses()) {
                 break
             }

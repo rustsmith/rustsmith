@@ -8,6 +8,8 @@ import kotlin.reflect.KClass
 
 annotation class ExpressionGenNode(val compatibleType: KClass<out Type>)
 
+annotation class SwarmNode
+
 @JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
@@ -104,6 +106,7 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 
 sealed interface PartialMoveExpression : Expression
 
+@SwarmNode
 @ExpressionGenNode(NonVoidType::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
@@ -116,6 +119,7 @@ data class TupleElementAccessExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NonVoidType::class)
 data class StructElementAccessExpression(
     val expression: Expression,
@@ -143,6 +147,7 @@ sealed interface BinOpExpression : RecursiveExpression {
     val expr2: Expression
 }
 
+@SwarmNode
 @ExpressionGenNode(NumberType::class)
 data class AddExpression(
     override val expr1: Expression,
@@ -155,6 +160,7 @@ data class AddExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NumberType::class)
 data class SubtractExpression(
     override val expr1: Expression,
@@ -167,6 +173,7 @@ data class SubtractExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NumberType::class)
 data class DivideExpression(
     override val expr1: Expression,
@@ -179,6 +186,7 @@ data class DivideExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NumberType::class)
 data class MultiplyExpression(
     override val expr1: Expression,
@@ -191,6 +199,7 @@ data class MultiplyExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(IntType::class)
 data class ModExpression(
     override val expr1: Expression,
@@ -203,6 +212,7 @@ data class ModExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(BitWiseCompatibleType::class)
 data class BitwiseAndLogicalAnd(
     override val expr1: Expression,
@@ -215,6 +225,7 @@ data class BitwiseAndLogicalAnd(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(BitWiseCompatibleType::class)
 data class BitwiseAndLogicalOr(
     override val expr1: Expression,
@@ -227,6 +238,7 @@ data class BitwiseAndLogicalOr(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(BitWiseCompatibleType::class)
 data class BitwiseAndLogicalXor(
     override val expr1: Expression,
@@ -239,6 +251,7 @@ data class BitwiseAndLogicalXor(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NonVoidType::class)
 data class GroupedExpression(
     val expression: Expression,
@@ -270,6 +283,7 @@ data class GroupedExpression(
 
 /* Nodes that affect the change of ownership of variables */
 
+@SwarmNode
 @ExpressionGenNode(Type::class)
 data class FunctionCallExpression(
     val functionName: String,
@@ -294,6 +308,7 @@ data class StructInstantiationExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: StatementBlock,
@@ -305,6 +320,7 @@ data class BlockExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(Type::class)
 data class IfElseExpression(
     val predicate: Expression,
@@ -318,6 +334,7 @@ data class IfElseExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(VoidType::class)
 data class IfExpression(
     val predicate: Expression,
@@ -330,6 +347,7 @@ data class IfExpression(
 }
 
 // TODO: Change this to be for an arbitrary types to instruct breaks with types too
+@SwarmNode
 @ExpressionGenNode(VoidType::class)
 data class LoopExpression(
     val body: StatementBlock,

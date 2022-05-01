@@ -6,7 +6,7 @@ import kotlin.reflect.KClass
 
 data class Context(
     private val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
-    val statementsPerScope: List<List<KClass<out Statement>>>,
+    val statementsPerScope: List<List<Statement>>,
     val symbolTable: SymbolTable,
     val requiredType: Type? = null,
     val returnExpressionType: Type? = null,
@@ -54,7 +54,7 @@ data class Context(
         )
     }
 
-    fun incrementStatementCount(statement: KClass<out Statement>): Context {
+    fun incrementStatementCount(statement: Statement): Context {
         val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }
         val statementDepthCopy = statementsPerScope.toMutableList()
         statementDepthCopy[statementDepthCopy.lastIndex] =
