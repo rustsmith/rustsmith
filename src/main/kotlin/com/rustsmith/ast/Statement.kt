@@ -43,13 +43,25 @@ data class Assignment(val variableName: String, val value: Expression, override 
     }
 }
 
+sealed interface BlockEndingStatement : Statement
+
 @GenNode
 data class ReturnStatement(
     val expression: Expression,
     override val symbolTable: SymbolTable
-) : Statement {
+) : BlockEndingStatement {
     override fun toRust(): String {
         return "return ${expression.toRust()};"
+    }
+}
+
+// TODO: Change this to have expressions with break
+@GenNode
+data class BreakStatement(
+    override val symbolTable: SymbolTable
+) : BlockEndingStatement {
+    override fun toRust(): String {
+        return "break;"
     }
 }
 

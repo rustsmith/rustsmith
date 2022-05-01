@@ -68,6 +68,12 @@ class Reconditioner {
             is StructInstantiationExpression -> node.copy(args = node.args.map { it.first to reconditionExpression(it.second) })
             is TupleElementAccessExpression -> node.copy(expression = reconditionExpression(node.expression))
             is StructElementAccessExpression -> node.copy(expression = reconditionExpression(node.expression))
+            is LoopExpression -> node.copy(body = reconditionStatementBlock(node.body))
+            is VoidLiteral -> node.copy()
+            is IfExpression -> node.copy(
+                predicate = reconditionExpression(node.predicate),
+                ifBlock = reconditionStatementBlock(node.ifBlock)
+            )
         }
     }
 
@@ -82,6 +88,7 @@ class Reconditioner {
             is Output -> node
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
             is ReturnStatement -> node.copy(expression = reconditionExpression(node.expression))
+            is BreakStatement -> node.copy()
         }
     }
 

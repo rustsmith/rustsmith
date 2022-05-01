@@ -22,7 +22,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             statements.add(statement)
             dependantStatements.clear()
             currentCtx = currentCtx.incrementStatementCount(statement::class)
-            if (statement::class == ReturnStatement::class) {
+            if (statement::class in BlockEndingStatement::class.subclasses()) {
                 break
             }
         }
@@ -43,8 +43,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
     }
 
+    override fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral = VoidLiteral(symbolTable)
+
     override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
-        return ExpressionStatement(generateExpression(generateType(ctx), ctx), true, symbolTable)
+        return ExpressionStatement(
+            generateExpression(
+                generateType(ctx.incrementCount(ExpressionStatement::class)),
+                ctx
+            ),
+            true, symbolTable
+        )
     }
 
     override fun generateDeclaration(ctx: Context): Declaration {
@@ -68,7 +76,11 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return if (value == null) {
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
             val declaration =
-                generateDependantDeclarationOfType(generateType(ctx), true, ctx.forDependantDeclaration().incrementCount(Assignment::class))
+                generateDependantDeclarationOfType(
+                    generateType(ctx),
+                    true,
+                    ctx.forDependantDeclaration().incrementCount(Assignment::class)
+                )
             dependantStatements.add(declaration)
             val expression = generateExpression(declaration.type, ctx.incrementCount(Assignment::class))
             Assignment(declaration.variableName, expression, symbolTable)
@@ -81,6 +93,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateReturnStatement(ctx: Context): ReturnStatement {
         val expression = generateExpression(ctx.returnExpressionType!!, ctx)
         return ReturnStatement(expression, symbolTable)
+    }
+
+    override fun generateBreakStatement(ctx: Context): BreakStatement {
+//        return if (ctx.returnLoopType == null) {
+//            BreakStatement(null, symbolTable)
+//        } else {
+//            val expression = generateExpression(ctx.returnLoopType, ctx)
+//            BreakStatement(expression, symbolTable)
+//        }
+        return BreakStatement(symbolTable)
     }
 
     /** Expression generation **/
@@ -206,7 +228,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx)
         val variableNode = if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
-            val declaration = generateDependantDeclarationOfType(type, ctx = ctx.forDependantDeclaration().incrementCount(Variable::class))
+            val declaration = generateDependantDeclarationOfType(
+                type,
+                ctx = ctx.forDependantDeclaration().incrementCount(Variable::class)
+            )
             dependantStatements.add(declaration)
             Variable(declaration.variableName, symbolTable)
         } else {
@@ -235,7 +260,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return BlockExpression(body, type.clone(), symbolTable)
     }
 
-    private fun generateStatementBlock(type: Type, ctx: Context,): StatementBlock {
+    private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
         val newScope = symbolTable.enterScope()
         return ASTGenerator(newScope)(ctx.withSymbolTable(newScope), type)
     }
@@ -246,6 +271,21 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
             generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
             type,
+            symbolTable
+        )
+    }
+
+    override fun generateIfExpression(type: Type, ctx: Context): IfExpression {
+        return IfExpression(
+            generateExpression(BoolType, ctx.incrementCount(IfExpression::class)),
+            generateStatementBlock(VoidType, ctx.incrementCount(IfExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateLoopExpression(type: Type, ctx: Context): LoopExpression {
+        return LoopExpression(
+            generateStatementBlock(type, ctx.incrementCount(LoopExpression::class).setLoopReturnType(type)),
             symbolTable
         )
     }
@@ -401,6 +441,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateF64Type(ctx: Context) = F64Type
 
     override fun generateStringType(ctx: Context) = StringType
+    override fun generateVoidType(ctx: Context): VoidType = VoidType
 
     override fun generateTupleType(ctx: Context): TupleType {
         val randomTupleType = symbolTable.globalSymbolTable.getRandomTuple()

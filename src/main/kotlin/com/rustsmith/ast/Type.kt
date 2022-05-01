@@ -9,6 +9,8 @@ sealed interface Type : ASTNode {
     fun clone(): Type
 }
 
+sealed interface NonVoidType : Type
+
 sealed interface BitWiseCompatibleType : Type
 
 sealed interface NumberType : Type
@@ -131,6 +133,7 @@ data class FunctionType(val returnType: Type, val args: List<Type>) : Type {
     override fun clone() = FunctionType(returnType.clone(), args.map { it.clone() })
 }
 
+@GenNode
 object VoidType : Type {
     override fun toRust(): String {
         return "()"

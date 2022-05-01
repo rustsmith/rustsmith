@@ -8,9 +8,10 @@ import kotlin.reflect.KClass
 class NodeSelectionWeighting<T : ASTNode>(private val weightings: MutableMap<KClass<out T>, Double>) {
 
     fun updateWeighting(kClass: KClass<out T>, weighting: Double) {
+        val totalUpdating = kClass.subclasses().count { weightings.containsKey(it) }
         kClass.subclasses().forEach {
             if (weightings.containsKey(it)) {
-                weightings[it] = weighting
+                weightings[it] = weighting / totalUpdating
             }
         }
     }

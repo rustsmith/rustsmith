@@ -39,6 +39,10 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.returnExpressionType == null) {
             filteredStatements.remove(ReturnStatement::class)
         }
+
+        if (ctx.returnLoopType == null) {
+            filteredStatements.remove(BreakStatement::class)
+        }
         return NodeSelectionWeighting(filteredStatements)
     }
 

@@ -15,7 +15,8 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 15.0 / (ctx.statementsPerScope.last().size + 1)
+        newStatementWeightings[true] = 10.0 / (ctx.statementsPerScope.last().size + 5)
+        newStatementWeightings[false] = 1 - newStatementWeightings[true]!!
         return newStatementWeightings
     }
 
@@ -38,7 +39,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class).shl(5) + 10)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + 5)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
@@ -54,6 +55,12 @@ class OptimalSelectionManager : BaseSelectionManager() {
         } else {
             statementWeightings.updateWeighting(ReturnStatement::class, 0.3)
         }
+
+        if (ctx.statementsPerScope.last().contains(BreakStatement::class)) {
+            statementWeightings.updateWeighting(BreakStatement::class, 0.0)
+        } else {
+            statementWeightings.updateWeighting(BreakStatement::class, 1.0)
+        }
         return statementWeightings
     }
 
@@ -61,6 +68,11 @@ class OptimalSelectionManager : BaseSelectionManager() {
         val typeWeightings = super.availableTypesWeightings(ctx)
         typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
         typeWeightings.updateWeighting(TupleType::class, 1.0 / (ctx.getDepth(TupleType::class) + 1))
+        if (ctx.previousIncrement == ExpressionStatement::class) {
+            typeWeightings.updateWeighting(VoidType::class, 2.0)
+        } else {
+            typeWeightings.updateWeighting(VoidType::class, 0.0)
+        }
         return typeWeightings
     }
 }

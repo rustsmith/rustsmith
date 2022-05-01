@@ -10,6 +10,7 @@ data class Context(
     val symbolTable: SymbolTable,
     val requiredType: Type? = null,
     val returnExpressionType: Type? = null,
+    val returnLoopType: Type? = null,
     val previousIncrement: KClass<out ASTNode>? = null
 ) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
@@ -24,6 +25,10 @@ data class Context(
 
     fun setReturnExpressionType(type: Type): Context {
         return this.copy(returnExpressionType = type)
+    }
+
+    fun setLoopReturnType(type: Type): Context {
+        return this.copy(returnLoopType = type)
     }
 
     fun getDepth(kClass: KClass<out ASTNode>): Int {
@@ -67,7 +72,7 @@ data class Context(
     }
 
     fun resetContextForFunction(): Context {
-        return this.copy(statementsPerScope = listOf(), requiredType = null)
+        return this.copy(statementsPerScope = listOf(), requiredType = null, returnLoopType = null)
     }
 
     fun forNewStatement(): Context {

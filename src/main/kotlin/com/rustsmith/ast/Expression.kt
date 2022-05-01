@@ -13,6 +13,14 @@ sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
 }
 
+@ExpressionGenNode(VoidType::class)
+data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
+
+    override fun toRust(): String {
+        return "()"
+    }
+}
+
 @ExpressionGenNode(I8Type::class)
 data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
 
@@ -96,7 +104,7 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 
 sealed interface PartialMoveExpression : Expression
 
-@ExpressionGenNode(Type::class)
+@ExpressionGenNode(NonVoidType::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
@@ -108,7 +116,7 @@ data class TupleElementAccessExpression(
     }
 }
 
-@ExpressionGenNode(Type::class)
+@ExpressionGenNode(NonVoidType::class)
 data class StructElementAccessExpression(
     val expression: Expression,
     val elementName: String,
@@ -120,7 +128,7 @@ data class StructElementAccessExpression(
     }
 }
 
-@ExpressionGenNode(Type::class)
+@ExpressionGenNode(NonVoidType::class)
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
 
     override fun toRust(): String {
@@ -231,7 +239,7 @@ data class BitwiseAndLogicalXor(
     }
 }
 
-@ExpressionGenNode(Type::class)
+@ExpressionGenNode(NonVoidType::class)
 data class GroupedExpression(
     val expression: Expression,
     override val symbolTable: SymbolTable
@@ -307,6 +315,28 @@ data class IfElseExpression(
 ) : RecursiveExpression {
     override fun toRust(): String {
         return "if (${predicate.toRust()}) {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
+    }
+}
+
+@ExpressionGenNode(VoidType::class)
+data class IfExpression(
+    val predicate: Expression,
+    val ifBlock: StatementBlock,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    override fun toRust(): String {
+        return "if (${predicate.toRust()}) {\n ${ifBlock.toRust()} \n}"
+    }
+}
+
+// TODO: Change this to be for an arbitrary types to instruct breaks with types too
+@ExpressionGenNode(VoidType::class)
+data class LoopExpression(
+    val body: StatementBlock,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    override fun toRust(): String {
+        return "loop {\n ${body.toRust()} \n}"
     }
 }
 
@@ -387,6 +417,9 @@ fun Expression.toType(): Type {
         is StructInstantiationExpression -> symbolTable.globalSymbolTable[this.structName]!!.type.clone()
         is TupleElementAccessExpression -> (this.expression.toType() as TupleType).types[this.index]
         is StructElementAccessExpression -> (this.expression.toType() as StructType).types.first { it.first == elementName }.second
+        is LoopExpression -> VoidType
+        is VoidLiteral -> VoidType
+        is IfExpression -> VoidType
     }
 }
 

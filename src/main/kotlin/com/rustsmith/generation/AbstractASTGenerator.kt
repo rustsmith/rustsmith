@@ -6,6 +6,7 @@ import com.rustsmith.ast.BitwiseAndLogicalXor
 import com.rustsmith.ast.BlockExpression
 import com.rustsmith.ast.BoolType
 import com.rustsmith.ast.BooleanLiteral
+import com.rustsmith.ast.BreakStatement
 import com.rustsmith.ast.Declaration
 import com.rustsmith.ast.DivideExpression
 import com.rustsmith.ast.Expression
@@ -22,11 +23,13 @@ import com.rustsmith.ast.I32Type
 import com.rustsmith.ast.I64Type
 import com.rustsmith.ast.I8Type
 import com.rustsmith.ast.IfElseExpression
+import com.rustsmith.ast.IfExpression
 import com.rustsmith.ast.Int128Literal
 import com.rustsmith.ast.Int16Literal
 import com.rustsmith.ast.Int32Literal
 import com.rustsmith.ast.Int64Literal
 import com.rustsmith.ast.Int8Literal
+import com.rustsmith.ast.LoopExpression
 import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
 import com.rustsmith.ast.ReturnStatement
@@ -42,6 +45,8 @@ import com.rustsmith.ast.TupleLiteral
 import com.rustsmith.ast.TupleType
 import com.rustsmith.ast.Type
 import com.rustsmith.ast.Variable
+import com.rustsmith.ast.VoidLiteral
+import com.rustsmith.ast.VoidType
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
@@ -54,6 +59,8 @@ public interface AbstractASTGenerator {
 
     public fun generateReturnStatement(ctx: Context): ReturnStatement
 
+    public fun generateBreakStatement(ctx: Context): BreakStatement
+
     public fun selectRandomStatement(ctx: Context): KClass<out Statement>
 
     public fun generateStatement(ctx: Context): Statement = when (selectRandomStatement(ctx)) {
@@ -61,8 +68,11 @@ public interface AbstractASTGenerator {
         Declaration::class -> generateDeclaration(ctx)
         Assignment::class -> generateAssignment(ctx)
         ReturnStatement::class -> generateReturnStatement(ctx)
+        BreakStatement::class -> generateBreakStatement(ctx)
         else -> throw Exception("Unrecognized type")
     }
+
+    public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
 
     public fun generateInt8Literal(type: Type, ctx: Context): Int8Literal
 
@@ -103,6 +113,10 @@ public interface AbstractASTGenerator {
 
     public fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression
 
+    public fun generateIfExpression(type: Type, ctx: Context): IfExpression
+
+    public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
+
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
     public fun generateSubtractExpression(type: Type, ctx: Context): SubtractExpression
@@ -123,6 +137,7 @@ public interface AbstractASTGenerator {
 
     public fun generateExpression(type: Type, ctx: Context): Expression =
         when (selectRandomExpression(type, ctx)) {
+            VoidLiteral::class -> generateVoidLiteral(type, ctx)
             Int8Literal::class -> generateInt8Literal(type, ctx)
             Int16Literal::class -> generateInt16Literal(type, ctx)
             Int32Literal::class -> generateInt32Literal(type, ctx)
@@ -141,6 +156,8 @@ public interface AbstractASTGenerator {
             GroupedExpression::class -> generateGroupedExpression(type, ctx)
             BlockExpression::class -> generateBlockExpression(type, ctx)
             IfElseExpression::class -> generateIfElseExpression(type, ctx)
+            IfExpression::class -> generateIfExpression(type, ctx)
+            LoopExpression::class -> generateLoopExpression(type, ctx)
             AddExpression::class -> generateAddExpression(type, ctx)
             SubtractExpression::class -> generateSubtractExpression(type, ctx)
             DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -153,6 +170,8 @@ public interface AbstractASTGenerator {
         }
 
     public fun generateStringType(ctx: Context): StringType
+
+    public fun generateVoidType(ctx: Context): VoidType
 
     public fun generateBoolType(ctx: Context): BoolType
 
@@ -178,6 +197,7 @@ public interface AbstractASTGenerator {
 
     public fun generateType(ctx: Context): Type = when (selectRandomType(ctx)) {
         StringType::class -> generateStringType(ctx)
+        VoidType::class -> generateVoidType(ctx)
         BoolType::class -> generateBoolType(ctx)
         I8Type::class -> generateI8Type(ctx)
         I16Type::class -> generateI16Type(ctx)
