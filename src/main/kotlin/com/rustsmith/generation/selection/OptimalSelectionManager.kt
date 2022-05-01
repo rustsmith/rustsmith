@@ -50,6 +50,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val statementWeightings = super.availableStatementsWeightings(ctx)
+        statementWeightings.updateWeighting(ExpressionStatement::class, 2.0)
         if (ctx.statementsPerScope.last().contains(ReturnStatement::class)) {
             statementWeightings.updateWeighting(ReturnStatement::class, 0.0)
         } else {
@@ -59,7 +60,7 @@ class OptimalSelectionManager : BaseSelectionManager() {
         if (ctx.statementsPerScope.last().contains(BreakStatement::class)) {
             statementWeightings.updateWeighting(BreakStatement::class, 0.0)
         } else {
-            statementWeightings.updateWeighting(BreakStatement::class, 1.0)
+            statementWeightings.updateWeighting(BreakStatement::class, 0.3)
         }
         return statementWeightings
     }
