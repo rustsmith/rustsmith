@@ -15,7 +15,7 @@ repositories {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "15"
+    kotlinOptions.jvmTarget = "11"
 }
 dependencies {
     testImplementation(kotlin("test"))
