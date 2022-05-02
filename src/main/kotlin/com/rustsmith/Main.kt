@@ -45,9 +45,6 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()
             val program = reconditioner.recondition(generateProgram(randomSeed))
-            if (program.toRust().count { char -> char == '\n' } > 7000) {
-                continue
-            }
             if (print) {
                 println(program.toRust())
                 return
