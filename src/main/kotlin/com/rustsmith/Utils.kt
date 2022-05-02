@@ -14,7 +14,6 @@ fun getRandomConfiguration(): List<KClass<out Expression>> {
     return listOf()
 }
 
-
 fun <T> pickRandomByWeight(weightingsMap: List<Pair<T, Double>>): T {
     val sum = weightingsMap.sumOf { it.second }
     val normalisedWeightingsMap = weightingsMap.map { it.first to it.second / sum }.shuffled(CustomRandom)

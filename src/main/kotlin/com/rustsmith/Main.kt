@@ -49,7 +49,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 println(program.toRust())
                 return
             }
-            if (program.toRust().count {char -> char == '\n'} > 7000) {
+            if (program.toRust().count { char -> char == '\n' } > 7000) {
                 continue
             }
             val path = Path(directory, "file$i")
