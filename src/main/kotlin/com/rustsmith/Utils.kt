@@ -10,8 +10,10 @@ fun getRandomConfiguration(): List<KClass<out Expression>> {
     val expressionConfigurableNodes = Expression::class.subclasses()
         .filter { it.hasAnnotation<ExpressionGenNode>() && it.hasAnnotation<SwarmNode>() }
     val numberNodesToTurnOff = (4..expressionConfigurableNodes.size).random()
-    return expressionConfigurableNodes.shuffled().take(numberNodesToTurnOff)
+//    return expressionConfigurableNodes.shuffled().take(numberNodesToTurnOff)
+    return listOf()
 }
+
 
 fun <T> pickRandomByWeight(weightingsMap: List<Pair<T, Double>>): T {
     val sum = weightingsMap.sumOf { it.second }

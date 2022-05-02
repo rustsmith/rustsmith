@@ -22,7 +22,7 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
+    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(500)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
@@ -39,7 +39,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         // Don't make progress bar if printing out the program in console
         val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
-        repeat(count) {
+        var i = 0
+        while (i < count) {
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()
@@ -48,12 +49,16 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 println(program.toRust())
                 return
             }
-            val path = Path(directory, "file$it")
+            if (program.toRust().count {char -> char == '\n'} > 7000) {
+                continue
+            }
+            val path = Path(directory, "file$i")
             path.toFile().mkdir()
-            path.resolve("file$it.rs").toFile().writeText(program.toRust())
-            path.resolve("file$it.json").toFile().writeText("{}")
+            path.resolve("file$i.rs").toFile().writeText(program.toRust())
+            path.resolve("file$i.json").toFile().writeText("{}")
             IdentGenerator.reset()
             progressBar?.step()
+            i++
         }
         progressBar?.close()
     }
