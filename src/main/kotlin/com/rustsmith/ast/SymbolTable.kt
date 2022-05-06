@@ -52,6 +52,7 @@ class GlobalSymbolTable {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
     val structs = mutableListOf<StructDefinition>()
     val tupleTypes = mutableListOf<TupleType>()
+    val commandLineTypes = mutableListOf<CLIInputType>()
 
     operator fun get(key: String): IdentifierData? {
         return symbolMap[key]
@@ -60,6 +61,10 @@ class GlobalSymbolTable {
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
     }
+
+    /* CLI Input methods */
+
+    fun addType(type: CLIInputType) = commandLineTypes.add(type)
 
     /* Struct methods */
 

@@ -74,6 +74,7 @@ class Reconditioner {
                 predicate = reconditionExpression(node.predicate),
                 ifBlock = reconditionStatementBlock(node.ifBlock)
             )
+            is CLIArgumentAccessExpression -> node
         }
     }
 
@@ -85,10 +86,11 @@ class Reconditioner {
         return when (node) {
             is Assignment -> node.copy(value = reconditionExpression(node.value))
             is Declaration -> node.copy(value = reconditionExpression(node.value))
-            is Output -> node
             is ExpressionStatement -> node.copy(expression = reconditionExpression(node.expression))
             is ReturnStatement -> node.copy(expression = reconditionExpression(node.expression))
             is BreakStatement -> node.copy()
+            is Output -> node
+            is FetchCLIArgs -> node
         }
     }
 

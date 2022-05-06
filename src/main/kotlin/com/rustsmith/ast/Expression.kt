@@ -23,6 +23,14 @@ data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
     }
 }
 
+@ExpressionGenNode(CLIInputType::class)
+data class CLIArgumentAccessExpression(val index: Int, val type: Type, override val symbolTable: SymbolTable) :
+    Expression {
+    override fun toRust(): String {
+        return "cliArgs[$index].clone().parse::<${type.toRust()}>().unwrap()"
+    }
+}
+
 @ExpressionGenNode(I8Type::class)
 data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
 
@@ -438,6 +446,7 @@ fun Expression.toType(): Type {
         is LoopExpression -> VoidType
         is VoidLiteral -> VoidType
         is IfExpression -> VoidType
+        is CLIArgumentAccessExpression -> this.type
     }
 }
 

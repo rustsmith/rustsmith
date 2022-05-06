@@ -44,6 +44,26 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral = VoidLiteral(symbolTable)
+    override fun generateCLIArgumentAccessExpression(type: Type, ctx: Context): CLIArgumentAccessExpression {
+        if (
+            selectionManager.choiceGenerateNewCLIArgumentWeightings(ctx).randomByWeights() ||
+            !symbolTable.globalSymbolTable.commandLineTypes.contains(type)
+        ) {
+            symbolTable.globalSymbolTable.commandLineTypes.add(type as CLIInputType)
+            return CLIArgumentAccessExpression(
+                symbolTable.globalSymbolTable.commandLineTypes.mapIndexed { i, t -> i to t }
+                    .filter { it.second == type }.random().first + 1,
+                type,
+                symbolTable
+            )
+        }
+        return CLIArgumentAccessExpression(
+            symbolTable.globalSymbolTable.commandLineTypes.mapIndexed { i, t -> i to t }.filter { it.second == type }
+                .random().first + 1,
+            type,
+            symbolTable
+        )
+    }
 
     override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
         return ExpressionStatement(
@@ -384,16 +404,18 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val symbolTableForFunction = SymbolTable(
             null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
+        val functionName = IdentGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
             returnType,
-            IdentGenerator.generateFunctionName(),
+            functionName,
             argTypes.associateBy { IdentGenerator.generateVariable() },
             ASTGenerator(symbolTableForFunction)
             (
                 ctx.incrementCount(FunctionCallExpression::class)
                     .resetContextForFunction()
                     .setReturnExpressionType(returnType)
-                    .withSymbolTable(symbolTableForFunction),
+                    .withSymbolTable(symbolTableForFunction)
+                    .withFunctionName(functionName),
                 returnType
             )
         )
@@ -486,5 +508,19 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false, OwnershipState.VALID)
         symbolTable.globalSymbolTable.addStruct(StructDefinition(structName, argTypes.map { it.first to it.second }))
         return structType
+    }
+
+    fun generateCLIArgumentsForLiteralType(type: CLIInputType, ctx: Context): String {
+        return when (type) {
+            BoolType -> generateBooleanLiteral(type, ctx).value.toString()
+            F32Type -> generateFloat32Literal(type, ctx).value.toString()
+            F64Type -> generateFloat64Literal(type, ctx).value.toString()
+            I128Type -> generateInt128Literal(type, ctx).value.toString()
+            I16Type -> generateInt16Literal(type, ctx).value.toString()
+            I32Type -> generateInt32Literal(type, ctx).value.toString()
+            I64Type -> generateInt64Literal(type, ctx).value.toString()
+            I8Type -> generateInt8Literal(type, ctx).value.toString()
+            StringType -> generateStringLiteral(type, ctx).value
+        }
     }
 }

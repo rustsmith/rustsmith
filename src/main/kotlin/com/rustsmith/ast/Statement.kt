@@ -73,6 +73,13 @@ data class StatementBlock(val statements: List<Statement>, val symbolTable: Symb
     }
 }
 
+data class FetchCLIArgs(override val symbolTable: SymbolTable) : Statement {
+
+    override fun toRust(): String {
+        return "use std::env;\nlet cliArgs: Vec<String> = env::args().collect();"
+    }
+}
+
 data class Output(override val symbolTable: SymbolTable, val programSeed: Long) : Statement {
 
     override fun toRust(): String {

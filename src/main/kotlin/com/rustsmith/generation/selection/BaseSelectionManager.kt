@@ -31,7 +31,9 @@ open class BaseSelectionManager : SelectionManager {
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
-    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5)
+    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5, true to 0.5)
+
+    override fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() }
@@ -53,6 +55,9 @@ open class BaseSelectionManager : SelectionManager {
                     ?.contains(type::class) ?: false
             }
         val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.currentFunctionName != "main") {
+            filteredExpressions.remove(CLIArgumentAccessExpression::class)
+        }
         return NodeSelectionWeighting(filteredExpressions)
     }
 

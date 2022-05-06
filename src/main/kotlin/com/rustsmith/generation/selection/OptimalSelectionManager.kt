@@ -4,7 +4,8 @@ import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
-open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expression>>) : SwarmBasedSelectionManager(expressionConfiguration) {
+open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expression>>) :
+    SwarmBasedSelectionManager(expressionConfiguration) {
 
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
         RecursiveExpression::class to 5,
@@ -35,9 +36,13 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
         return mapOf(true to createNewFunction, false to 1 - createNewFunction)
     }
 
+    override fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double> =
+        mapOf(true to 0.1, false to 0.9)
+
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
-        val currentRecursiveExpressions = ctx.statementsPerScope.last().count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
+        val currentRecursiveExpressions = ctx.statementsPerScope.last()
+            .count { it is ExpressionStatement && it.expression is RecursiveExpression } * 2 + 1
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
             1.0 / (ctx.getDepth(RecursiveExpression::class) * 8 + currentRecursiveExpressions)

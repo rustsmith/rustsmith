@@ -7,6 +7,7 @@ import com.rustsmith.ast.BlockExpression
 import com.rustsmith.ast.BoolType
 import com.rustsmith.ast.BooleanLiteral
 import com.rustsmith.ast.BreakStatement
+import com.rustsmith.ast.CLIArgumentAccessExpression
 import com.rustsmith.ast.Declaration
 import com.rustsmith.ast.DivideExpression
 import com.rustsmith.ast.Expression
@@ -74,6 +75,9 @@ public interface AbstractASTGenerator {
 
     public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
 
+    public fun generateCLIArgumentAccessExpression(type: Type, ctx: Context):
+        CLIArgumentAccessExpression
+
     public fun generateInt8Literal(type: Type, ctx: Context): Int8Literal
 
     public fun generateInt16Literal(type: Type, ctx: Context): Int16Literal
@@ -138,6 +142,7 @@ public interface AbstractASTGenerator {
     public fun generateExpression(type: Type, ctx: Context): Expression =
         when (selectRandomExpression(type, ctx)) {
             VoidLiteral::class -> generateVoidLiteral(type, ctx)
+            CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
             Int8Literal::class -> generateInt8Literal(type, ctx)
             Int16Literal::class -> generateInt16Literal(type, ctx)
             Int32Literal::class -> generateInt32Literal(type, ctx)

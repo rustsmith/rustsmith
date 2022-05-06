@@ -6,6 +6,7 @@ import kotlin.reflect.KClass
 
 data class Context(
     private val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
+    val currentFunctionName: String,
     val statementsPerScope: List<List<Statement>>,
     val symbolTable: SymbolTable,
     val requiredType: Type? = null,
@@ -86,5 +87,9 @@ data class Context(
         stateCopy.removeLast()
         stateCopy.add(mutableMapOf())
         return this.copy(nodeDepthState = stateCopy)
+    }
+
+    fun withFunctionName(functionName: String): Context {
+        return this.copy(currentFunctionName = functionName)
     }
 }

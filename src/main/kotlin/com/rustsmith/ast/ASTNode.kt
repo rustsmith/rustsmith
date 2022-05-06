@@ -48,17 +48,20 @@ data class Program(
     }
 }
 
-fun generateProgram(programSeed: Long): Program {
+fun generateProgram(programSeed: Long): Pair<Program, List<String>> {
     val functionSymbolTable = FunctionSymbolTable()
     val globalSymbolTable = GlobalSymbolTable()
     val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
-    val body = ASTGenerator(symbolTable)(Context(listOf(mapOf()), listOf(), symbolTable))
+    val astGenerator = ASTGenerator(symbolTable)
+    val mainFunctionContext = Context(listOf(mapOf()), "main", listOf(), symbolTable)
+    val body = astGenerator(mainFunctionContext)
     val bodyWithOutput =
-        StatementBlock(body.statements + Output(symbolTable, programSeed), symbolTable)
+        StatementBlock(listOf(FetchCLIArgs(symbolTable)) + body.statements + Output(symbolTable, programSeed), symbolTable)
     val mainFunction = FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
         body = bodyWithOutput
     )
-    return Program(programSeed, setOf(), globalSymbolTable.structs, functionSymbolTable.functions + mainFunction)
+    val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
+    return Program(programSeed, setOf(), globalSymbolTable.structs, functionSymbolTable.functions + mainFunction) to cliArguments
 }
