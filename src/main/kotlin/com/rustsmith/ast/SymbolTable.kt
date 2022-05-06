@@ -62,10 +62,6 @@ class GlobalSymbolTable {
         symbolMap[key] = value
     }
 
-    /* CLI Input methods */
-
-    fun addType(type: CLIInputType) = commandLineTypes.add(type)
-
     /* Struct methods */
 
     fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
@@ -139,13 +135,33 @@ data class SymbolTable(
         return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.map { it.first }.toSet()
     }
 
-    fun getRandomMutableVariable(): Pair<String, IdentifierData>? {
+    private fun findMutableSubExpressions(expression: LHSAssignmentNode): List<LHSAssignmentNode> {
+        return when (val type = expression.toType()) {
+            is StructType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
+                StructElementAccessExpression(
+                    expression,
+                    type.types[index].first,
+                    this
+                ) to pair
+            }.filter { it.second.second == OwnershipState.VALID }.flatMap { findMutableSubExpressions(it.first) }
+            is TupleType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
+                TupleElementAccessExpression(
+                    expression,
+                    index,
+                    this
+                ) to pair
+            }.filter { it.second.second == OwnershipState.VALID }.flatMap { findMutableSubExpressions(it.first) }
+            else -> listOf(expression)
+        }
+    }
+
+    fun getRandomMutableVariable(): LHSAssignmentNode? {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity == OwnershipState.VALID }
-            .randomOrNull(CustomRandom)
+        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity != OwnershipState.INVALID }
+            .flatMap { findMutableSubExpressions(Variable(it.first, this)) }.randomOrNull(CustomRandom)
     }
 
     fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context): Pair<String, IdentifierData>? {

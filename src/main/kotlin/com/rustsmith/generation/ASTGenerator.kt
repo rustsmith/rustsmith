@@ -103,10 +103,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
                 )
             dependantStatements.add(declaration)
             val expression = generateExpression(declaration.type, ctx.incrementCount(Assignment::class))
-            Assignment(declaration.variableName, expression, symbolTable)
+            Assignment(Variable(declaration.variableName, symbolTable), expression, symbolTable)
         } else {
-            val expression = generateExpression(value.second.type, ctx.incrementCount(Assignment::class))
-            Assignment(value.first, expression, symbolTable)
+            val expression = generateExpression(value.toType(), ctx.incrementCount(Assignment::class))
+            Assignment(value, expression, symbolTable)
         }
     }
 

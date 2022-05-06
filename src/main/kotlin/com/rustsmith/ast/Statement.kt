@@ -35,11 +35,11 @@ data class Declaration(
 }
 
 @GenNode
-data class Assignment(val variableName: String, val value: Expression, override val symbolTable: SymbolTable) :
+data class Assignment(val lhs: LHSAssignmentNode, val value: Expression, override val symbolTable: SymbolTable) :
     Statement {
 
     override fun toRust(): String {
-        return "$variableName = ${value.toRust()};"
+        return "${lhs.toRust()} = ${value.toRust()};"
     }
 }
 

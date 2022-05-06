@@ -15,6 +15,8 @@ sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
 }
 
+sealed interface LHSAssignmentNode : Expression
+
 @ExpressionGenNode(VoidType::class)
 data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
 
@@ -120,7 +122,7 @@ data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, PartialMoveExpression {
+) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
 
     override fun toRust(): String {
         return "${expression.toRust()}.$index"
@@ -133,7 +135,7 @@ data class StructElementAccessExpression(
     val expression: Expression,
     val elementName: String,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, PartialMoveExpression {
+) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
 
     override fun toRust(): String {
         return "${expression.toRust()}.$elementName"
@@ -141,7 +143,7 @@ data class StructElementAccessExpression(
 }
 
 @ExpressionGenNode(NonVoidType::class)
-data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression {
+data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression, LHSAssignmentNode {
 
     override fun toRust(): String {
         return value
