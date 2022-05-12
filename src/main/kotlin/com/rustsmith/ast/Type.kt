@@ -7,14 +7,16 @@ import kotlin.reflect.full.hasAnnotation
 
 sealed interface Type : ASTNode {
     fun clone(): Type
+
+    fun memberTypes(): List<Type>
 }
 
 sealed interface NonVoidType : Type
 
-sealed interface CLIInputType : Type
-sealed interface BitWiseCompatibleType : Type
+sealed interface CLIInputType : NonVoidType
+sealed interface BitWiseCompatibleType : NonVoidType
 
-sealed interface NumberType : Type, CLIInputType
+sealed interface NumberType : NonVoidType, CLIInputType
 
 sealed interface IntType : NumberType, BitWiseCompatibleType
 
@@ -23,6 +25,9 @@ object I8Type : IntType {
     override fun toRust(): String {
         return "i8"
     }
+
+    override fun memberTypes(): List<Type> = listOf(I8Type)
+
     override fun clone() = I8Type
 }
 
@@ -31,6 +36,8 @@ object I16Type : IntType {
     override fun toRust(): String {
         return "i16"
     }
+
+    override fun memberTypes(): List<Type> = listOf(I16Type)
 
     override fun clone() = I16Type
 }
@@ -41,6 +48,8 @@ object I32Type : IntType {
         return "i32"
     }
 
+    override fun memberTypes(): List<Type> = listOf(I32Type)
+
     override fun clone() = I32Type
 }
 
@@ -50,6 +59,8 @@ object I64Type : IntType {
         return "i64"
     }
 
+    override fun memberTypes(): List<Type> = listOf(I64Type)
+
     override fun clone() = I64Type
 }
 
@@ -58,6 +69,8 @@ object I128Type : IntType {
     override fun toRust(): String {
         return "i128"
     }
+
+    override fun memberTypes(): List<Type> = listOf(I128Type)
 
     override fun clone() = I128Type
 }
@@ -70,6 +83,8 @@ object F32Type : FloatType {
         return "f32"
     }
 
+    override fun memberTypes(): List<Type> = listOf(F32Type)
+
     override fun clone() = F32Type
 }
 
@@ -79,14 +94,18 @@ object F64Type : FloatType {
         return "f64"
     }
 
+    override fun memberTypes(): List<Type> = listOf(F64Type)
+
     override fun clone() = F64Type
 }
 
 @GenNode
-object StringType : CLIInputType, Type {
+object StringType : CLIInputType, NonVoidType {
     override fun toRust(): String {
         return "String"
     }
+
+    override fun memberTypes(): List<Type> = listOf(StringType)
 
     override fun clone() = StringType
 }
@@ -97,10 +116,12 @@ object BoolType : CLIInputType, BitWiseCompatibleType {
         return "bool"
     }
 
+    override fun memberTypes(): List<Type> = listOf(BoolType)
+
     override fun clone() = BoolType
 }
 
-sealed interface RecursiveType : Type {
+sealed interface RecursiveType : NonVoidType {
     val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>>
 }
 
@@ -112,10 +133,11 @@ data class TupleType(val types: List<Type>) : RecursiveType {
         return "(${types.joinToString(",") { it.toRust() }})"
     }
 
+    override fun memberTypes(): List<Type> = types.flatMap { it.memberTypes() } + this
+
     override fun clone() = TupleType(types.map { it.clone() })
 }
 
-@GenNode
 data class StructType(val structName: String, val types: List<Pair<String, Type>>) : RecursiveType {
     override val argumentsToOwnershipMap = types.map { it.second to OwnershipState.VALID }.toMutableList()
 
@@ -123,13 +145,30 @@ data class StructType(val structName: String, val types: List<Pair<String, Type>
         return structName
     }
 
+    override fun memberTypes(): List<Type> = types.flatMap { it.second.memberTypes() } + this
+
     override fun clone() = StructType(structName, types.map { it.first to it.second.clone() })
 }
 
-data class FunctionType(val returnType: Type, val args: List<Type>) : Type {
+@GenNode
+data class ReferenceType(val internalType: Type) : NonVoidType {
+    override fun clone(): Type {
+        return ReferenceType(internalType.clone())
+    }
+
+    override fun toRust(): String {
+        return "&${internalType.toRust()}"
+    }
+
+    override fun memberTypes(): List<Type> = internalType.memberTypes() + this
+}
+
+data class FunctionType(val returnType: Type, val args: List<Type>) : NonVoidType {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
     }
+
+    override fun memberTypes(): List<Type> = args.flatMap { it.memberTypes() } + this
 
     override fun clone() = FunctionType(returnType.clone(), args.map { it.clone() })
 }
@@ -141,6 +180,9 @@ object VoidType : Type {
     }
 
     override fun clone() = VoidType
+    override fun memberTypes(): List<Type> {
+        return listOf(this)
+    }
 }
 
 fun NumberType.zero(symbolTable: SymbolTable): Expression {
@@ -176,6 +218,7 @@ fun Type.getOwnership(): OwnershipModel {
         is StructType -> OwnershipModel.MOVE
         is FunctionType -> OwnershipModel.COPY
         VoidType -> OwnershipModel.COPY
+        is ReferenceType -> OwnershipModel.COPY
     }
 }
 

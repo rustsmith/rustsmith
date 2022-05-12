@@ -75,6 +75,7 @@ class Reconditioner {
                 ifBlock = reconditionStatementBlock(node.ifBlock)
             )
             is CLIArgumentAccessExpression -> node
+            is ReferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
 

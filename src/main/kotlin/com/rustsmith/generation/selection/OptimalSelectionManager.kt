@@ -75,6 +75,7 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
         val typeWeightings = super.availableTypesWeightings(ctx)
         typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
         typeWeightings.updateWeighting(TupleType::class, 1.0 / (ctx.getDepth(TupleType::class) + 1))
+        typeWeightings.updateWeighting(ReferenceType::class, 1.0 / (ctx.getDepth(ReferenceType::class) + 1))
         if (ctx.previousIncrement == ExpressionStatement::class) {
             typeWeightings.updateWeighting(VoidType::class, 2.0)
         } else {

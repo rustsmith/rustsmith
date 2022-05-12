@@ -33,6 +33,8 @@ import com.rustsmith.ast.Int8Literal
 import com.rustsmith.ast.LoopExpression
 import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
+import com.rustsmith.ast.ReferenceExpression
+import com.rustsmith.ast.ReferenceType
 import com.rustsmith.ast.ReturnStatement
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StringLiteral
@@ -121,6 +123,8 @@ public interface AbstractASTGenerator {
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
 
+    public fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression
+
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
     public fun generateSubtractExpression(type: Type, ctx: Context): SubtractExpression
@@ -163,6 +167,7 @@ public interface AbstractASTGenerator {
             IfElseExpression::class -> generateIfElseExpression(type, ctx)
             IfExpression::class -> generateIfExpression(type, ctx)
             LoopExpression::class -> generateLoopExpression(type, ctx)
+            ReferenceExpression::class -> generateReferenceExpression(type, ctx)
             AddExpression::class -> generateAddExpression(type, ctx)
             SubtractExpression::class -> generateSubtractExpression(type, ctx)
             DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -177,6 +182,8 @@ public interface AbstractASTGenerator {
     public fun generateStringType(ctx: Context): StringType
 
     public fun generateVoidType(ctx: Context): VoidType
+
+    public fun generateReferenceType(ctx: Context): ReferenceType
 
     public fun generateBoolType(ctx: Context): BoolType
 
@@ -203,6 +210,7 @@ public interface AbstractASTGenerator {
     public fun generateType(ctx: Context): Type = when (selectRandomType(ctx)) {
         StringType::class -> generateStringType(ctx)
         VoidType::class -> generateVoidType(ctx)
+        ReferenceType::class -> generateReferenceType(ctx)
         BoolType::class -> generateBoolType(ctx)
         I8Type::class -> generateI8Type(ctx)
         I16Type::class -> generateI16Type(ctx)

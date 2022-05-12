@@ -5,7 +5,7 @@ import com.rustsmith.randomByWeights
 import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 
-class NodeSelectionWeighting<T : ASTNode>(private val weightings: MutableMap<KClass<out T>, Double>) {
+class NodeSelectionWeighting<T : ASTNode>(val weightings: MutableMap<KClass<out T>, Double>) {
 
     fun updateWeighting(kClass: KClass<out T>, weighting: Double) {
         val totalUpdating = kClass.subclasses().count { weightings.containsKey(it) }

@@ -15,6 +15,8 @@ sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
 }
 
+sealed interface LiteralExpression : Expression
+
 sealed interface LHSAssignmentNode : Expression
 
 @ExpressionGenNode(VoidType::class)
@@ -27,14 +29,14 @@ data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
 
 @ExpressionGenNode(CLIInputType::class)
 data class CLIArgumentAccessExpression(val index: Int, val type: Type, override val symbolTable: SymbolTable) :
-    Expression {
+    LiteralExpression {
     override fun toRust(): String {
         return "cliArgs[$index].clone().parse::<${type.toRust()}>().unwrap()"
     }
 }
 
 @ExpressionGenNode(I8Type::class)
-data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
+data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : LiteralExpression {
 
     override fun toRust(): String {
         return "${value}i8"
@@ -42,7 +44,7 @@ data class Int8Literal(val value: Int, override val symbolTable: SymbolTable) : 
 }
 
 @ExpressionGenNode(I16Type::class)
-data class Int16Literal(val value: Int, override val symbolTable: SymbolTable) : Expression {
+data class Int16Literal(val value: Int, override val symbolTable: SymbolTable) : LiteralExpression {
 
     override fun toRust(): String {
         return "${value}i16"
@@ -51,7 +53,7 @@ data class Int16Literal(val value: Int, override val symbolTable: SymbolTable) :
 
 @ExpressionGenNode(I32Type::class)
 data class Int32Literal(val value: Int, override val symbolTable: SymbolTable) :
-    Expression {
+    LiteralExpression {
 
     override fun toRust(): String {
         return "${value}i32"
@@ -60,7 +62,7 @@ data class Int32Literal(val value: Int, override val symbolTable: SymbolTable) :
 
 @ExpressionGenNode(I64Type::class)
 data class Int64Literal(val value: Long, override val symbolTable: SymbolTable) :
-    Expression {
+    LiteralExpression {
 
     override fun toRust(): String {
         return "${value}i64"
@@ -69,7 +71,7 @@ data class Int64Literal(val value: Long, override val symbolTable: SymbolTable) 
 
 @ExpressionGenNode(I128Type::class)
 data class Int128Literal(val value: BigInteger, override val symbolTable: SymbolTable) :
-    Expression {
+    LiteralExpression {
 
     override fun toRust(): String {
         return "${value}i128"
@@ -77,21 +79,21 @@ data class Int128Literal(val value: BigInteger, override val symbolTable: Symbol
 }
 
 @ExpressionGenNode(F32Type::class)
-data class Float32Literal(val value: Float, override val symbolTable: SymbolTable) : Expression {
+data class Float32Literal(val value: Float, override val symbolTable: SymbolTable) : LiteralExpression {
     override fun toRust(): String {
         return "${value}f32"
     }
 }
 
 @ExpressionGenNode(F64Type::class)
-data class Float64Literal(val value: Double, override val symbolTable: SymbolTable) : Expression {
+data class Float64Literal(val value: Double, override val symbolTable: SymbolTable) : LiteralExpression {
     override fun toRust(): String {
         return "${value}f64"
     }
 }
 
 @ExpressionGenNode(StringType::class)
-data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : Expression {
+data class StringLiteral(val value: String, override val symbolTable: SymbolTable) : LiteralExpression {
 
     override fun toRust(): String {
         return "String::from(\"$value\")"
@@ -99,7 +101,7 @@ data class StringLiteral(val value: String, override val symbolTable: SymbolTabl
 }
 
 @ExpressionGenNode(BoolType::class)
-data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTable) : Expression {
+data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTable) : LiteralExpression {
 
     override fun toRust(): String {
         return value.toString()
@@ -107,7 +109,7 @@ data class BooleanLiteral(val value: Boolean, override val symbolTable: SymbolTa
 }
 
 @ExpressionGenNode(TupleType::class)
-data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) : Expression {
+data class TupleLiteral(val values: List<Expression>, override val symbolTable: SymbolTable) : LiteralExpression {
 
     override fun toRust(): String {
         return "(${values.joinToString(",") { it.toRust() }})"
@@ -117,7 +119,7 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 sealed interface PartialMoveExpression : Expression
 
 @SwarmNode
-@ExpressionGenNode(NonVoidType::class)
+//@ExpressionGenNode(NonVoidType::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
@@ -130,7 +132,6 @@ data class TupleElementAccessExpression(
 }
 
 @SwarmNode
-@ExpressionGenNode(NonVoidType::class)
 data class StructElementAccessExpression(
     val expression: Expression,
     val elementName: String,
@@ -311,7 +312,7 @@ data class StructInstantiationExpression(
     val structName: String,
     val args: List<Pair<String, Expression>>,
     override val symbolTable: SymbolTable
-) : Expression {
+) : LiteralExpression {
 
     override fun toRust(): String {
         return "$structName {${args.joinToString(" ") { "${it.first}: ${it.second.toRust()}," }}}"
@@ -365,6 +366,16 @@ data class LoopExpression(
 ) : RecursiveExpression {
     override fun toRust(): String {
         return "loop {\n ${body.toRust()} \n}"
+    }
+}
+
+@ExpressionGenNode(ReferenceType::class)
+data class ReferenceExpression(
+    val expression: Expression,
+    override val symbolTable: SymbolTable
+) : Expression {
+    override fun toRust(): String {
+        return "&${expression.toRust()}"
     }
 }
 
@@ -449,6 +460,7 @@ fun Expression.toType(): Type {
         is VoidLiteral -> VoidType
         is IfExpression -> VoidType
         is CLIArgumentAccessExpression -> this.type
+        is ReferenceExpression -> ReferenceType(this.expression.toType())
     }
 }
 

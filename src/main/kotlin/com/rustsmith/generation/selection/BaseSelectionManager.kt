@@ -55,9 +55,24 @@ open class BaseSelectionManager : SelectionManager {
                     ?.contains(type::class) ?: false
             }
         val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.getDepthLast(ReferenceExpression::class) > 0) {
+            LiteralExpression::class.subclasses().forEach {
+                filteredExpressions.remove(it)
+            }
+            RecursiveExpression::class.subclasses().forEach {
+                filteredExpressions.remove(it)
+            }
+//            filteredExpressions[TupleElementAccessExpression::class]
+        }
+        if (type.memberTypes().count { it is ReferenceType } > 0) {
+            filteredExpressions.remove(FunctionCallExpression::class)
+            filteredExpressions.remove(StructElementAccessExpression::class)
+            filteredExpressions.remove(TupleElementAccessExpression::class)
+        }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
         }
+        filteredExpressions.remove(FunctionCallExpression::class)
         return NodeSelectionWeighting(filteredExpressions)
     }
 

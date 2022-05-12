@@ -36,6 +36,10 @@ data class Context(
         return kClass.subclasses().sumOf { nodeDepthState.sumOf { map -> map[it] ?: 0 } }
     }
 
+    fun getDepthLast(kClass: KClass<out ASTNode>): Int {
+        return kClass.subclasses().sumOf { nodeDepthState.last()[it] ?: 0 }
+    }
+
     fun withSymbolTable(symbolTable: SymbolTable): Context {
         val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }
         return this.copy(
