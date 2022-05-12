@@ -3,7 +3,6 @@ package com.rustsmith.ast
 import com.rustsmith.CustomRandom
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
-import kotlin.math.exp
 
 enum class OwnershipState {
     VALID,
@@ -197,7 +196,7 @@ data class SymbolTable(
         }
         if (requiredType != null && type is RecursiveType && ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
             val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
-                .filter { it.second.validity != OwnershipState.INVALID  }
+                .filter { it.second.validity != OwnershipState.INVALID }
             return partiallyOrCompletelyValidVariables.filter { variable ->
                 (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
                     if (ctx.getDepth(PartialMoveExpression::class) > 1)

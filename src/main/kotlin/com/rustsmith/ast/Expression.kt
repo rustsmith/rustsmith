@@ -119,7 +119,7 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 sealed interface PartialMoveExpression : Expression
 
 @SwarmNode
-//@ExpressionGenNode(NonVoidType::class)
+// @ExpressionGenNode(NonVoidType::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,

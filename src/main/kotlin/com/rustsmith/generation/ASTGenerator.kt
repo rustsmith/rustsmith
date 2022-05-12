@@ -289,7 +289,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
-        val expression = if (type.memberTypes().count {  it is ReferenceType } > 0 || ctx.getDepth(ReferenceExpression::class) > 0) {
+        val expression = if (type.memberTypes().count { it is ReferenceType } > 0 || ctx.getDepth(ReferenceExpression::class) > 0) {
             generateExpression(type, ctx.incrementCount(StatementBlock::class))
         } else null
         val newScope = symbolTable.enterScope()
