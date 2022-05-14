@@ -125,8 +125,10 @@ sealed interface RecursiveType : NonVoidType {
     val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>>
 }
 
+sealed interface ContainerType : RecursiveType
+
 @GenNode
-data class TupleType(val types: List<Type>) : RecursiveType {
+data class TupleType(val types: List<Type>) : RecursiveType, ContainerType {
     override val argumentsToOwnershipMap = types.map { it to OwnershipState.VALID }.toMutableList()
 
     override fun toRust(): String {
@@ -138,7 +140,7 @@ data class TupleType(val types: List<Type>) : RecursiveType {
     override fun clone() = TupleType(types.map { it.clone() })
 }
 
-data class StructType(val structName: String, val types: List<Pair<String, Type>>) : RecursiveType {
+data class StructType(val structName: String, val types: List<Pair<String, Type>>) : RecursiveType, ContainerType {
     override val argumentsToOwnershipMap = types.map { it.second to OwnershipState.VALID }.toMutableList()
 
     override fun toRust(): String {
@@ -150,14 +152,31 @@ data class StructType(val structName: String, val types: List<Pair<String, Type>
     override fun clone() = StructType(structName, types.map { it.first to it.second.clone() })
 }
 
+sealed interface ReferencingTypes : NonVoidType {
+    val internalType: Type
+}
+
 @GenNode
-data class ReferenceType(val internalType: Type) : NonVoidType {
+data class ReferenceType(override val internalType: Type) : ReferencingTypes {
     override fun clone(): Type {
         return ReferenceType(internalType.clone())
     }
 
     override fun toRust(): String {
         return "&${internalType.toRust()}"
+    }
+
+    override fun memberTypes(): List<Type> = internalType.memberTypes() + this
+}
+
+@GenNode
+data class MutableReferenceType(override val internalType: Type) : ReferencingTypes {
+    override fun clone(): Type {
+        return MutableReferenceType(internalType.clone())
+    }
+
+    override fun toRust(): String {
+        return "&mut ${internalType.toRust()}"
     }
 
     override fun memberTypes(): List<Type> = internalType.memberTypes() + this
@@ -219,6 +238,7 @@ fun Type.getOwnership(): OwnershipModel {
         is FunctionType -> OwnershipModel.COPY
         VoidType -> OwnershipModel.COPY
         is ReferenceType -> OwnershipModel.COPY
+        is MutableReferenceType -> OwnershipModel.MOVE
     }
 }
 

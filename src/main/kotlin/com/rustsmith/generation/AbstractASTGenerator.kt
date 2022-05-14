@@ -9,6 +9,7 @@ import com.rustsmith.ast.BooleanLiteral
 import com.rustsmith.ast.BreakStatement
 import com.rustsmith.ast.CLIArgumentAccessExpression
 import com.rustsmith.ast.Declaration
+import com.rustsmith.ast.DereferenceExpression
 import com.rustsmith.ast.DivideExpression
 import com.rustsmith.ast.Expression
 import com.rustsmith.ast.ExpressionStatement
@@ -33,15 +34,15 @@ import com.rustsmith.ast.Int8Literal
 import com.rustsmith.ast.LoopExpression
 import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
+import com.rustsmith.ast.MutableReferenceExpression
+import com.rustsmith.ast.MutableReferenceType
 import com.rustsmith.ast.ReferenceExpression
 import com.rustsmith.ast.ReferenceType
 import com.rustsmith.ast.ReturnStatement
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
-import com.rustsmith.ast.StructElementAccessExpression
 import com.rustsmith.ast.StructInstantiationExpression
-import com.rustsmith.ast.StructType
 import com.rustsmith.ast.SubtractExpression
 import com.rustsmith.ast.TupleElementAccessExpression
 import com.rustsmith.ast.TupleLiteral
@@ -77,6 +78,10 @@ public interface AbstractASTGenerator {
 
     public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
 
+    public fun generateVariable(type: Type, ctx: Context): Variable
+
+    public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
+
     public fun generateCLIArgumentAccessExpression(type: Type, ctx: Context):
         CLIArgumentAccessExpression
 
@@ -100,18 +105,11 @@ public interface AbstractASTGenerator {
 
     public fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral
 
-    public fun generateVariable(type: Type, ctx: Context): Variable
-
-    public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
-
     public fun generateStructInstantiationExpression(type: Type, ctx: Context):
         StructInstantiationExpression
 
     public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
         TupleElementAccessExpression
-
-    public fun generateStructElementAccessExpression(type: Type, ctx: Context):
-        StructElementAccessExpression
 
     public fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
 
@@ -123,7 +121,7 @@ public interface AbstractASTGenerator {
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
 
-    public fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression
+    public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
 
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
@@ -141,11 +139,18 @@ public interface AbstractASTGenerator {
 
     public fun generateBitwiseAndLogicalXor(type: Type, ctx: Context): BitwiseAndLogicalXor
 
+    public fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression
+
+    public fun generateMutableReferenceExpression(type: Type, ctx: Context):
+        MutableReferenceExpression
+
     public fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression>
 
     public fun generateExpression(type: Type, ctx: Context): Expression =
         when (selectRandomExpression(type, ctx)) {
             VoidLiteral::class -> generateVoidLiteral(type, ctx)
+            Variable::class -> generateVariable(type, ctx)
+            FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
             CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
             Int8Literal::class -> generateInt8Literal(type, ctx)
             Int16Literal::class -> generateInt16Literal(type, ctx)
@@ -157,17 +162,14 @@ public interface AbstractASTGenerator {
             StringLiteral::class -> generateStringLiteral(type, ctx)
             BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
             TupleLiteral::class -> generateTupleLiteral(type, ctx)
-            Variable::class -> generateVariable(type, ctx)
-            FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
             StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
             TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
-            StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
             GroupedExpression::class -> generateGroupedExpression(type, ctx)
             BlockExpression::class -> generateBlockExpression(type, ctx)
             IfElseExpression::class -> generateIfElseExpression(type, ctx)
             IfExpression::class -> generateIfExpression(type, ctx)
             LoopExpression::class -> generateLoopExpression(type, ctx)
-            ReferenceExpression::class -> generateReferenceExpression(type, ctx)
+            DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
             AddExpression::class -> generateAddExpression(type, ctx)
             SubtractExpression::class -> generateSubtractExpression(type, ctx)
             DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -176,14 +178,18 @@ public interface AbstractASTGenerator {
             BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, ctx)
             BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, ctx)
             BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, ctx)
+            ReferenceExpression::class -> generateReferenceExpression(type, ctx)
+            MutableReferenceExpression::class -> generateMutableReferenceExpression(type, ctx)
             else -> throw Exception("Unrecognized type")
         }
 
-    public fun generateStringType(ctx: Context): StringType
-
     public fun generateVoidType(ctx: Context): VoidType
 
+    public fun generateStringType(ctx: Context): StringType
+
     public fun generateReferenceType(ctx: Context): ReferenceType
+
+    public fun generateMutableReferenceType(ctx: Context): MutableReferenceType
 
     public fun generateBoolType(ctx: Context): BoolType
 
@@ -203,14 +209,13 @@ public interface AbstractASTGenerator {
 
     public fun generateTupleType(ctx: Context): TupleType
 
-    public fun generateStructType(ctx: Context): StructType
-
     public fun selectRandomType(ctx: Context): KClass<out Type>
 
     public fun generateType(ctx: Context): Type = when (selectRandomType(ctx)) {
-        StringType::class -> generateStringType(ctx)
         VoidType::class -> generateVoidType(ctx)
+        StringType::class -> generateStringType(ctx)
         ReferenceType::class -> generateReferenceType(ctx)
+        MutableReferenceType::class -> generateMutableReferenceType(ctx)
         BoolType::class -> generateBoolType(ctx)
         I8Type::class -> generateI8Type(ctx)
         I16Type::class -> generateI16Type(ctx)
@@ -220,7 +225,6 @@ public interface AbstractASTGenerator {
         F32Type::class -> generateF32Type(ctx)
         F64Type::class -> generateF64Type(ctx)
         TupleType::class -> generateTupleType(ctx)
-        StructType::class -> generateStructType(ctx)
         else -> throw Exception("Unrecognized type")
     }
 }

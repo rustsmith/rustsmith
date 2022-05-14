@@ -12,6 +12,7 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
         FunctionCallExpression::class to 5,
         StructType::class to 5,
         TupleType::class to 5,
+        Variable::class to 1
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {

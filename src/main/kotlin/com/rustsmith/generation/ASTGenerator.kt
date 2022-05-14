@@ -30,7 +30,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return if (type == VoidType) {
             StatementBlock(statementsWithDependants, symbolTable)
         } else {
-            val finalExpression = expression?.toStatement(false) ?: generateExpression(type, currentCtx).toStatement(false)
+            val finalExpression =
+                expression?.toStatement(false) ?: generateExpression(type, currentCtx).toStatement(false)
             StatementBlock(
                 statementsWithDependants + (dependantStatements + finalExpression), symbolTable
             )
@@ -92,10 +93,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateAssignment(ctx: Context): Assignment {
-        val value = symbolTable.getRandomMutableVariable()
-        if (value is Variable && value.value == "var1") {
-            println("TEST")
-        }
+        val value = symbolTable.getRandomMutableVariable(ctx)
         return if (value == null) {
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
             val declaration =
@@ -108,8 +106,22 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val expression = generateExpression(declaration.type, ctx.incrementCount(Assignment::class))
             Assignment(Variable(declaration.variableName, symbolTable), expression, symbolTable)
         } else {
-            val expression = generateExpression(value.toType(), ctx.incrementCount(Assignment::class))
-            Assignment(value, expression, symbolTable)
+            val lhsAssignmentType = value.toType()
+            val lhsNodeAndRhsExpression: Pair<LHSAssignmentNode, Expression> = if (lhsAssignmentType is MutableReferenceType) {
+                val useDereferenceLhs = CustomRandom.nextBoolean()
+                (if (useDereferenceLhs) DereferenceExpression(value, value.symbolTable) else value) to
+                    generateExpression(
+                        if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType,
+                        ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                    )
+            } else {
+                value to
+                    generateExpression(
+                        lhsAssignmentType,
+                        ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                    )
+            }
+            Assignment(lhsNodeAndRhsExpression.first, lhsNodeAndRhsExpression.second, symbolTable)
         }
     }
 
@@ -203,6 +215,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             tupleType.argumentsToOwnershipMap[chosenIndex] =
                 tupleType.argumentsToOwnershipMap[chosenIndex].copy(second = newOwnershipState)
         }
+
+        if (ctx.previousIncrement == ReferenceExpression::class) {
+            tupleType.argumentsToOwnershipMap[chosenIndex] =
+                tupleType.argumentsToOwnershipMap[chosenIndex].copy(second = OwnershipState.BORROWED)
+        }
+
+        if (ctx.previousIncrement == MutableReferenceExpression::class) {
+            tupleType.argumentsToOwnershipMap[chosenIndex] =
+                tupleType.argumentsToOwnershipMap[chosenIndex].copy(second = OwnershipState.MUTABLY_BORROWED)
+        }
         return TupleElementAccessExpression(tupleExpression, chosenIndex, symbolTable)
     }
 
@@ -212,48 +234,49 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return TupleType(argTypes.shuffled(CustomRandom))
     }
 
-    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
-        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
-        if (structTypeWithType == null) {
-            structTypeWithType = generateStructTypeWithType(type, ctx)
-        }
-        val structExpression =
-            generateExpression(
-                structTypeWithType,
-                ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type)
-            )
-        val structType = structExpression.toType() as StructType
-        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
-            .filter { it.first.second == type }
-            .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
-            .map { it.first.first }
-        val chosenElement = typeIndices.random(CustomRandom)
-        if (type.getOwnership() == OwnershipModel.MOVE) {
-            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
-                /* A partial move, so set the ownership state to partially valid */
-                OwnershipState.PARTIALLY_VALID
-            } else {
-                /* Not a partial move, so set the ownership state to completely invalid */
-                OwnershipState.INVALID
-            }
-            val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
-            structType.argumentsToOwnershipMap[elementIndex] =
-                structType.argumentsToOwnershipMap[elementIndex].copy(second = newOwnershipState)
-        }
-        return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
-    }
+//    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
+//        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
+//        if (structTypeWithType == null) {
+//            structTypeWithType = generateStructTypeWithType(type, ctx)
+//        }
+//        val structExpression =
+//            generateExpression(
+//                structTypeWithType,
+//                ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type)
+//            )
+//        val structType = structExpression.toType() as StructType
+//        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
+//            .filter { it.first.second == type }
+//            .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
+//            .map { it.first.first }
+//        val chosenElement = typeIndices.random(CustomRandom)
+//        if (type.getOwnership() == OwnershipModel.MOVE) {
+//            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+//                /* A partial move, so set the ownership state to partially valid */
+//                OwnershipState.PARTIALLY_VALID
+//            } else {
+//                /* Not a partial move, so set the ownership state to completely invalid */
+//                OwnershipState.INVALID
+//            }
+//            val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
+//            structType.argumentsToOwnershipMap[elementIndex] =
+//                structType.argumentsToOwnershipMap[elementIndex].copy(second = newOwnershipState)
+//        }
+//        return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
+//    }
 
     private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
         return createNewStructType(ctx, type)
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
-        println(type)
-        val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx)
+        val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
+        val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
         val variableNode = if (value == null) {
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(
                 type,
+                mutableRequired,
                 ctx = ctx.forDependantDeclaration().incrementCount(Variable::class)
             )
             dependantStatements.add(declaration)
@@ -273,8 +296,12 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             }
         }
 
-        if (ctx.previousIncrement == ReferenceExpression::class) {
+        if (ctx.getDepthLast(ReferenceExpression::class) > 0) {
             symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.BORROWED)
+        }
+
+        if (ctx.getDepthLast(MutableReferenceExpression::class) > 0) {
+            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.MUTABLY_BORROWED)
         }
         return variableNode
     }
@@ -284,50 +311,86 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     )
 
     override fun generateBlockExpression(type: Type, ctx: Context): BlockExpression {
-        val body = generateStatementBlock(type, ctx.incrementCount(BlockExpression::class))
+        val body = generateStatementBlock(
+            type,
+            ctx.incrementCount(BlockExpression::class),
+            generateEndingBlockExpression(type, ctx)
+        )
         return BlockExpression(body, type.clone(), symbolTable)
     }
 
-    private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
-        val expression = if (type.memberTypes().count { it is ReferenceType } > 0 || ctx.getDepth(ReferenceExpression::class) > 0) {
-            generateExpression(type, ctx.incrementCount(StatementBlock::class))
-        } else null
+    private fun generateStatementBlock(type: Type, ctx: Context, expression: Expression?): StatementBlock {
         val newScope = symbolTable.enterScope()
         return ASTGenerator(newScope)(ctx.withSymbolTable(newScope), type, expression)
     }
 
     override fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression {
+        val expressionEndIf = generateEndingBlockExpression(type, ctx)
+        val expressionEndElse = generateEndingBlockExpression(type, ctx)
         return IfElseExpression(
             generateExpression(BoolType, ctx.incrementCount(IfElseExpression::class)),
-            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
-            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
+            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class), expressionEndIf),
+            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class), expressionEndElse),
             type,
             symbolTable
         )
     }
 
     override fun generateIfExpression(type: Type, ctx: Context): IfExpression {
+        val expressionEndIf = generateEndingBlockExpression(type, ctx)
         return IfExpression(
             generateExpression(BoolType, ctx.incrementCount(IfExpression::class)),
-            generateStatementBlock(VoidType, ctx.incrementCount(IfExpression::class)),
+            generateStatementBlock(VoidType, ctx.incrementCount(IfExpression::class), expressionEndIf),
             symbolTable
         )
     }
 
     override fun generateLoopExpression(type: Type, ctx: Context): LoopExpression {
+        val expressionEndLoop = generateEndingBlockExpression(type, ctx)
         return LoopExpression(
-            generateStatementBlock(type, ctx.incrementCount(LoopExpression::class).setLoopReturnType(type)),
+            generateStatementBlock(
+                type,
+                ctx.incrementCount(LoopExpression::class).setLoopReturnType(type),
+                expressionEndLoop
+            ),
             symbolTable
         )
     }
 
+    private fun generateEndingBlockExpression(type: Type, ctx: Context): Expression? {
+        val expressionEndIf =
+            if (type.memberTypes().count { it is ReferencingTypes } > 0 || ctx.getDepth(ReferencingTypes::class) > 0) {
+                generateExpression(type, ctx.incrementCount(StatementBlock::class))
+            } else null
+        return expressionEndIf
+    }
+
     override fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression {
         if (type is ReferenceType) {
-            val internalExpression = generateExpression(type.internalType, ctx.incrementCount(ReferenceExpression::class))
-            symbolTable.addBorrowExpression(internalExpression)
+            val internalExpression =
+                generateExpression(type.internalType, ctx.incrementCount(ReferenceExpression::class))
             return ReferenceExpression(internalExpression, symbolTable)
         }
         throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateMutableReferenceExpression(type: Type, ctx: Context): MutableReferenceExpression {
+        if (type is MutableReferenceType) {
+            val internalExpression =
+                generateExpression(type.internalType, ctx.incrementCount(MutableReferenceExpression::class))
+            return MutableReferenceExpression(internalExpression, symbolTable)
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression {
+        val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
+        val internalExpression =
+            generateExpression(
+                if (mutableRequired) MutableReferenceType(type) else ReferenceType(type),
+                ctx.incrementCount(DereferenceExpression::class)
+            )
+        return DereferenceExpression(internalExpression, symbolTable)
     }
 
     override fun generateAddExpression(type: Type, ctx: Context): AddExpression {
@@ -489,6 +552,11 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return ReferenceType(internalType)
     }
 
+    override fun generateMutableReferenceType(ctx: Context): MutableReferenceType {
+        val internalType = generateType(ctx.incrementCount(MutableReferenceType::class))
+        return MutableReferenceType(internalType)
+    }
+
     override fun generateTupleType(ctx: Context): TupleType {
         val randomTupleType = symbolTable.globalSymbolTable.getRandomTuple()
         /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
@@ -505,16 +573,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         }
     }
 
-    override fun generateStructType(ctx: Context): StructType {
-        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()
-        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
-           currently available */
-        if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
-            return createNewStructType(ctx)
-        } else {
-            return randomStructType.second.type.clone() as StructType
-        }
-    }
+//    override fun generateStructType(ctx: Context): StructType {
+//        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()
+//        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+//           currently available */
+//        if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
+//            return createNewStructType(ctx)
+//        } else {
+//            return randomStructType.second.type.clone() as StructType
+//        }
+//    }
 
     private fun createNewStructType(ctx: Context, specificType: Type? = null): StructType {
         val structName = IdentGenerator.generateStructName()

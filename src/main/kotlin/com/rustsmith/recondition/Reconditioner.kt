@@ -76,6 +76,8 @@ class Reconditioner {
             )
             is CLIArgumentAccessExpression -> node
             is ReferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
+            is MutableReferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
+            is DereferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
 

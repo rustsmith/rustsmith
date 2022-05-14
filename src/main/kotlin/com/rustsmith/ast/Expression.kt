@@ -17,7 +17,9 @@ sealed interface Expression : ASTNode {
 
 sealed interface LiteralExpression : Expression
 
-sealed interface LHSAssignmentNode : Expression
+sealed interface LHSAssignmentNode : Expression {
+    fun rootNode(): Variable?
+}
 
 @ExpressionGenNode(VoidType::class)
 data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
@@ -31,7 +33,7 @@ data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
 data class CLIArgumentAccessExpression(val index: Int, val type: Type, override val symbolTable: SymbolTable) :
     LiteralExpression {
     override fun toRust(): String {
-        return "cliArgs[$index].clone().parse::<${type.toRust()}>().unwrap()"
+        return "cli_args[$index].clone().parse::<${type.toRust()}>().unwrap()"
     }
 }
 
@@ -119,12 +121,19 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 sealed interface PartialMoveExpression : Expression
 
 @SwarmNode
-// @ExpressionGenNode(NonVoidType::class)
+@ExpressionGenNode(NonVoidType::class)
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
+    override fun rootNode(): Variable? {
+        return if (expression is LHSAssignmentNode) {
+            expression.rootNode()
+        } else {
+            null
+        }
+    }
 
     override fun toRust(): String {
         return "${expression.toRust()}.$index"
@@ -138,6 +147,14 @@ data class StructElementAccessExpression(
     override val symbolTable: SymbolTable
 ) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
 
+    override fun rootNode(): Variable? {
+        return if (expression is LHSAssignmentNode) {
+            expression.rootNode()
+        } else {
+            null
+        }
+    }
+
     override fun toRust(): String {
         return "${expression.toRust()}.$elementName"
     }
@@ -145,6 +162,10 @@ data class StructElementAccessExpression(
 
 @ExpressionGenNode(NonVoidType::class)
 data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression, LHSAssignmentNode {
+
+    override fun rootNode(): Variable {
+        return this
+    }
 
     override fun toRust(): String {
         return value
@@ -369,16 +390,45 @@ data class LoopExpression(
     }
 }
 
+sealed interface ReferencingExpressions : Expression
+
 @ExpressionGenNode(ReferenceType::class)
 data class ReferenceExpression(
     val expression: Expression,
     override val symbolTable: SymbolTable
-) : Expression {
+) : ReferencingExpressions {
     override fun toRust(): String {
         return "&${expression.toRust()}"
     }
 }
 
+@ExpressionGenNode(MutableReferenceType::class)
+data class MutableReferenceExpression(
+    val expression: Expression,
+    override val symbolTable: SymbolTable
+) : ReferencingExpressions {
+    override fun toRust(): String {
+        return "&mut ${expression.toRust()}"
+    }
+}
+
+@ExpressionGenNode(NonVoidType::class)
+data class DereferenceExpression(
+    val expression: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression, LHSAssignmentNode {
+    override fun rootNode(): Variable? {
+        return if (expression is LHSAssignmentNode) {
+            expression.rootNode()
+        } else {
+            null
+        }
+    }
+
+    override fun toRust(): String {
+        return "(*${expression.toRust()})"
+    }
+}
 sealed interface ReconditionedExpression : Expression
 
 data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) :
@@ -461,6 +511,8 @@ fun Expression.toType(): Type {
         is IfExpression -> VoidType
         is CLIArgumentAccessExpression -> this.type
         is ReferenceExpression -> ReferenceType(this.expression.toType())
+        is MutableReferenceExpression -> MutableReferenceType(this.expression.toType())
+        is DereferenceExpression -> (this.expression.toType() as ReferencingTypes).internalType
     }
 }
 

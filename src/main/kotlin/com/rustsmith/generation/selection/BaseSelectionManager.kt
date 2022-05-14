@@ -55,30 +55,45 @@ open class BaseSelectionManager : SelectionManager {
                     ?.contains(type::class) ?: false
             }
         val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
-        if (ctx.getDepthLast(ReferenceExpression::class) > 0) {
+        if (ctx.getDepthLast(ReferencingExpressions::class) > 0) {
             LiteralExpression::class.subclasses().forEach {
                 filteredExpressions.remove(it)
             }
             RecursiveExpression::class.subclasses().forEach {
                 filteredExpressions.remove(it)
             }
-//            filteredExpressions[TupleElementAccessExpression::class]
+            filteredExpressions[Variable::class] = 1.0
+            filteredExpressions[TupleElementAccessExpression::class] = 1.0
+//            filteredExpressions[StructElementAccessExpression::class] = 1.0
+            filteredExpressions[DereferenceExpression::class] = 1.0
         }
-        if (type.memberTypes().count { it is ReferenceType } > 0) {
-            filteredExpressions.remove(FunctionCallExpression::class)
-            filteredExpressions.remove(StructElementAccessExpression::class)
-            filteredExpressions.remove(TupleElementAccessExpression::class)
-        }
+//        if (type.memberTypes().count { it is ReferenceType } > 0) {
+//            filteredExpressions.remove(FunctionCallExpression::class)
+//            filteredExpressions.remove(StructElementAccessExpression::class)
+//        }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
         }
+        if (type.getOwnership() == OwnershipModel.MOVE) {
+            filteredExpressions.remove(DereferenceExpression::class)
+        }
+        // To stop explicit && cases
+        if (ctx.previousIncrement in ReferencingExpressions::class.subclasses()) {
+            filteredExpressions.remove(ReferenceExpression::class)
+            filteredExpressions.remove(MutableReferenceExpression::class)
+        }
         filteredExpressions.remove(FunctionCallExpression::class)
+//        println(type)
+//        println(filteredExpressions)
         return NodeSelectionWeighting(filteredExpressions)
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val allTypes =
             filterNodes(Type::class.genSubClasses().toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.getDepth(MutableReferenceType::class) > 0) {
+            allTypes.remove(ReferenceType::class)
+        }
         return NodeSelectionWeighting(allTypes)
     }
 

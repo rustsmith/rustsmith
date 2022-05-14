@@ -5,20 +5,10 @@ import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
 
 enum class OwnershipState {
-    VALID,
-    BORROWED,
-    PARTIALLY_VALID,
-    INVALID;
-
-    fun isValid() = this == VALID
-
-    fun isMovable(): Boolean {
-        return this == VALID
-    }
-
-    fun isAssignable(): Boolean {
-        return this == VALID
-    }
+    VALID, BORROWED, MUTABLY_BORROWED, PARTIALLY_VALID, INVALID;
+    fun borrowable() = this == VALID || this == BORROWED
+    fun movable() = this == VALID
+    fun assignable() = this == VALID || this == PARTIALLY_VALID
 }
 
 data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState)
@@ -102,7 +92,6 @@ data class SymbolTable(
     val globalSymbolTable: GlobalSymbolTable
 ) : Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
-    private val borrowedExpressions = mutableListOf<Expression>()
 
     operator fun get(key: String): IdentifierData? {
         for (table in iterator()) {
@@ -144,70 +133,78 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.validity.isValid() }.map { it.first }.toSet()
+        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.map { it.first }.toSet()
     }
 
     private fun findMutableSubExpressions(expression: LHSAssignmentNode): List<LHSAssignmentNode> {
-        if (borrowedExpressions.contains(expression)) {
-            return listOf()
-        }
         return when (val type = expression.toType()) {
-            is StructType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
-                StructElementAccessExpression(
-                    expression,
-                    type.types[index].first,
-                    this
-                ) to pair
-            }.filter { it.second.second.isValid() }.flatMap { findMutableSubExpressions(it.first) }
-            is TupleType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
-                TupleElementAccessExpression(
-                    expression,
-                    index,
-                    this
-                ) to pair
-            }.filter { it.second.second.isValid() }.flatMap { findMutableSubExpressions(it.first) }
+            is ContainerType -> {
+                when (type) {
+                    is StructType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
+                        StructElementAccessExpression(
+                            expression, type.types[index].first, this
+                        ) to pair
+                    }.filter { it.second.second.assignable() }.flatMap { findMutableSubExpressions(it.first) }
+                    is TupleType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
+                        TupleElementAccessExpression(
+                            expression, index, this
+                        ) to pair
+                    }.filter { it.second.second.assignable() }.flatMap { findMutableSubExpressions(it.first) }
+                }
+            }
             else -> listOf(expression)
         }
     }
 
-    fun getRandomMutableVariable(): LHSAssignmentNode? {
+    fun getRandomMutableVariable(ctx: Context): LHSAssignmentNode? {
         val overallMap = mutableMapOf<String, IdentifierData>()
         var i = 0
         for (table in iterator()) {
             if (i != 0) {
-                table.symbolMap.filter { !it.value.type.memberTypes().map { t -> t::class }.contains(ReferenceType::class) }.forEach { overallMap.putIfAbsent(it.key, it.value) }
+                // Stops dangling references
+                table.symbolMap.filter {
+                    !it.value.type.memberTypes().map { t -> t::class }.any { k -> k in ReferencingTypes::class.subclasses() }
+                }.forEach { overallMap.putIfAbsent(it.key, it.value) }
             } else {
                 table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
             }
             i++
         }
-        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity.isValid() }
-            .flatMap { findMutableSubExpressions(Variable(it.first, this)) }.randomOrNull(CustomRandom)
+        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity.assignable() }.filter {
+            if (ctx.assignmentRootNode == null) true else (
+                !ctx.assignmentRootNode.map { variable -> variable.value }
+                    .contains(it.first)
+                )
+        }.flatMap { findMutableSubExpressions(Variable(it.first, this)) }.randomOrNull(CustomRandom)
     }
 
-    fun addBorrowExpression(expression: Expression) {
-        borrowedExpressions.add(expression)
-    }
-
-    fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context): Pair<String, IdentifierData>? {
-        val overallMap = mutableMapOf<String, IdentifierData>()
-        for (table in iterator()) {
-            table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+    fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context, mutableRequired: Boolean): Pair<String, IdentifierData>? {
+        var overallMap = mutableMapOf<String, IdentifierData>()
+        if (ctx.getDepth(LoopExpression::class) > 0) {
+            this.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+        } else {
+            for (table in iterator()) {
+                table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+            }
         }
+
+        overallMap = overallMap.filter {
+            ctx.assignmentRootNode?.map { variable -> variable.value }?.contains(it.key) == false
+        }.toMutableMap()
+
         if (requiredType != null && type is RecursiveType && ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
             val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
                 .filter { it.second.validity != OwnershipState.INVALID }
             return partiallyOrCompletelyValidVariables.filter { variable ->
                 (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
-                    if (ctx.getDepth(PartialMoveExpression::class) > 1)
-                        (variable.second.type as RecursiveType)
-                            .argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
+                    if (ctx.getDepthLast(PartialMoveExpression::class) > 1)
+                        (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
                     else false
-            }.randomOrNull(CustomRandom)
+            }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
         }
-        return overallMap.toList().filter { it.second.type == type }
-            .filter { it.second.validity.isValid() }
-            .randomOrNull(CustomRandom)
+        return overallMap.toList().filter { it.second.type == type }.filter {
+            if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity.borrowable() else it.second.validity.movable()
+        }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
     }
 
     fun enterScope(): SymbolTable {
