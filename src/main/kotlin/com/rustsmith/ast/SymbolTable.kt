@@ -71,8 +71,8 @@ class GlobalSymbolTable {
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
-            structs.filter { structDef -> structDef.arguments.any { it.second == type } }.randomOrNull(CustomRandom)
-        return symbolMap[structDefinition?.structName]?.type as StructType?
+            structs.filter { structDef -> structDef.structType.type.types.any { it.second == type } }.randomOrNull(CustomRandom)
+        return (symbolMap[structDefinition?.structType?.type?.structName]?.type as StructType?)
     }
 
     /* Tuple methods */

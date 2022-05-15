@@ -141,6 +141,7 @@ data class TupleElementAccessExpression(
 }
 
 @SwarmNode
+@ExpressionGenNode(NonVoidType::class)
 data class StructElementAccessExpression(
     val expression: Expression,
     val elementName: String,
@@ -429,6 +430,7 @@ data class DereferenceExpression(
         return "(*${expression.toRust()})"
     }
 }
+
 sealed interface ReconditionedExpression : Expression
 
 data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) :

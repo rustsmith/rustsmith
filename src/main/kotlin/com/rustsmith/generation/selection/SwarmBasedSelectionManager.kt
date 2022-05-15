@@ -1,6 +1,8 @@
 package com.rustsmith.generation.selection
 
-import com.rustsmith.ast.*
+import com.rustsmith.ast.Expression
+import com.rustsmith.ast.Statement
+import com.rustsmith.ast.Type
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 

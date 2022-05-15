@@ -64,7 +64,7 @@ open class BaseSelectionManager : SelectionManager {
             }
             filteredExpressions[Variable::class] = 1.0
             filteredExpressions[TupleElementAccessExpression::class] = 1.0
-//            filteredExpressions[StructElementAccessExpression::class] = 1.0
+            filteredExpressions[StructElementAccessExpression::class] = 1.0
             filteredExpressions[DereferenceExpression::class] = 1.0
         }
 //        if (type.memberTypes().count { it is ReferenceType } > 0) {
@@ -83,8 +83,8 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions.remove(MutableReferenceExpression::class)
         }
         filteredExpressions.remove(FunctionCallExpression::class)
-//        println(type)
-//        println(filteredExpressions)
+        println(type)
+        println(filteredExpressions)
         return NodeSelectionWeighting(filteredExpressions)
     }
 

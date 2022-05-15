@@ -25,10 +25,11 @@ data class FunctionDefinition(
     }
 }
 
-data class StructDefinition(val structName: String, val arguments: List<Pair<String, Type>>) : ASTNode {
+data class StructDefinition(val structType: LifetimeParameterizedType<StructType>) : ASTNode {
     override fun toRust(): String {
         val traits = "#[derive(Debug)]\n"
-        return "${traits}struct $structName {\n${arguments.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
+        val parameterizedSyntax = if (structType.lifetimeParameters().isNotEmpty()) "<${structType.lifetimeParameters().toSet().joinToString(",") { "'a$it" }}>" else ""
+        return "${traits}struct ${structType.type.structName}$parameterizedSyntax {\n${structType.type.types.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
     }
 }
 

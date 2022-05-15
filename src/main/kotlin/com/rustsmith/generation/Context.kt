@@ -13,13 +13,18 @@ data class Context(
     val returnExpressionType: Type? = null,
     val returnLoopType: Type? = null,
     val previousIncrement: KClass<out ASTNode>? = null,
-    val assignmentRootNode: List<Variable>? = null
+    val assignmentRootNode: List<Variable>? = null,
+    val currentLifetimeParameterNumber: Int? = null
 ) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
     val numberOfFunctionsDefined = lazy { symbolTable.functionSymbolTable.functions.size }
     val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
     val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
+
+    fun incrementLifetimeParameterNumber(): Context {
+        return this.copy(currentLifetimeParameterNumber = currentLifetimeParameterNumber?.inc() ?: 1)
+    }
 
     fun withAssignmentNode(variable: Variable?): Context {
         if (variable != null) {

@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import com.rustsmith.ast.*
+import com.rustsmith.ast.generateProgram
 import com.rustsmith.generation.IdentGenerator
 import com.rustsmith.generation.selection.OptimalSelectionManager
 import com.rustsmith.generation.selection.SelectionManager
@@ -21,7 +21,7 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(100)
+    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")

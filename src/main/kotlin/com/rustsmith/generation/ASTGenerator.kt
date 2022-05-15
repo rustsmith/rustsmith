@@ -107,20 +107,21 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             Assignment(Variable(declaration.variableName, symbolTable), expression, symbolTable)
         } else {
             val lhsAssignmentType = value.toType()
-            val lhsNodeAndRhsExpression: Pair<LHSAssignmentNode, Expression> = if (lhsAssignmentType is MutableReferenceType) {
-                val useDereferenceLhs = CustomRandom.nextBoolean()
-                (if (useDereferenceLhs) DereferenceExpression(value, value.symbolTable) else value) to
-                    generateExpression(
-                        if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType,
-                        ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
-                    )
-            } else {
-                value to
-                    generateExpression(
-                        lhsAssignmentType,
-                        ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
-                    )
-            }
+            val lhsNodeAndRhsExpression: Pair<LHSAssignmentNode, Expression> =
+                if (lhsAssignmentType is MutableReferenceType) {
+                    val useDereferenceLhs = CustomRandom.nextBoolean()
+                    (if (useDereferenceLhs) DereferenceExpression(value, value.symbolTable) else value) to
+                        generateExpression(
+                            if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType,
+                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                        )
+                } else {
+                    value to
+                        generateExpression(
+                            lhsAssignmentType,
+                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                        )
+                }
             Assignment(lhsNodeAndRhsExpression.first, lhsNodeAndRhsExpression.second, symbolTable)
         }
     }
@@ -234,36 +235,46 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return TupleType(argTypes.shuffled(CustomRandom))
     }
 
-//    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
-//        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
-//        if (structTypeWithType == null) {
-//            structTypeWithType = generateStructTypeWithType(type, ctx)
-//        }
-//        val structExpression =
-//            generateExpression(
-//                structTypeWithType,
-//                ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type)
-//            )
-//        val structType = structExpression.toType() as StructType
-//        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
-//            .filter { it.first.second == type }
-//            .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
-//            .map { it.first.first }
-//        val chosenElement = typeIndices.random(CustomRandom)
-//        if (type.getOwnership() == OwnershipModel.MOVE) {
-//            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
-//                /* A partial move, so set the ownership state to partially valid */
-//                OwnershipState.PARTIALLY_VALID
-//            } else {
-//                /* Not a partial move, so set the ownership state to completely invalid */
-//                OwnershipState.INVALID
-//            }
-//            val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
-//            structType.argumentsToOwnershipMap[elementIndex] =
-//                structType.argumentsToOwnershipMap[elementIndex].copy(second = newOwnershipState)
-//        }
-//        return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
-//    }
+    override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
+        var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
+        if (structTypeWithType == null) {
+            structTypeWithType = generateStructTypeWithType(type, ctx)
+        }
+        val structExpression =
+            generateExpression(
+                structTypeWithType,
+                ctx.incrementCount(StructElementAccessExpression::class).setRequiredType(type)
+            )
+        val structType = structExpression.toType() as StructType
+        val typeIndices = structTypeWithType.types.mapIndexed { index, triple -> triple to index }
+            .filter { it.first.second == type }
+            .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
+            .map { it.first.first }
+        val chosenElement = typeIndices.random(CustomRandom)
+        if (type.getOwnership() == OwnershipModel.MOVE) {
+            val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+                /* A partial move, so set the ownership state to partially valid */
+                OwnershipState.PARTIALLY_VALID
+            } else {
+                /* Not a partial move, so set the ownership state to completely invalid */
+                OwnershipState.INVALID
+            }
+            val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
+            structType.argumentsToOwnershipMap[elementIndex] =
+                structType.argumentsToOwnershipMap[elementIndex].copy(second = newOwnershipState)
+        }
+
+        val elementIndex = structType.types.indexOfFirst { it.first == chosenElement }
+        if (ctx.previousIncrement == ReferenceExpression::class) {
+            structType.argumentsToOwnershipMap[elementIndex] =
+                structType.argumentsToOwnershipMap[elementIndex].copy(second = OwnershipState.BORROWED)
+        }
+        if (ctx.previousIncrement == MutableReferenceExpression::class) {
+            structType.argumentsToOwnershipMap[elementIndex] =
+                structType.argumentsToOwnershipMap[elementIndex].copy(second = OwnershipState.MUTABLY_BORROWED)
+        }
+        return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
+    }
 
     private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
         return createNewStructType(ctx, type)
@@ -573,16 +584,38 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         }
     }
 
-//    override fun generateStructType(ctx: Context): StructType {
-//        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()
-//        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
-//           currently available */
-//        if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
-//            return createNewStructType(ctx)
-//        } else {
-//            return randomStructType.second.type.clone() as StructType
-//        }
-//    }
+    override fun generateStructType(ctx: Context): StructType {
+        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()
+        /* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
+            return createNewStructType(ctx)
+        } else {
+            return randomStructType.second.type.clone() as StructType
+        }
+    }
+
+    private fun wrapWithLifetimeParameters(type: Type): Type {
+        return when (type) {
+            is RecursiveType -> when (type) {
+                is StructType -> LifetimeParameterizedType(
+                    type.copy(
+                        types = type.types.map {
+                            it.first to wrapWithLifetimeParameters(it.second)
+                        }
+                    )
+                )
+                is TupleType -> type.copy(types = type.types.map { wrapWithLifetimeParameters(it) })
+            }
+            is ReferencingTypes -> {
+                when (type) {
+                    is MutableReferenceType -> LifetimeParameterizedType(type.copy(wrapWithLifetimeParameters(type.internalType)))
+                    is ReferenceType -> LifetimeParameterizedType(type.copy(wrapWithLifetimeParameters(type.internalType)))
+                }
+            }
+            else -> type
+        }
+    }
 
     private fun createNewStructType(ctx: Context, specificType: Type? = null): StructType {
         val structName = IdentGenerator.generateStructName()
@@ -596,9 +629,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (specificType != null) {
             argTypes += IdentGenerator.generateVariable() to specificType
         }
+
         val structType = StructType(structName, argTypes)
         symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false, OwnershipState.VALID)
-        symbolTable.globalSymbolTable.addStruct(StructDefinition(structName, argTypes.map { it.first to it.second }))
+        symbolTable.globalSymbolTable.addStruct(StructDefinition(wrapWithLifetimeParameters(structType) as LifetimeParameterizedType<StructType>))
         return structType
     }
 

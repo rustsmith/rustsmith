@@ -42,7 +42,9 @@ import com.rustsmith.ast.ReturnStatement
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
+import com.rustsmith.ast.StructElementAccessExpression
 import com.rustsmith.ast.StructInstantiationExpression
+import com.rustsmith.ast.StructType
 import com.rustsmith.ast.SubtractExpression
 import com.rustsmith.ast.TupleElementAccessExpression
 import com.rustsmith.ast.TupleLiteral
@@ -111,6 +113,11 @@ public interface AbstractASTGenerator {
     public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
         TupleElementAccessExpression
 
+    public fun generateStructElementAccessExpression(type: Type, ctx: Context):
+        StructElementAccessExpression
+
+    public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
+
     public fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
 
     public fun generateBlockExpression(type: Type, ctx: Context): BlockExpression
@@ -120,8 +127,6 @@ public interface AbstractASTGenerator {
     public fun generateIfExpression(type: Type, ctx: Context): IfExpression
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
-
-    public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
 
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
@@ -164,12 +169,13 @@ public interface AbstractASTGenerator {
             TupleLiteral::class -> generateTupleLiteral(type, ctx)
             StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
             TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
+            StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
+            DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
             GroupedExpression::class -> generateGroupedExpression(type, ctx)
             BlockExpression::class -> generateBlockExpression(type, ctx)
             IfElseExpression::class -> generateIfElseExpression(type, ctx)
             IfExpression::class -> generateIfExpression(type, ctx)
             LoopExpression::class -> generateLoopExpression(type, ctx)
-            DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
             AddExpression::class -> generateAddExpression(type, ctx)
             SubtractExpression::class -> generateSubtractExpression(type, ctx)
             DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -186,10 +192,6 @@ public interface AbstractASTGenerator {
     public fun generateVoidType(ctx: Context): VoidType
 
     public fun generateStringType(ctx: Context): StringType
-
-    public fun generateReferenceType(ctx: Context): ReferenceType
-
-    public fun generateMutableReferenceType(ctx: Context): MutableReferenceType
 
     public fun generateBoolType(ctx: Context): BoolType
 
@@ -209,13 +211,17 @@ public interface AbstractASTGenerator {
 
     public fun generateTupleType(ctx: Context): TupleType
 
+    public fun generateStructType(ctx: Context): StructType
+
+    public fun generateReferenceType(ctx: Context): ReferenceType
+
+    public fun generateMutableReferenceType(ctx: Context): MutableReferenceType
+
     public fun selectRandomType(ctx: Context): KClass<out Type>
 
     public fun generateType(ctx: Context): Type = when (selectRandomType(ctx)) {
         VoidType::class -> generateVoidType(ctx)
         StringType::class -> generateStringType(ctx)
-        ReferenceType::class -> generateReferenceType(ctx)
-        MutableReferenceType::class -> generateMutableReferenceType(ctx)
         BoolType::class -> generateBoolType(ctx)
         I8Type::class -> generateI8Type(ctx)
         I16Type::class -> generateI16Type(ctx)
@@ -225,6 +231,9 @@ public interface AbstractASTGenerator {
         F32Type::class -> generateF32Type(ctx)
         F64Type::class -> generateF64Type(ctx)
         TupleType::class -> generateTupleType(ctx)
+        StructType::class -> generateStructType(ctx)
+        ReferenceType::class -> generateReferenceType(ctx)
+        MutableReferenceType::class -> generateMutableReferenceType(ctx)
         else -> throw Exception("Unrecognized type")
     }
 }
