@@ -16,7 +16,6 @@ open class BaseSelectionManager : SelectionManager {
 
     // Config describes what limit each specific ASTNode should have in terms of depth
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
-        RecursiveExpression::class to 2,
         FunctionCallExpression::class to 3,
         TupleType::class to 3
     ).withDefault { Int.MAX_VALUE }
@@ -31,7 +30,8 @@ open class BaseSelectionManager : SelectionManager {
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
-    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5, true to 0.5)
+    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> =
+        mapOf(false to 0.5, true to 0.5)
 
     override fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
@@ -54,7 +54,8 @@ open class BaseSelectionManager : SelectionManager {
                 it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()
                     ?.contains(type::class) ?: false
             }
-        val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        val filteredExpressions: MutableMap<KClass<out Expression>, Double> =
+            filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         if (ctx.getDepthLast(ReferencingExpressions::class) > 0) {
             LiteralExpression::class.subclasses().forEach {
                 filteredExpressions.remove(it)
@@ -63,14 +64,13 @@ open class BaseSelectionManager : SelectionManager {
                 filteredExpressions.remove(it)
             }
             filteredExpressions[Variable::class] = 1.0
-            filteredExpressions[TupleElementAccessExpression::class] = 1.0
-            filteredExpressions[StructElementAccessExpression::class] = 1.0
-            filteredExpressions[DereferenceExpression::class] = 1.0
+            if (ctx.nodeDepthState.last().values.sum() < 4) {
+                filteredExpressions[TupleElementAccessExpression::class] = 1.0
+                filteredExpressions[StructElementAccessExpression::class] = 1.0
+                filteredExpressions[DereferenceExpression::class] = 1.0
+            }
+
         }
-//        if (type.memberTypes().count { it is ReferenceType } > 0) {
-//            filteredExpressions.remove(FunctionCallExpression::class)
-//            filteredExpressions.remove(StructElementAccessExpression::class)
-//        }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
         }
@@ -83,8 +83,6 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions.remove(MutableReferenceExpression::class)
         }
         filteredExpressions.remove(FunctionCallExpression::class)
-        println(type)
-        println(filteredExpressions)
         return NodeSelectionWeighting(filteredExpressions)
     }
 

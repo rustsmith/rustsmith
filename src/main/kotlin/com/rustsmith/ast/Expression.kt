@@ -162,7 +162,7 @@ data class StructElementAccessExpression(
 }
 
 @ExpressionGenNode(NonVoidType::class)
-data class Variable(val value: String, override val symbolTable: SymbolTable) : Expression, LHSAssignmentNode {
+data class Variable(val value: String, override val symbolTable: SymbolTable) : LHSAssignmentNode {
 
     override fun rootNode(): Variable {
         return this

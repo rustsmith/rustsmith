@@ -3,6 +3,7 @@ package com.rustsmith.generation
 import AbstractASTGenerator
 import com.rustsmith.CustomRandom
 import com.rustsmith.ast.*
+import com.rustsmith.logging.Logger
 import com.rustsmith.randomByWeights
 import com.rustsmith.selectionManager
 import com.rustsmith.subclasses
@@ -41,7 +42,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Statement Generation **/
 
     override fun selectRandomStatement(ctx: Context): KClass<out Statement> {
-        return selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
+        val pickRandomByWeight = selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
+        Logger.logText("Picking statement: $pickRandomByWeight", ctx)
+        return pickRandomByWeight
     }
 
     override fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral = VoidLiteral(symbolTable)
@@ -70,14 +73,14 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return ExpressionStatement(
             generateExpression(
                 generateType(ctx.incrementCount(ExpressionStatement::class)),
-                ctx
+                ctx.incrementCount(ExpressionStatement::class)
             ),
             true, symbolTable
         )
     }
 
     override fun generateDeclaration(ctx: Context): Declaration {
-        val declarationType = generateType(ctx)
+        val declarationType = generateType(ctx.incrementCount(Declaration::class))
         return generateDependantDeclarationOfType(declarationType, ctx = ctx)
     }
 
@@ -95,10 +98,11 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateAssignment(ctx: Context): Assignment {
         val value = symbolTable.getRandomMutableVariable(ctx)
         return if (value == null) {
+            Logger.logText("No LHSAssignment found, so create declaration", ctx)
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
             val declaration =
                 generateDependantDeclarationOfType(
-                    generateType(ctx),
+                    generateType(ctx.incrementCount(Assignment::class)),
                     true,
                     ctx.forDependantDeclaration().incrementCount(Assignment::class)
                 )
@@ -127,7 +131,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateReturnStatement(ctx: Context): ReturnStatement {
-        val expression = generateExpression(ctx.returnExpressionType!!, ctx)
+        val expression = generateExpression(ctx.returnExpressionType!!, ctx.incrementCount(ReturnStatement::class))
         return ReturnStatement(expression, symbolTable)
     }
 
@@ -144,7 +148,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Expression generation **/
 
     override fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression> {
-        return selectionManager.availableExpressionsWeightings(ctx, type).pickRandomByWeight()
+        val pickRandomByWeight = selectionManager.availableExpressionsWeightings(ctx, type).pickRandomByWeight()
+        Logger.logText("Picking expression $pickRandomByWeight for type:${type.toRust()}", ctx)
+        return pickRandomByWeight
     }
 
     override fun generateInt8Literal(type: Type, ctx: Context): Int8Literal =
@@ -284,6 +290,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
         val variableNode = if (value == null) {
+            Logger.logText("No Variable found for ${type.toRust()}, so create declaration", ctx)
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(
                 type,
@@ -291,6 +298,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
                 ctx = ctx.forDependantDeclaration().incrementCount(Variable::class)
             )
             dependantStatements.add(declaration)
+//            if (type is ReferencingTypes) {
+//                if (type is MutableReferenceType) MutableReferenceExpression(Variable(declaration.variableName, symbolTable),symbolTable) else ReferenceExpression(Variable(declaration.variableName, symbolTable), symbolTable)
             Variable(declaration.variableName, symbolTable)
         } else {
             Variable(value.first, symbolTable)
@@ -537,7 +546,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     /** Type generators **/
 
     override fun selectRandomType(ctx: Context): KClass<out Type> {
-        return selectionManager.availableTypesWeightings(ctx).pickRandomByWeight()
+        val pickRandomByWeight = selectionManager.availableTypesWeightings(ctx).pickRandomByWeight()
+        Logger.logText("Picking type: $pickRandomByWeight", ctx)
+        return pickRandomByWeight
     }
 
     override fun generateBoolType(ctx: Context) = BoolType

@@ -5,7 +5,7 @@ import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 
 data class Context(
-    private val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
+    val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
     val currentFunctionName: String,
     val statementsPerScope: List<List<Statement>>,
     val symbolTable: SymbolTable,
