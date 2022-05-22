@@ -84,6 +84,13 @@ open class BaseSelectionManager : SelectionManager {
         if (type.memberTypes().count { it is ReferencingTypes } > 0) {
             filteredExpressions.remove(FunctionCallExpression::class)
         }
+
+        if (ctx.previousIncrement == StructInstantiationExpression::class && type is ReferencingTypes) {
+            // Ensure the variables created beforehand are used
+            filteredExpressions.clear()
+            filteredExpressions[Variable::class] = 1.0
+        }
+
         filteredExpressions.remove(FunctionCallExpression::class)
         return NodeSelectionWeighting(filteredExpressions)
     }

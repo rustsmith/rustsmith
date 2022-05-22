@@ -543,6 +543,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         if (type !is StructType) {
             throw IllegalArgumentException("Type is not a struct type")
         } else {
+            val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
+            membersWithReferenceType.forEach {
+                dependantStatements.add(
+                    generateDependantDeclarationOfType(
+                        it,
+                        ctx = ctx.incrementCount(StructInstantiationExpression::class)
+                    )
+                )
+            }
             return StructInstantiationExpression(
                 structName = type.structName,
                 args = type.types.map {
