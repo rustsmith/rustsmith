@@ -194,6 +194,15 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
 
     override fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral {
         if (type is TupleType) {
+            val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
+            membersWithReferenceType.forEach {
+                dependantStatements.add(
+                    generateDependantDeclarationOfType(
+                        it,
+                        ctx = ctx.incrementCount(StructInstantiationExpression::class)
+                    )
+                )
+            }
             return TupleLiteral(
                 type.types.map { generateExpression(it, ctx.incrementCount(TupleLiteral::class)) },
                 symbolTable
