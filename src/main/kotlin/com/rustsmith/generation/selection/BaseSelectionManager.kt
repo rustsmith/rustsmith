@@ -69,7 +69,6 @@ open class BaseSelectionManager : SelectionManager {
                 filteredExpressions[StructElementAccessExpression::class] = 1.0
                 filteredExpressions[DereferenceExpression::class] = 1.0
             }
-
         }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
@@ -81,6 +80,9 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.previousIncrement in ReferencingExpressions::class.subclasses()) {
             filteredExpressions.remove(ReferenceExpression::class)
             filteredExpressions.remove(MutableReferenceExpression::class)
+        }
+        if (type.memberTypes().count { it is ReferencingTypes } > 0) {
+            filteredExpressions.remove(FunctionCallExpression::class)
         }
         filteredExpressions.remove(FunctionCallExpression::class)
         return NodeSelectionWeighting(filteredExpressions)

@@ -91,7 +91,8 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     ): Declaration {
         val variableName = IdentGenerator.generateVariable()
         val expression = generateExpression(type, ctx.incrementCount(Declaration::class))
-        symbolTable[variableName] = IdentifierData(expression.toType().clone(), mutable, OwnershipState.VALID)
+        symbolTable[variableName] =
+            IdentifierData(expression.toType().clone(), mutable, OwnershipState.VALID, symbolTable.depth.value)
         return Declaration(mutable, type.clone(), variableName, expression, symbolTable)
     }
 
@@ -110,20 +111,25 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
             val expression = generateExpression(declaration.type, ctx.incrementCount(Assignment::class))
             Assignment(Variable(declaration.variableName, symbolTable), expression, symbolTable)
         } else {
-            val lhsAssignmentType = value.toType()
+            val lhsAssignmentType = value.first.toType()
             val lhsNodeAndRhsExpression: Pair<LHSAssignmentNode, Expression> =
                 if (lhsAssignmentType is MutableReferenceType) {
-                    val useDereferenceLhs = CustomRandom.nextBoolean()
-                    (if (useDereferenceLhs) DereferenceExpression(value, value.symbolTable) else value) to
+                    val useDereferenceLhs = CustomRandom.nextBoolean() || !value.second
+                    (
+                        if (useDereferenceLhs) DereferenceExpression(
+                            value.first,
+                            value.first.symbolTable
+                        ) else value.first
+                        ) to
                         generateExpression(
                             if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType,
-                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.first.rootNode())
                         )
                 } else {
-                    value to
+                    value.first to
                         generateExpression(
                             lhsAssignmentType,
-                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.rootNode())
+                            ctx.incrementCount(Assignment::class).withAssignmentNode(value.first.rootNode())
                         )
                 }
             Assignment(lhsNodeAndRhsExpression.first, lhsNodeAndRhsExpression.second, symbolTable)
@@ -197,9 +203,10 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     }
 
     override fun generateTupleElementAccessExpression(type: Type, ctx: Context): TupleElementAccessExpression {
-        var tupleWithType = symbolTable.globalSymbolTable.findTupleWithType(type)
+        var tupleWithType = symbolTable.globalSymbolTable.findTupleWithType(type)?.clone()
         if (tupleWithType == null) {
-            tupleWithType = generateTupleTypeWithType(type, ctx)
+            tupleWithType = generateTupleTypeWithType(type, ctx).clone()
+            symbolTable.globalSymbolTable.addTupleType(tupleWithType)
         }
         val tupleExpression = generateExpression(
             tupleWithType,
@@ -244,7 +251,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
         var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
         if (structTypeWithType == null) {
-            structTypeWithType = generateStructTypeWithType(type, ctx)
+            structTypeWithType = createNewStructTypeWithType(type, ctx)
         }
         val structExpression =
             generateExpression(
@@ -282,7 +289,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return StructElementAccessExpression(structExpression, chosenElement, symbolTable)
     }
 
-    private fun generateStructTypeWithType(type: Type, ctx: Context): StructType {
+    private fun createNewStructTypeWithType(type: Type, ctx: Context): StructType {
         return createNewStructType(ctx, type)
     }
 
@@ -298,8 +305,6 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
                 ctx = ctx.forDependantDeclaration().incrementCount(Variable::class)
             )
             dependantStatements.add(declaration)
-//            if (type is ReferencingTypes) {
-//                if (type is MutableReferenceType) MutableReferenceExpression(Variable(declaration.variableName, symbolTable),symbolTable) else ReferenceExpression(Variable(declaration.variableName, symbolTable), symbolTable)
             Variable(declaration.variableName, symbolTable)
         } else {
             Variable(value.first, symbolTable)
@@ -507,11 +512,16 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val symbolTableForFunction = SymbolTable(
             null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
+        val arguments = argTypes.associateBy { IdentGenerator.generateVariable() }
+        arguments.forEach {
+            symbolTableForFunction[it.key] =
+                IdentifierData(it.value, false, OwnershipState.VALID, symbolTable.depth.value)
+        }
         val functionName = IdentGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
             returnType,
             functionName,
-            argTypes.associateBy { IdentGenerator.generateVariable() },
+            arguments,
             ASTGenerator(symbolTableForFunction)
             (
                 ctx.incrementCount(FunctionCallExpression::class)
@@ -524,7 +534,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         )
         val functionType = FunctionType(returnType, argTypes)
         symbolTable.functionSymbolTable[functionDefinition.functionName] =
-            IdentifierData(functionType, false, OwnershipState.VALID)
+            IdentifierData(functionType, false, OwnershipState.VALID, symbolTable.depth.value)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
     }
@@ -642,8 +652,9 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         }
 
         val structType = StructType(structName, argTypes)
-        symbolTable.globalSymbolTable[structName] = IdentifierData(structType, false, OwnershipState.VALID)
-        symbolTable.globalSymbolTable.addStruct(StructDefinition(wrapWithLifetimeParameters(structType) as LifetimeParameterizedType<StructType>))
+        symbolTable.globalSymbolTable[structName] =
+            IdentifierData(structType, false, OwnershipState.VALID, symbolTable.depth.value)
+        symbolTable.globalSymbolTable.addStruct(StructDefinition(wrapWithLifetimeParameters(structType.clone()) as LifetimeParameterizedType<StructType>))
         return structType
     }
 

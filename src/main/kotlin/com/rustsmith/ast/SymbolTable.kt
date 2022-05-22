@@ -11,7 +11,7 @@ enum class OwnershipState {
     fun assignable() = this == VALID || this == PARTIALLY_VALID
 }
 
-data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState)
+data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     private var current: SymbolTable? = null
@@ -77,7 +77,7 @@ class GlobalSymbolTable {
 
     /* Tuple methods */
 
-    fun addTupleType(type: TupleType) = tupleTypes.add(type)
+    fun addTupleType(type: TupleType) = tupleTypes.add(type.clone())
 
     fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(CustomRandom)
 
@@ -92,6 +92,14 @@ data class SymbolTable(
     val globalSymbolTable: GlobalSymbolTable
 ) : Iterable<SymbolTable> {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
+
+    val depth = lazy {
+        var count = 0
+        for (table in iterator()) {
+            count++
+        }
+        count
+    }
 
     operator fun get(key: String): IdentifierData? {
         for (table in iterator()) {
@@ -156,7 +164,7 @@ data class SymbolTable(
         }
     }
 
-    fun getRandomMutableVariable(ctx: Context): LHSAssignmentNode? {
+    fun getRandomMutableVariable(ctx: Context): Pair<LHSAssignmentNode, Boolean>? {
         val overallMap = mutableMapOf<String, IdentifierData>()
         var i = 0
         for (table in iterator()) {
@@ -170,12 +178,12 @@ data class SymbolTable(
             }
             i++
         }
-        return overallMap.toList().filter { it.second.mutable }.filter { it.second.validity.assignable() }.filter {
+        return overallMap.toList().filter { it.second.validity.assignable() }.filter {
             if (ctx.assignmentRootNode == null) true else (
                 !ctx.assignmentRootNode.map { variable -> variable.value }
                     .contains(it.first)
                 )
-        }.flatMap { findMutableSubExpressions(Variable(it.first, this)) }.randomOrNull(CustomRandom)
+        }.flatMap { findMutableSubExpressions(Variable(it.first, this)).map { exp -> exp to it.second.mutable } }.filter { it.second || it.first.toType() is MutableReferenceType }.randomOrNull(CustomRandom)
     }
 
     fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context, mutableRequired: Boolean): Pair<String, IdentifierData>? {
@@ -195,6 +203,7 @@ data class SymbolTable(
         if (requiredType != null && type is RecursiveType && ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
             val partiallyOrCompletelyValidVariables = overallMap.toList().filter { it.second.type == type }
                 .filter { it.second.validity != OwnershipState.INVALID }
+                .filter { if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity != OwnershipState.PARTIALLY_VALID else true }
             return partiallyOrCompletelyValidVariables.filter { variable ->
                 (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
                     if (ctx.getDepthLast(PartialMoveExpression::class) > 1)

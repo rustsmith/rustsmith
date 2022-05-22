@@ -223,7 +223,7 @@ data class ReferenceType(
     }
 
     override fun clone(): Type {
-        return ReferenceType(internalType.clone(), lifetimeParameter)
+        return ReferenceType(internalType.clone())
     }
 
     override fun toRust(): String {
@@ -261,7 +261,7 @@ data class MutableReferenceType(
     }
 
     override fun clone(): Type {
-        return MutableReferenceType(internalType.clone(), lifetimeParameter)
+        return MutableReferenceType(internalType.clone())
     }
 
     override fun toRust(): String {

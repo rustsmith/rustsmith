@@ -322,7 +322,7 @@ data class FunctionCallExpression(
     val functionName: String,
     val args: List<Expression>,
     override val symbolTable: SymbolTable
-) : Expression {
+) : RecursiveExpression {
 
     override fun toRust(): String {
         return "$functionName(${args.joinToString(",") { it.toRust() }})"
@@ -399,7 +399,7 @@ data class ReferenceExpression(
     override val symbolTable: SymbolTable
 ) : ReferencingExpressions {
     override fun toRust(): String {
-        return "&${expression.toRust()}"
+        return "&(${expression.toRust()})"
     }
 }
 
@@ -409,7 +409,7 @@ data class MutableReferenceExpression(
     override val symbolTable: SymbolTable
 ) : ReferencingExpressions {
     override fun toRust(): String {
-        return "&mut ${expression.toRust()}"
+        return "&mut (${expression.toRust()})"
     }
 }
 

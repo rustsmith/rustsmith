@@ -43,15 +43,19 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         val currentRecursiveExpressions = ctx.statementsPerScope.last()
-            .count { it is ExpressionStatement && it.expression is RecursiveExpression } * 2 + 1
+            .count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class) * 8 + currentRecursiveExpressions)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 2 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 8 + 1)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 1)
         )
+
+        if (ctx.getDepth(Variable::class) > 0) {
+            expressionWeightings.updateWeighting(RecursiveExpression::class, 0.0)
+        }
         Logger.logText("Weightings for expressions ${expressionWeightings.weightings}", ctx)
         return expressionWeightings
     }
