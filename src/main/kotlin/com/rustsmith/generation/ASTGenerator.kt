@@ -335,9 +335,6 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateVariable(type: Type, ctx: Context): Variable {
         val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
-        if (value?.first == "var2175") {
-            println("TEST")
-        }
         if (value == null &&
             (
                 type.memberTypes()
