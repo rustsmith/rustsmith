@@ -5,20 +5,38 @@ import com.rustsmith.subclasses
 import kotlin.reflect.KClass
 
 data class Context(
-    private val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
+    val nodeDepthState: List<Map<KClass<out ASTNode>, Int>>,
     val currentFunctionName: String,
     val statementsPerScope: List<List<Statement>>,
     val symbolTable: SymbolTable,
     val requiredType: Type? = null,
     val returnExpressionType: Type? = null,
     val returnLoopType: Type? = null,
-    val previousIncrement: KClass<out ASTNode>? = null
+    val previousIncrement: KClass<out ASTNode>? = null,
+    val assignmentRootNode: List<Variable>? = null,
+    val lifetimeRequirement: Int? = null,
+    val failedGenerationNodes: List<KClass<out ASTNode>> = listOf()
 ) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
     val numberOfFunctionsDefined = lazy { symbolTable.functionSymbolTable.functions.size }
     val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
     val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
+
+    fun withLifetimeRequirement(lifetimeRequirement: Int): Context {
+        return this.copy(lifetimeRequirement = lifetimeRequirement)
+    }
+
+    fun addFailedNode(failedNode: KClass<out ASTNode>): Context {
+        return this.copy(failedGenerationNodes = failedGenerationNodes + failedNode)
+    }
+
+    fun withAssignmentNode(variable: Variable?): Context {
+        if (variable != null) {
+            return this.copy(assignmentRootNode = listOf(*(assignmentRootNode?.toTypedArray() ?: arrayOf()), variable))
+        }
+        return this
+    }
 
     fun setRequiredType(type: Type): Context {
         return this.copy(requiredType = type)
@@ -34,6 +52,10 @@ data class Context(
 
     fun getDepth(kClass: KClass<out ASTNode>): Int {
         return kClass.subclasses().sumOf { nodeDepthState.sumOf { map -> map[it] ?: 0 } }
+    }
+
+    fun getDepthLast(kClass: KClass<out ASTNode>): Int {
+        return kClass.subclasses().sumOf { nodeDepthState.last()[it] ?: 0 }
     }
 
     fun withSymbolTable(symbolTable: SymbolTable): Context {
@@ -67,8 +89,7 @@ data class Context(
         val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
         stateCopy.add(mutableMapOf())
         return this.copy(
-            nodeDepthState = stateCopy,
-            statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf())
+            nodeDepthState = stateCopy, statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf())
         )
     }
 

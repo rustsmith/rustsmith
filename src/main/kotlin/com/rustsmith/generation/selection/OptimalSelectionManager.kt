@@ -2,21 +2,22 @@ package com.rustsmith.generation.selection
 
 import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
+import com.rustsmith.logging.Logger
 import kotlin.reflect.KClass
 
 open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expression>>) :
     SwarmBasedSelectionManager(expressionConfiguration) {
 
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
-        RecursiveExpression::class to 5,
         FunctionCallExpression::class to 5,
         StructType::class to 5,
         TupleType::class to 5,
+        Variable::class to 1
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 10.0 / (ctx.statementsPerScope.last().size + 1)
+        newStatementWeightings[true] = 20.0 / (ctx.statementsPerScope.last().size + 1)
         newStatementWeightings[false] = 1 - newStatementWeightings[true]!!
         return newStatementWeightings
     }
@@ -42,15 +43,20 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         val currentRecursiveExpressions = ctx.statementsPerScope.last()
-            .count { it is ExpressionStatement && it.expression is RecursiveExpression } * 2 + 1
+            .count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class) * 8 + currentRecursiveExpressions)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 8 + 1)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 1)
         )
+
+        if (ctx.getDepth(Variable::class) > 0) {
+            expressionWeightings.updateWeighting(RecursiveExpression::class, 0.0)
+        }
+        Logger.logText("Weightings for expressions ${expressionWeightings.weightings}", ctx)
         return expressionWeightings
     }
 
@@ -68,6 +74,7 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
         } else {
             statementWeightings.updateWeighting(BreakStatement::class, 0.3)
         }
+        Logger.logText("Weightings for statements ${statementWeightings.weightings}", ctx)
         return statementWeightings
     }
 
@@ -75,11 +82,13 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
         val typeWeightings = super.availableTypesWeightings(ctx)
         typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
         typeWeightings.updateWeighting(TupleType::class, 1.0 / (ctx.getDepth(TupleType::class) + 1))
+        typeWeightings.updateWeighting(ReferenceType::class, 1.0 / (ctx.getDepth(ReferenceType::class) + 1))
         if (ctx.previousIncrement == ExpressionStatement::class) {
             typeWeightings.updateWeighting(VoidType::class, 2.0)
         } else {
             typeWeightings.updateWeighting(VoidType::class, 0.0)
         }
+        Logger.logText("Weightings for types ${typeWeightings.weightings}", ctx)
         return typeWeightings
     }
 }

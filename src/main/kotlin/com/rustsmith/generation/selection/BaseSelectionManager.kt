@@ -1,6 +1,9 @@
 package com.rustsmith.generation.selection
 
 import com.rustsmith.ast.*
+import com.rustsmith.exceptions.NoAvailableExpressionException
+import com.rustsmith.exceptions.NoAvailableStatementException
+import com.rustsmith.exceptions.NoAvailableTypeException
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
 import kotlin.reflect.KClass
@@ -16,7 +19,6 @@ open class BaseSelectionManager : SelectionManager {
 
     // Config describes what limit each specific ASTNode should have in terms of depth
     override val config: Map<KClass<out ASTNode>, Int> = mapOf(
-        RecursiveExpression::class to 2,
         FunctionCallExpression::class to 3,
         TupleType::class to 3
     ).withDefault { Int.MAX_VALUE }
@@ -31,7 +33,8 @@ open class BaseSelectionManager : SelectionManager {
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
-    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 0.5, true to 0.5)
+    override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> =
+        mapOf(false to 0.5, true to 0.5)
 
     override fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
@@ -45,6 +48,12 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.returnLoopType == null) {
             filteredStatements.remove(BreakStatement::class)
         }
+        ctx.failedGenerationNodes.forEach {
+            filteredStatements.remove(it)
+        }
+        if (filteredStatements.isEmpty()) {
+            throw NoAvailableStatementException()
+        }
         return NodeSelectionWeighting(filteredStatements)
     }
 
@@ -54,9 +63,49 @@ open class BaseSelectionManager : SelectionManager {
                 it.findAnnotation<ExpressionGenNode>()?.compatibleType?.genSubClasses()
                     ?.contains(type::class) ?: false
             }
-        val filteredExpressions = filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        val filteredExpressions: MutableMap<KClass<out Expression>, Double> =
+            filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.getDepthLast(ReferencingExpressions::class) > 0) {
+            LiteralExpression::class.subclasses().forEach {
+                filteredExpressions.remove(it)
+            }
+            RecursiveExpression::class.subclasses().forEach {
+                filteredExpressions.remove(it)
+            }
+            filteredExpressions[Variable::class] = 1.0
+            if (ctx.nodeDepthState.last().values.sum() < 4) {
+                filteredExpressions[TupleElementAccessExpression::class] = 1.0
+                filteredExpressions[StructElementAccessExpression::class] = 1.0
+                filteredExpressions[DereferenceExpression::class] = 1.0
+            }
+        }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
+        }
+        if (type.getOwnership() == OwnershipModel.MOVE) {
+            filteredExpressions.remove(DereferenceExpression::class)
+        }
+        // To stop explicit && cases
+        if (ctx.previousIncrement in ReferencingExpressions::class.subclasses()) {
+            filteredExpressions.remove(ReferenceExpression::class)
+            filteredExpressions.remove(MutableReferenceExpression::class)
+        }
+        if (type.memberTypes().count { it is ReferencingTypes } > 0) {
+            filteredExpressions.remove(FunctionCallExpression::class)
+        }
+
+        if (ctx.previousIncrement == StructInstantiationExpression::class && type is ReferencingTypes) {
+            // Ensure the variables created beforehand are used
+            filteredExpressions.clear()
+            filteredExpressions[Variable::class] = 1.0
+        }
+
+//        filteredExpressions.remove(FunctionCallExpression::class)
+        ctx.failedGenerationNodes.forEach {
+            filteredExpressions.remove(it)
+        }
+        if (filteredExpressions.isEmpty()) {
+            throw NoAvailableExpressionException()
         }
         return NodeSelectionWeighting(filteredExpressions)
     }
@@ -64,6 +113,16 @@ open class BaseSelectionManager : SelectionManager {
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val allTypes =
             filterNodes(Type::class.genSubClasses().toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
+        if (ctx.getDepth(MutableReferenceType::class) > 0) {
+            allTypes.remove(ReferenceType::class)
+            allTypes.remove(MutableReferenceType::class)
+        }
+        ctx.failedGenerationNodes.forEach {
+            allTypes.remove(it)
+        }
+        if (allTypes.isEmpty()) {
+            throw NoAvailableTypeException()
+        }
         return NodeSelectionWeighting(allTypes)
     }
 
