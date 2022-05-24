@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import com.rustsmith.ast.generateProgram
+import com.rustsmith.exceptions.NoAvailableStatementException
 import com.rustsmith.generation.IdentGenerator
 import com.rustsmith.generation.selection.OptimalSelectionManager
 import com.rustsmith.generation.selection.SelectionManager
@@ -21,7 +22,7 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
+    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(250)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
@@ -41,20 +42,25 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()
-            val (generatedProgram, cliArguments) = generateProgram(randomSeed)
-            val program = reconditioner.recondition(generatedProgram)
-            if (print) {
-                println(program.toRust())
-                return
+            try {
+                val (generatedProgram, cliArguments) = generateProgram(randomSeed)
+                if (generatedProgram.toRust().count { char -> char == '\n' } > 10000) continue
+                val program = reconditioner.recondition(generatedProgram)
+                if (print) {
+                    println(program.toRust())
+                    return
+                }
+                val path = Path(directory, "file$i")
+                path.toFile().mkdir()
+                path.resolve("file$i.rs").toFile().writeText(program.toRust())
+                path.resolve("file$i.json").toFile().writeText("{}")
+                path.resolve("file$i.txt").toFile().writeText(cliArguments.joinToString(" "))
+                IdentGenerator.reset()
+                progressBar?.step()
+                i++
+            } catch (e: NoAvailableStatementException) {
+                continue
             }
-            val path = Path(directory, "file$i")
-            path.toFile().mkdir()
-            path.resolve("file$i.rs").toFile().writeText(program.toRust())
-            path.resolve("file$i.json").toFile().writeText("{}")
-            path.resolve("file$i.txt").toFile().writeText(cliArguments.joinToString(" "))
-            IdentGenerator.reset()
-            progressBar?.step()
-            i++
         }
         progressBar?.close()
     }

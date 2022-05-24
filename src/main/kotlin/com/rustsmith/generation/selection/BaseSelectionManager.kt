@@ -1,6 +1,9 @@
 package com.rustsmith.generation.selection
 
 import com.rustsmith.ast.*
+import com.rustsmith.exceptions.NoAvailableExpressionException
+import com.rustsmith.exceptions.NoAvailableStatementException
+import com.rustsmith.exceptions.NoAvailableTypeException
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
 import kotlin.reflect.KClass
@@ -44,6 +47,12 @@ open class BaseSelectionManager : SelectionManager {
 
         if (ctx.returnLoopType == null) {
             filteredStatements.remove(BreakStatement::class)
+        }
+        ctx.failedGenerationNodes.forEach {
+            filteredStatements.remove(it)
+        }
+        if (filteredStatements.isEmpty()) {
+            throw NoAvailableStatementException()
         }
         return NodeSelectionWeighting(filteredStatements)
     }
@@ -91,7 +100,13 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions[Variable::class] = 1.0
         }
 
-        filteredExpressions.remove(FunctionCallExpression::class)
+//        filteredExpressions.remove(FunctionCallExpression::class)
+        ctx.failedGenerationNodes.forEach {
+            filteredExpressions.remove(it)
+        }
+        if (filteredExpressions.isEmpty()) {
+            throw NoAvailableExpressionException()
+        }
         return NodeSelectionWeighting(filteredExpressions)
     }
 
@@ -100,6 +115,13 @@ open class BaseSelectionManager : SelectionManager {
             filterNodes(Type::class.genSubClasses().toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         if (ctx.getDepth(MutableReferenceType::class) > 0) {
             allTypes.remove(ReferenceType::class)
+            allTypes.remove(MutableReferenceType::class)
+        }
+        ctx.failedGenerationNodes.forEach {
+            allTypes.remove(it)
+        }
+        if (allTypes.isEmpty()) {
+            throw NoAvailableTypeException()
         }
         return NodeSelectionWeighting(allTypes)
     }

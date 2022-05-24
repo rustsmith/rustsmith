@@ -512,8 +512,11 @@ fun Expression.toType(): Type {
         is VoidLiteral -> VoidType
         is IfExpression -> VoidType
         is CLIArgumentAccessExpression -> this.type
-        is ReferenceExpression -> ReferenceType(this.expression.toType())
-        is MutableReferenceExpression -> MutableReferenceType(this.expression.toType())
+        is ReferenceExpression -> ReferenceType(this.expression.toType(), this.symbolTable.depth.value.toUInt())
+        is MutableReferenceExpression -> MutableReferenceType(
+            this.expression.toType(),
+            this.symbolTable.depth.value.toUInt()
+        )
         is DereferenceExpression -> (this.expression.toType() as ReferencingTypes).internalType
     }
 }

@@ -6,6 +6,7 @@ import com.rustsmith.subclasses
 
 enum class OwnershipState {
     VALID, BORROWED, MUTABLY_BORROWED, PARTIALLY_VALID, INVALID;
+
     fun borrowable() = this == VALID || this == BORROWED
     fun movable() = this == VALID
     fun assignable() = this == VALID || this == PARTIALLY_VALID
@@ -71,7 +72,8 @@ class GlobalSymbolTable {
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
-            structs.filter { structDef -> structDef.structType.type.types.any { it.second == type } }.randomOrNull(CustomRandom)
+            structs.filter { structDef -> structDef.structType.type.types.any { it.second == type } }
+                .randomOrNull(CustomRandom)
         return (symbolMap[structDefinition?.structType?.type?.structName]?.type as StructType?)
     }
 
@@ -164,35 +166,57 @@ data class SymbolTable(
         }
     }
 
-    fun getRandomMutableVariable(ctx: Context): Pair<LHSAssignmentNode, Boolean>? {
+    data class MutableVariableResult(val node: LHSAssignmentNode, val identifierData: IdentifierData)
+
+    fun getRandomMutableVariable(ctx: Context): MutableVariableResult? {
         val overallMap = mutableMapOf<String, IdentifierData>()
-        var i = 0
         for (table in iterator()) {
-            if (i != 0) {
-                // Stops dangling references
-                table.symbolMap.filter {
-                    !it.value.type.memberTypes().map { t -> t::class }.any { k -> k in ReferencingTypes::class.subclasses() }
-                }.forEach { overallMap.putIfAbsent(it.key, it.value) }
-            } else {
-                table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
-            }
-            i++
+            table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
         return overallMap.toList().filter { it.second.validity.assignable() }.filter {
             if (ctx.assignmentRootNode == null) true else (
                 !ctx.assignmentRootNode.map { variable -> variable.value }
                     .contains(it.first)
                 )
-        }.flatMap { findMutableSubExpressions(Variable(it.first, this)).map { exp -> exp to it.second.mutable } }.filter { it.second || it.first.toType() is MutableReferenceType }.randomOrNull(CustomRandom)
+        }.flatMap {
+            findMutableSubExpressions(Variable(it.first, this)).map { exp ->
+                MutableVariableResult(
+                    exp,
+                    it.second
+                )
+            }
+        }
+            .filter { it.identifierData.mutable || it.node.toType() is MutableReferenceType }.randomOrNull(CustomRandom)
     }
 
-    fun getRandomVariableOfType(type: Type, requiredType: Type?, ctx: Context, mutableRequired: Boolean): Pair<String, IdentifierData>? {
+    fun getRandomVariableOfType(
+        type: Type,
+        requiredType: Type?,
+        ctx: Context,
+        mutableRequired: Boolean
+    ): Pair<String, IdentifierData>? {
         var overallMap = mutableMapOf<String, IdentifierData>()
         if (ctx.getDepth(LoopExpression::class) > 0) {
-            this.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+            if (ctx.lifetimeRequirement == null ||
+                (
+                    type.memberTypes()
+                        .count { it is ReferencingTypes } == 0 && ctx.getDepth(ReferencingExpressions::class) == 0
+                    ) ||
+                this.depth.value <= ctx.lifetimeRequirement
+            ) {
+                this.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+            }
         } else {
             for (table in iterator()) {
-                table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+                if (ctx.lifetimeRequirement == null ||
+                    (
+                        type.memberTypes()
+                            .count { it is ReferencingTypes } == 0 && ctx.getDepth(ReferencingExpressions::class) == 0
+                        ) ||
+                    table.depth.value <= ctx.lifetimeRequirement
+                ) {
+                    table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+                }
             }
         }
 
@@ -209,6 +233,8 @@ data class SymbolTable(
                     if (ctx.getDepthLast(PartialMoveExpression::class) > 1)
                         (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
                     else false
+            }.filter { it.second.type == type }.filter {
+                if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity.borrowable() else it.second.validity.movable()
             }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
         }
         return overallMap.toList().filter { it.second.type == type }.filter {

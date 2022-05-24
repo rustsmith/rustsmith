@@ -14,7 +14,8 @@ data class Context(
     val returnLoopType: Type? = null,
     val previousIncrement: KClass<out ASTNode>? = null,
     val assignmentRootNode: List<Variable>? = null,
-    val currentLifetimeParameterNumber: Int? = null
+    val lifetimeRequirement: Int? = null,
+    val failedGenerationNodes: List<KClass<out ASTNode>> = listOf()
 ) {
     val numberOfDeclarationsLocal = lazy { symbolTable.getLocalVariables().size }
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
@@ -22,8 +23,12 @@ data class Context(
     val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
     val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
 
-    fun incrementLifetimeParameterNumber(): Context {
-        return this.copy(currentLifetimeParameterNumber = currentLifetimeParameterNumber?.inc() ?: 1)
+    fun withLifetimeRequirement(lifetimeRequirement: Int): Context {
+        return this.copy(lifetimeRequirement = lifetimeRequirement)
+    }
+
+    fun addFailedNode(failedNode: KClass<out ASTNode>): Context {
+        return this.copy(failedGenerationNodes = failedGenerationNodes + failedNode)
     }
 
     fun withAssignmentNode(variable: Variable?): Context {
@@ -84,8 +89,7 @@ data class Context(
         val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
         stateCopy.add(mutableMapOf())
         return this.copy(
-            nodeDepthState = stateCopy,
-            statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf())
+            nodeDepthState = stateCopy, statementsPerScope = listOf(*statementsPerScope.toTypedArray(), listOf())
         )
     }
 

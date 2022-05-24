@@ -1,9 +1,7 @@
 package com.rustsmith.ast
 
-import com.rustsmith.CustomRandom
 import com.rustsmith.subclasses
 import java.math.BigInteger
-import kotlin.random.nextUInt
 import kotlin.reflect.KClass
 import kotlin.reflect.full.hasAnnotation
 
@@ -216,14 +214,14 @@ sealed interface ReferencingTypes : NonVoidType {
 @GenNode
 data class ReferenceType(
     override val internalType: Type,
-    override val lifetimeParameter: UInt = CustomRandom.nextUInt()
+    override val lifetimeParameter: UInt
 ) : ReferencingTypes {
     override fun withParameterized(lifetimeParameter: UInt): ReferencingTypes {
         return ReferenceType(internalType.clone(), lifetimeParameter)
     }
 
     override fun clone(): Type {
-        return ReferenceType(internalType.clone())
+        return ReferenceType(internalType.clone(), lifetimeParameter)
     }
 
     override fun toRust(): String {
@@ -254,14 +252,14 @@ data class ReferenceType(
 @GenNode
 data class MutableReferenceType(
     override val internalType: Type,
-    override val lifetimeParameter: UInt = CustomRandom.nextUInt()
+    override val lifetimeParameter: UInt
 ) : ReferencingTypes {
     override fun withParameterized(lifetimeParameter: UInt): ReferencingTypes {
         return MutableReferenceType(internalType.clone(), lifetimeParameter)
     }
 
     override fun clone(): Type {
-        return MutableReferenceType(internalType.clone())
+        return MutableReferenceType(internalType.clone(), lifetimeParameter)
     }
 
     override fun toRust(): String {

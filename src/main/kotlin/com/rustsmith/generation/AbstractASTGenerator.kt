@@ -53,7 +53,11 @@ import com.rustsmith.ast.Type
 import com.rustsmith.ast.Variable
 import com.rustsmith.ast.VoidLiteral
 import com.rustsmith.ast.VoidType
+import com.rustsmith.exceptions.ExpressionGenerationRejectedException
+import com.rustsmith.exceptions.NoAvailableExpressionException
+import com.rustsmith.exceptions.StatementGenerationRejectedException
 import com.rustsmith.generation.Context
+import com.rustsmith.logging.Logger
 import kotlin.reflect.KClass
 
 public interface AbstractASTGenerator {
@@ -69,13 +73,27 @@ public interface AbstractASTGenerator {
 
     public fun selectRandomStatement(ctx: Context): KClass<out Statement>
 
-    public fun generateStatement(ctx: Context): Statement = when (selectRandomStatement(ctx)) {
-        ExpressionStatement::class -> generateExpressionStatement(ctx)
-        Declaration::class -> generateDeclaration(ctx)
-        Assignment::class -> generateAssignment(ctx)
-        ReturnStatement::class -> generateReturnStatement(ctx)
-        BreakStatement::class -> generateBreakStatement(ctx)
-        else -> throw Exception("Unrecognized type")
+    public fun generateStatement(ctx: Context): Statement {
+        var currentCtx = ctx
+        while (true) {
+            val selectedStatement = selectRandomStatement(currentCtx)
+            try {
+                return when (selectedStatement) {
+                    ExpressionStatement::class -> generateExpressionStatement(ctx)
+                    Declaration::class -> generateDeclaration(ctx)
+                    Assignment::class -> generateAssignment(ctx)
+                    ReturnStatement::class -> generateReturnStatement(ctx)
+                    BreakStatement::class -> generateBreakStatement(ctx)
+                    else -> throw Exception("Unrecognized statement")
+                }
+            } catch (e: StatementGenerationRejectedException) {
+                currentCtx = currentCtx.addFailedNode(selectedStatement)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+            } catch (e: NoAvailableExpressionException) {
+                currentCtx = currentCtx.addFailedNode(selectedStatement)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+            }
+        }
     }
 
     public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
@@ -84,8 +102,7 @@ public interface AbstractASTGenerator {
 
     public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
 
-    public fun generateCLIArgumentAccessExpression(type: Type, ctx: Context):
-        CLIArgumentAccessExpression
+    public fun generateCLIArgumentAccessExpression(type: Type, ctx: Context): CLIArgumentAccessExpression
 
     public fun generateInt8Literal(type: Type, ctx: Context): Int8Literal
 
@@ -107,14 +124,11 @@ public interface AbstractASTGenerator {
 
     public fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral
 
-    public fun generateStructInstantiationExpression(type: Type, ctx: Context):
-        StructInstantiationExpression
+    public fun generateStructInstantiationExpression(type: Type, ctx: Context): StructInstantiationExpression
 
-    public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
-        TupleElementAccessExpression
+    public fun generateTupleElementAccessExpression(type: Type, ctx: Context): TupleElementAccessExpression
 
-    public fun generateStructElementAccessExpression(type: Type, ctx: Context):
-        StructElementAccessExpression
+    public fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression
 
     public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
 
@@ -146,48 +160,60 @@ public interface AbstractASTGenerator {
 
     public fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression
 
-    public fun generateMutableReferenceExpression(type: Type, ctx: Context):
-        MutableReferenceExpression
+    public fun generateMutableReferenceExpression(type: Type, ctx: Context): MutableReferenceExpression
 
     public fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression>
 
-    public fun generateExpression(type: Type, ctx: Context): Expression =
-        when (selectRandomExpression(type, ctx)) {
-            VoidLiteral::class -> generateVoidLiteral(type, ctx)
-            Variable::class -> generateVariable(type, ctx)
-            FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
-            CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
-            Int8Literal::class -> generateInt8Literal(type, ctx)
-            Int16Literal::class -> generateInt16Literal(type, ctx)
-            Int32Literal::class -> generateInt32Literal(type, ctx)
-            Int64Literal::class -> generateInt64Literal(type, ctx)
-            Int128Literal::class -> generateInt128Literal(type, ctx)
-            Float32Literal::class -> generateFloat32Literal(type, ctx)
-            Float64Literal::class -> generateFloat64Literal(type, ctx)
-            StringLiteral::class -> generateStringLiteral(type, ctx)
-            BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
-            TupleLiteral::class -> generateTupleLiteral(type, ctx)
-            StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
-            TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
-            StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
-            DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
-            GroupedExpression::class -> generateGroupedExpression(type, ctx)
-            BlockExpression::class -> generateBlockExpression(type, ctx)
-            IfElseExpression::class -> generateIfElseExpression(type, ctx)
-            IfExpression::class -> generateIfExpression(type, ctx)
-            LoopExpression::class -> generateLoopExpression(type, ctx)
-            AddExpression::class -> generateAddExpression(type, ctx)
-            SubtractExpression::class -> generateSubtractExpression(type, ctx)
-            DivideExpression::class -> generateDivideExpression(type, ctx)
-            MultiplyExpression::class -> generateMultiplyExpression(type, ctx)
-            ModExpression::class -> generateModExpression(type, ctx)
-            BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, ctx)
-            BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, ctx)
-            BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, ctx)
-            ReferenceExpression::class -> generateReferenceExpression(type, ctx)
-            MutableReferenceExpression::class -> generateMutableReferenceExpression(type, ctx)
-            else -> throw Exception("Unrecognized type")
+    public fun generateExpression(type: Type, ctx: Context): Expression {
+        var currentCtx = ctx
+        while (true) {
+            val currentlyChosenExpression = selectRandomExpression(type, currentCtx)
+            try {
+                return when (currentlyChosenExpression) {
+                    VoidLiteral::class -> generateVoidLiteral(type, ctx)
+                    Variable::class -> generateVariable(type, ctx)
+                    FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
+                    CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
+                    Int8Literal::class -> generateInt8Literal(type, ctx)
+                    Int16Literal::class -> generateInt16Literal(type, ctx)
+                    Int32Literal::class -> generateInt32Literal(type, ctx)
+                    Int64Literal::class -> generateInt64Literal(type, ctx)
+                    Int128Literal::class -> generateInt128Literal(type, ctx)
+                    Float32Literal::class -> generateFloat32Literal(type, ctx)
+                    Float64Literal::class -> generateFloat64Literal(type, ctx)
+                    StringLiteral::class -> generateStringLiteral(type, ctx)
+                    BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
+                    TupleLiteral::class -> generateTupleLiteral(type, ctx)
+                    StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
+                    TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
+                    StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
+                    DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
+                    GroupedExpression::class -> generateGroupedExpression(type, ctx)
+                    BlockExpression::class -> generateBlockExpression(type, ctx)
+                    IfElseExpression::class -> generateIfElseExpression(type, ctx)
+                    IfExpression::class -> generateIfExpression(type, ctx)
+                    LoopExpression::class -> generateLoopExpression(type, ctx)
+                    AddExpression::class -> generateAddExpression(type, ctx)
+                    SubtractExpression::class -> generateSubtractExpression(type, ctx)
+                    DivideExpression::class -> generateDivideExpression(type, ctx)
+                    MultiplyExpression::class -> generateMultiplyExpression(type, ctx)
+                    ModExpression::class -> generateModExpression(type, ctx)
+                    BitwiseAndLogicalAnd::class -> generateBitwiseAndLogicalAnd(type, ctx)
+                    BitwiseAndLogicalOr::class -> generateBitwiseAndLogicalOr(type, ctx)
+                    BitwiseAndLogicalXor::class -> generateBitwiseAndLogicalXor(type, ctx)
+                    ReferenceExpression::class -> generateReferenceExpression(type, ctx)
+                    MutableReferenceExpression::class -> generateMutableReferenceExpression(type, ctx)
+                    else -> throw Exception("Unrecognized type")
+                }
+            } catch (e: ExpressionGenerationRejectedException) {
+                currentCtx = currentCtx.addFailedNode(currentlyChosenExpression)
+                Logger.logText(
+                    "Node $currentlyChosenExpression not possible currently, trying different node",
+                    currentCtx
+                )
+            }
         }
+    }
 
     public fun generateVoidType(ctx: Context): VoidType
 
