@@ -24,6 +24,7 @@ lateinit var selectionManager: SelectionManager
 class RustSmith : CliktCommand(name = "rustsmith") {
     private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
+    private val failFast: Boolean by option("-f", "-fail-fast", help = "Switch to fail fast approach").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
@@ -43,7 +44,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()
             try {
-                val (generatedProgram, cliArguments) = generateProgram(randomSeed)
+                val (generatedProgram, cliArguments) = generateProgram(randomSeed, failFast)
                 if (generatedProgram.toRust().count { char -> char == '\n' } > 10000) continue
                 val program = reconditioner.recondition(generatedProgram)
                 if (print) {

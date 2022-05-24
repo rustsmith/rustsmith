@@ -49,11 +49,11 @@ data class Program(
     }
 }
 
-fun generateProgram(programSeed: Long): Pair<Program, List<String>> {
+fun generateProgram(programSeed: Long, failFast: Boolean): Pair<Program, List<String>> {
     val functionSymbolTable = FunctionSymbolTable()
     val globalSymbolTable = GlobalSymbolTable()
     val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
-    val astGenerator = ASTGenerator(symbolTable)
+    val astGenerator = ASTGenerator(symbolTable, failFast)
     val mainFunctionContext = Context(listOf(mapOf()), "main", listOf(), symbolTable)
     val body = astGenerator(mainFunctionContext)
     val bodyWithOutput =

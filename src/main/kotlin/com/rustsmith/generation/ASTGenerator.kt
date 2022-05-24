@@ -18,7 +18,7 @@ import kotlin.reflect.KClass
 
 const val MAX_TRIES_FOR_TYPES = 10
 
-class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator {
+class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: Boolean) : AbstractASTGenerator {
     private val dependantStatements = mutableListOf<Statement>()
 
     operator fun invoke(ctx: Context, type: Type = VoidType, depth: Int? = null): StatementBlock {
@@ -38,7 +38,12 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         return if (type == VoidType) {
             StatementBlock(statementsWithDependants, symbolTable)
         } else {
-            val newCtx = currentCtx.withLifetimeRequirement(min(ctx.lifetimeRequirement ?: symbolTable.depth.value, depth ?: symbolTable.depth.value))
+            val newCtx = currentCtx.withLifetimeRequirement(
+                min(
+                    ctx.lifetimeRequirement ?: symbolTable.depth.value,
+                    depth ?: symbolTable.depth.value
+                )
+            )
             val finalExpression = generateExpression(type, newCtx).toStatement(false)
             StatementBlock(
                 statementsWithDependants + (dependantStatements + finalExpression), symbolTable
@@ -140,6 +145,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateAssignment(ctx: Context): Assignment {
         val value = symbolTable.getRandomMutableVariable(ctx)
         return if (value == null) {
+            if (failFast) throw StatementGenerationRejectedException()
             Logger.logText("No LHSAssignment found, so create declaration", ctx)
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(
@@ -247,6 +253,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateTupleElementAccessExpression(type: Type, ctx: Context): TupleElementAccessExpression {
         var tupleWithType = symbolTable.globalSymbolTable.findTupleWithType(type)?.clone()
         if (tupleWithType == null) {
+            if (failFast) throw ExpressionGenerationRejectedException()
             tupleWithType = generateTupleTypeWithType(type, ctx).clone()
             symbolTable.globalSymbolTable.addTupleType(tupleWithType)
         }
@@ -292,6 +299,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateStructElementAccessExpression(type: Type, ctx: Context): StructElementAccessExpression {
         var structTypeWithType = symbolTable.globalSymbolTable.findStructWithType(type)
         if (structTypeWithType == null) {
+            if (failFast) throw ExpressionGenerationRejectedException()
             structTypeWithType = createNewStructTypeWithType(type, ctx)
         }
         val structExpression = generateExpression(
@@ -335,6 +343,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     override fun generateVariable(type: Type, ctx: Context): Variable {
         val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
+        if (value == null && failFast) throw ExpressionGenerationRejectedException()
         if (value == null &&
             (
                 type.memberTypes()
@@ -390,7 +399,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
     private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
         val currentSymbolTableDepth = symbolTable.depth.value
         val newScope = symbolTable.enterScope()
-        return ASTGenerator(newScope)(ctx.withSymbolTable(newScope), type, currentSymbolTableDepth)
+        return ASTGenerator(newScope, failFast)(ctx.withSymbolTable(newScope), type, currentSymbolTableDepth)
     }
 
     override fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression {
@@ -551,7 +560,7 @@ class ASTGenerator(private val symbolTable: SymbolTable) : AbstractASTGenerator 
         val functionName = IdentGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
             returnType, functionName, arguments,
-            ASTGenerator(symbolTableForFunction)(
+            ASTGenerator(symbolTableForFunction, failFast)(
                 ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
                     .setReturnExpressionType(returnType).withSymbolTable(symbolTableForFunction)
                     .withFunctionName(functionName),
