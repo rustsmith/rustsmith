@@ -22,7 +22,7 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(250)
+    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
