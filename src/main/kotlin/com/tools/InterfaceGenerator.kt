@@ -20,7 +20,7 @@ class InterfaceGenerator {
             .addModifiers(KModifier.ABSTRACT)
             .build()
         val codeBlock = CodeBlock.builder()
-            .beginControlFlow("return when(%N(%N))", randomStatementFunction, "ctx")
+            .beginControlFlow("return when(statement)")
         Statement::class.subclasses()
             .filter { it.hasAnnotation<GenNode>() || it.hasAnnotation<ExpressionGenNode>() }
             .forEach {
@@ -36,9 +36,20 @@ class InterfaceGenerator {
         codeBlock.endControlFlow()
 
         generatorInterface.addFunction(randomStatementFunction)
-
+        val generateStatementInterface = FunSpec.builder("generateStatement")
+            .addParameter(ParameterSpec.builder("ctx", Context::class).build())
+            .returns(Statement::class)
+            .addModifiers(KModifier.ABSTRACT)
+            .build()
+        generatorInterface.addFunction(generateStatementInterface)
         generatorInterface.addFunction(
-            FunSpec.builder("generateStatement")
+            FunSpec.builder("generateSpecificStatement")
+                .addParameter(
+                    ParameterSpec.builder(
+                        "statement",
+                        kClassType.parameterizedBy(WildcardTypeName.producerOf(Statement::class.asClassName()))
+                    ).build()
+                )
                 .addParameter(ParameterSpec.builder("ctx", Context::class).build())
                 .returns(Statement::class).addCode(codeBlock.build()).build()
         )
@@ -52,7 +63,7 @@ class InterfaceGenerator {
             .build()
 
         val codeBlock =
-            CodeBlock.builder().beginControlFlow("return when(%N(%N))", randomTypeFunction, "ctx")
+            CodeBlock.builder().beginControlFlow("return when(type)")
         Type::class.genSubClasses().forEach {
             val funSpec = FunSpec.builder("generate${it.simpleName}")
                 .addParameter(ParameterSpec.builder("ctx", Context::class).build())
@@ -66,9 +77,20 @@ class InterfaceGenerator {
         codeBlock.endControlFlow()
 
         generatorInterface.addFunction(randomTypeFunction)
-
+        val generateTypeAbstractFunction = FunSpec.builder("generateType")
+            .addParameter(ParameterSpec.builder("ctx", Context::class).build())
+            .returns(Type::class)
+            .addModifiers(KModifier.ABSTRACT)
+            .build()
+        generatorInterface.addFunction(generateTypeAbstractFunction)
         generatorInterface.addFunction(
-            FunSpec.builder("generateType")
+            FunSpec.builder("generateSpecificType")
+                .addParameter(
+                    ParameterSpec.builder(
+                        "type",
+                        kClassType.parameterizedBy(WildcardTypeName.producerOf(Type::class.asClassName()))
+                    ).build()
+                )
                 .addParameter(ParameterSpec.builder("ctx", Context::class).build())
                 .returns(Type::class).addCode(codeBlock.build()).build()
         )
@@ -82,7 +104,7 @@ class InterfaceGenerator {
             .addModifiers(KModifier.ABSTRACT)
             .build()
         val codeBlock = CodeBlock.builder()
-            .beginControlFlow("return when(%N(%N, %N))", randomExpressionFunction, "type", "ctx")
+            .beginControlFlow("return when(expression)")
         Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.toSet()
             .forEach {
                 val funSpec = FunSpec.builder("generate${it.simpleName}")
@@ -104,10 +126,22 @@ class InterfaceGenerator {
         codeBlock.endControlFlow()
 
         generatorInterface.addFunction(randomExpressionFunction)
-
+        val generateExpressionAbstractFunction = FunSpec.builder("generateExpression")
+            .addParameter(ParameterSpec.builder("type", Type::class.asClassName()).build())
+            .addParameter(ParameterSpec.builder("ctx", Context::class).build())
+            .returns(Expression::class)
+            .addModifiers(KModifier.ABSTRACT)
+            .build()
+        generatorInterface.addFunction(generateExpressionAbstractFunction)
         generatorInterface.addFunction(
-            FunSpec.builder("generateExpression")
+            FunSpec.builder("generateSpecificExpression")
                 .returns(Expression::class)
+                .addParameter(
+                    ParameterSpec.builder(
+                        "expression",
+                        kClassType.parameterizedBy(WildcardTypeName.producerOf(Expression::class.asClassName()))
+                    ).build()
+                )
                 .addParameter(ParameterSpec.builder("type", Type::class.asClassName()).build())
                 .addParameter(ParameterSpec.builder("ctx", Context::class).build())
                 .addCode(codeBlock.build())

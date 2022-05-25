@@ -59,6 +59,22 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         return pickRandomByWeight
     }
 
+    override fun generateStatement(ctx: Context): Statement {
+        var currentCtx = ctx
+        while (true) {
+            val selectedStatement = selectRandomStatement(currentCtx)
+            try {
+                return generateSpecificStatement(selectedStatement, ctx)
+            } catch (e: StatementGenerationRejectedException) {
+                currentCtx = currentCtx.addFailedNode(selectedStatement)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+            } catch (e: NoAvailableExpressionException) {
+                currentCtx = currentCtx.addFailedNode(selectedStatement)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+            }
+        }
+    }
+
     override fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral = VoidLiteral(symbolTable)
     override fun generateCLIArgumentAccessExpression(type: Type, ctx: Context): CLIArgumentAccessExpression {
         if (selectionManager.choiceGenerateNewCLIArgumentWeightings(ctx)
@@ -198,6 +214,22 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         val pickRandomByWeight = selectionManager.availableExpressionsWeightings(ctx, type).pickRandomByWeight()
         Logger.logText("Picking expression $pickRandomByWeight for type:${type.toRust()}", ctx)
         return pickRandomByWeight
+    }
+
+    override fun generateExpression(type: Type, ctx: Context): Expression {
+        var currentCtx = ctx
+        while (true) {
+            val currentlyChosenExpression = selectRandomExpression(type, currentCtx)
+            try {
+                return generateSpecificExpression(currentlyChosenExpression, type, ctx)
+            } catch (e: ExpressionGenerationRejectedException) {
+                currentCtx = currentCtx.addFailedNode(currentlyChosenExpression)
+                Logger.logText(
+                    "Node $currentlyChosenExpression not possible currently, trying different node",
+                    currentCtx
+                )
+            }
+        }
     }
 
     override fun generateInt8Literal(type: Type, ctx: Context): Int8Literal =
@@ -524,26 +556,26 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression {
         val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
-        if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
-            val newFunctionType = generateFunction(type.clone(), ctx)
-            return FunctionCallExpression(
-                newFunctionType.first,
-                newFunctionType.second.args.map {
-                    generateExpression(it, ctx.incrementCount(FunctionCallExpression::class))
-                },
-                symbolTable
-            )
+        val functionInformation = if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
+            generateFunction(type.clone(), ctx)
         } else {
-            return FunctionCallExpression(
-                functionData.first,
-                (functionData.second.type as FunctionType).args.map {
-                    generateExpression(
-                        it, ctx.incrementCount(FunctionCallExpression::class)
-                    )
-                },
-                symbolTable
+            functionData.first to (functionData.second.type as FunctionType)
+        }
+        val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
+        membersWithReferenceType.forEach {
+            dependantStatements.add(
+                generateDependantDeclarationOfType(
+                    it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+                )
             )
         }
+        return FunctionCallExpression(
+            functionInformation.first,
+            functionInformation.second.args.map {
+                generateExpression(it, ctx.incrementCount(FunctionCallExpression::class))
+            },
+            symbolTable
+        )
     }
 
     private fun generateFunction(returnType: Type, ctx: Context): Pair<String, FunctionType> {
@@ -602,6 +634,10 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         val pickRandomByWeight = selectionManager.availableTypesWeightings(ctx).pickRandomByWeight()
         Logger.logText("Picking type: $pickRandomByWeight", ctx)
         return pickRandomByWeight
+    }
+
+    override fun generateType(ctx: Context): Type {
+        return generateSpecificType(selectRandomType(ctx), ctx)
     }
 
     override fun generateBoolType(ctx: Context) = BoolType

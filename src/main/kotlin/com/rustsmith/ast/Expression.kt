@@ -295,25 +295,6 @@ data class GroupedExpression(
     }
 }
 
-// @ExpressionGenNode
-// data class ShiftLeftExpression(
-//    override val expr1: Expression,
-//    override val expr2: Expression,
-//    override val symbolTable: SymbolTable
-// ) : RecursiveExpression {
-//
-//    companion object : RandomizeableBinOp<ShiftLeftExpression> {
-//        override fun createRandom(symbolTable: SymbolTable): ShiftLeftExpression {
-//            val (expr1, expr2) = createExpressions(IntType::class, symbolTable)
-//            return ShiftLeftExpression(expr1, expr1, symbolTable)
-//        }
-//    }
-//
-//    override fun toRust(): String {
-//        return "${expr1.toRust()} << ${expr2.toRust()}"
-//    }
-// }
-
 /* Nodes that affect the change of ownership of variables */
 
 @SwarmNode

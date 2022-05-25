@@ -94,13 +94,13 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions.remove(FunctionCallExpression::class)
         }
 
-        if (ctx.previousIncrement == StructInstantiationExpression::class && type is ReferencingTypes) {
+        val variableRequiringExpressions = listOf(StructInstantiationExpression::class, TupleLiteral::class, FunctionCallExpression::class)
+        if (ctx.previousIncrement in variableRequiringExpressions && type is ReferencingTypes) {
             // Ensure the variables created beforehand are used
             filteredExpressions.clear()
             filteredExpressions[Variable::class] = 1.0
         }
 
-//        filteredExpressions.remove(FunctionCallExpression::class)
         ctx.failedGenerationNodes.forEach {
             filteredExpressions.remove(it)
         }
