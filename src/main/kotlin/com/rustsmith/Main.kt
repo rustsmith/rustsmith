@@ -49,12 +49,12 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 val program = reconditioner.recondition(generatedProgram)
                 if (print) {
                     println(program.toRust())
+                    print(cliArguments.joinToString(" "))
                     return
                 }
                 val path = Path(directory, "file$i")
                 path.toFile().mkdir()
                 path.resolve("file$i.rs").toFile().writeText(program.toRust())
-                path.resolve("file$i.json").toFile().writeText("{}")
                 path.resolve("file$i.txt").toFile().writeText(cliArguments.joinToString(" "))
                 IdentGenerator.reset()
                 progressBar?.step()
