@@ -3,6 +3,7 @@ package com.rustsmith.ast
 import com.rustsmith.CustomRandom
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
+import java.util.*
 
 enum class OwnershipState {
     VALID, BORROWED, MUTABLY_BORROWED, PARTIALLY_VALID, INVALID;
@@ -10,6 +11,45 @@ enum class OwnershipState {
     fun borrowable() = this == VALID || this == BORROWED
     fun movable() = this == VALID
     fun assignable() = this == VALID || this == PARTIALLY_VALID
+
+    fun overridingState() = this in listOf(INVALID)
+}
+
+class StackedOwnershipState(ownershipState: OwnershipState, depth: Int) {
+    private val internalStack: Stack<Pair<Int, OwnershipState>> = Stack()
+
+    init {
+        internalStack.push(depth to ownershipState)
+    }
+
+    fun getState(): OwnershipState {
+        return get().second
+    }
+
+    fun get(): Pair<Int, OwnershipState> {
+        return internalStack.peek()
+    }
+
+    fun set(depth: Int, ownershipState: OwnershipState) {
+        if (ownershipState.overridingState()) {
+            overrideStates(ownershipState)
+        } else {
+            if (internalStack.peek().first == depth) {
+                internalStack.pop()
+            }
+            internalStack.push(depth to ownershipState)
+        }
+    }
+
+    fun exitScope(depth: Int) {
+        if (internalStack.peek().first == depth) {
+            internalStack.pop()
+        }
+    }
+
+    private fun overrideStates(ownershipState: OwnershipState) {
+        internalStack.replaceAll { it.first to ownershipState }
+    }
 }
 
 data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int)

@@ -12,6 +12,9 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven {
+        setUrl("https://jcenter.bintray.com")
+    }
 }
 
 tasks.withType<KotlinCompile> {
@@ -26,6 +29,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2")
     implementation("com.squareup:kotlinpoet:1.11.0")
     implementation("me.tongfei:progressbar:0.9.3")
+    implementation("com.andreapivetta.kolor:kolor:1.0.0")
 }
 
 tasks.jar {

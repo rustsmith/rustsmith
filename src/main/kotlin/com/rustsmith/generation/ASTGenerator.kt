@@ -1,6 +1,7 @@
 package com.rustsmith.generation
 
 import AbstractASTGenerator
+import com.andreapivetta.kolor.Color
 import com.rustsmith.CustomRandom
 import com.rustsmith.ast.*
 import com.rustsmith.exceptions.ExpressionGenerationRejectedException
@@ -55,7 +56,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun selectRandomStatement(ctx: Context): KClass<out Statement> {
         val pickRandomByWeight = selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
-        Logger.logText("Picking statement: $pickRandomByWeight", ctx)
+        Logger.logText("Picking statement: $pickRandomByWeight", ctx, Color.MAGENTA)
         return pickRandomByWeight
     }
 
@@ -67,10 +68,10 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 return generateSpecificStatement(selectedStatement, ctx)
             } catch (e: StatementGenerationRejectedException) {
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
-                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
             } catch (e: NoAvailableExpressionException) {
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
-                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx)
+                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
             }
         }
     }
@@ -110,11 +111,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                     )
                 } catch (e: NoAvailableExpressionException) {
                     currentCtx = currentCtx.addFailedNode(type::class)
-                    Logger.logText("Expression Statement generation failed for type $type", currentCtx)
+                    Logger.logText("Expression Statement generation failed for type $type", currentCtx, Color.LIGHT_RED)
                 }
             } catch (e: NoAvailableTypeException) {
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
-                Logger.logText("Expression Statement generation failed as no types available", currentCtx)
+                Logger.logText("Expression Statement generation failed as no types available", currentCtx, Color.LIGHT_RED)
                 throw StatementGenerationRejectedException()
             }
             count++
@@ -133,11 +134,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                     return generateDependantDeclarationOfType(declarationType, ctx = ctx)
                 } catch (e: NoAvailableExpressionException) {
                     currentCtx = currentCtx.addFailedNode(declarationType::class)
-                    Logger.logText("Expression Statement generation failed for type $declarationType", currentCtx)
+                    Logger.logText("Expression Statement generation failed for type $declarationType", currentCtx, Color.LIGHT_RED)
                 }
             } catch (e: NoAvailableTypeException) {
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
-                Logger.logText("Expression Statement generation failed as no types available", currentCtx)
+                Logger.logText("Expression Statement generation failed as no types available", currentCtx, Color.LIGHT_RED)
                 throw StatementGenerationRejectedException()
             }
             count++
@@ -162,7 +163,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         val value = symbolTable.getRandomMutableVariable(ctx)
         return if (value == null) {
             if (failFast) throw StatementGenerationRejectedException()
-            Logger.logText("No LHSAssignment found, so create declaration", ctx)
+            Logger.logText("No LHSAssignment found, so create declaration", ctx, Color.LIGHT_BLUE)
             // No variables found, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(
                 generateType(ctx.incrementCount(Assignment::class)),
@@ -212,7 +213,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression> {
         val pickRandomByWeight = selectionManager.availableExpressionsWeightings(ctx, type).pickRandomByWeight()
-        Logger.logText("Picking expression $pickRandomByWeight for type:${type.toRust()}", ctx)
+        Logger.logText("Picking expression $pickRandomByWeight for type:${type.toRust()}", ctx, Color.GREEN)
         return pickRandomByWeight
     }
 
@@ -226,7 +227,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 currentCtx = currentCtx.addFailedNode(currentlyChosenExpression)
                 Logger.logText(
                     "Node $currentlyChosenExpression not possible currently, trying different node",
-                    currentCtx
+                    currentCtx, Color.LIGHT_RED
                 )
             }
         }
@@ -387,7 +388,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         }
 
         val variableNode = if (value == null) {
-            Logger.logText("No Variable found for ${type.toRust()}, so create declaration", ctx)
+            Logger.logText("No Variable found for ${type.toRust()}, so create declaration", ctx, Color.CYAN)
             // No variables found for given type, so a declaration is created and that statement is added to the list for chaining later
             val declaration = generateDependantDeclarationOfType(
                 type, mutableRequired, ctx = ctx.forDependantDeclaration().incrementCount(Variable::class)
@@ -632,7 +633,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun selectRandomType(ctx: Context): KClass<out Type> {
         val pickRandomByWeight = selectionManager.availableTypesWeightings(ctx).pickRandomByWeight()
-        Logger.logText("Picking type: $pickRandomByWeight", ctx)
+        Logger.logText("Picking type: $pickRandomByWeight", ctx, Color.GREEN)
         return pickRandomByWeight
     }
 
