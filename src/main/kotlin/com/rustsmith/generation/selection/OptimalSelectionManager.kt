@@ -46,7 +46,7 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
             .count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
-            1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + currentRecursiveExpressions)
+            1.0 / (ctx.getDepth(RecursiveExpression::class) * 2 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

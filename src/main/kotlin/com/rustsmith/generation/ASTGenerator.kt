@@ -31,9 +31,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             statements.add(statement)
             dependantStatements.clear()
             currentCtx = currentCtx.incrementStatementCount(statement)
-            if (statement::class in BlockEndingStatement::class.subclasses()) {
-                break
-            }
+            if (statement::class in BlockEndingStatement::class.subclasses()) break
         }
         val statementsWithDependants = dependantStatements + statements
         return if (type == VoidType) {
@@ -46,9 +44,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 )
             )
             val finalExpression = generateExpression(type, newCtx).toStatement(false)
-            StatementBlock(
-                statementsWithDependants + (dependantStatements + finalExpression), symbolTable
-            )
+            StatementBlock(statementsWithDependants + (dependantStatements + finalExpression), symbolTable)
         }
     }
 
@@ -61,15 +57,18 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateStatement(ctx: Context): Statement {
+        val symbolTableSnapshot = symbolTable.snapshot()
         var currentCtx = ctx
         while (true) {
             val selectedStatement = selectRandomStatement(currentCtx)
             try {
                 return generateSpecificStatement(selectedStatement, ctx)
             } catch (e: StatementGenerationRejectedException) {
+                symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
                 Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
             } catch (e: NoAvailableExpressionException) {
+                symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
                 Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
             }
@@ -96,6 +95,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateExpressionStatement(ctx: Context): ExpressionStatement {
+        val symbolTableSnapshot = symbolTable.snapshot()
         var currentCtx = ctx
         var count = 0
         while (count < MAX_TRIES_FOR_TYPES) {
@@ -110,21 +110,25 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                         true, symbolTable
                     )
                 } catch (e: NoAvailableExpressionException) {
+                    symbolTable.mergeSnapshot(symbolTableSnapshot)
                     currentCtx = currentCtx.addFailedNode(type::class)
                     Logger.logText("Expression Statement generation failed for type $type", currentCtx, Color.LIGHT_RED)
                 }
             } catch (e: NoAvailableTypeException) {
+                symbolTable.mergeSnapshot(symbolTableSnapshot)
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
                 Logger.logText("Expression Statement generation failed as no types available", currentCtx, Color.LIGHT_RED)
                 throw StatementGenerationRejectedException()
             }
             count++
         }
+        symbolTable.mergeSnapshot(symbolTableSnapshot)
         // MAX_TRIES exceeded, give up on making Expression Statement
         throw StatementGenerationRejectedException()
     }
 
     override fun generateDeclaration(ctx: Context): Declaration {
+        val symbolTableSnapshot = symbolTable.snapshot()
         var currentCtx = ctx
         var count = 0
         while (count < MAX_TRIES_FOR_TYPES) {
@@ -133,16 +137,19 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 try {
                     return generateDependantDeclarationOfType(declarationType, ctx = ctx)
                 } catch (e: NoAvailableExpressionException) {
+                    symbolTable.mergeSnapshot(symbolTableSnapshot)
                     currentCtx = currentCtx.addFailedNode(declarationType::class)
-                    Logger.logText("Expression Statement generation failed for type $declarationType", currentCtx, Color.LIGHT_RED)
+                    Logger.logText("Declaration generation failed for type $declarationType", currentCtx, Color.LIGHT_RED)
                 }
             } catch (e: NoAvailableTypeException) {
+                symbolTable.mergeSnapshot(symbolTableSnapshot)
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
-                Logger.logText("Expression Statement generation failed as no types available", currentCtx, Color.LIGHT_RED)
+                Logger.logText("Declaration generation failed as no types available", currentCtx, Color.LIGHT_RED)
                 throw StatementGenerationRejectedException()
             }
             count++
         }
+        symbolTable.mergeSnapshot(symbolTableSnapshot)
         // MAX_TRIES exceeded, give up on making Expression Statement
         throw StatementGenerationRejectedException()
     }
@@ -218,12 +225,14 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateExpression(type: Type, ctx: Context): Expression {
+        val symbolTableSnapshot = symbolTable.snapshot()
         var currentCtx = ctx
         while (true) {
             val currentlyChosenExpression = selectRandomExpression(type, currentCtx)
             try {
                 return generateSpecificExpression(currentlyChosenExpression, type, ctx)
             } catch (e: ExpressionGenerationRejectedException) {
+                symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(currentlyChosenExpression)
                 Logger.logText(
                     "Node $currentlyChosenExpression not possible currently, trying different node",
@@ -403,19 +412,19 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         if (type.getOwnership() == OwnershipModel.MOVE) {
             if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
                 /* A partial move, so set the ownership state to partially valid */
-                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.PARTIALLY_VALID)
+                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.PARTIALLY_VALID, ctx.lifetimeRequirement)
             } else {
                 /* Not a partial move, so set the ownership state to completely invalid */
-                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.INVALID)
+                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.INVALID, ctx.lifetimeRequirement)
             }
         }
 
         if (ctx.getDepthLast(ReferenceExpression::class) > 0) {
-            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.BORROWED)
+            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.BORROWED, ctx.lifetimeRequirement)
         }
 
         if (ctx.getDepthLast(MutableReferenceExpression::class) > 0) {
-            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.MUTABLY_BORROWED)
+            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.MUTABLY_BORROWED, ctx.lifetimeRequirement)
         }
         return variableNode
     }

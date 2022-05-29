@@ -100,7 +100,7 @@ data class Context(
     fun forNewStatement(): Context {
         val stateCopy = nodeDepthState.toMutableList().map { it.toMutableMap().withDefault { 0 } }.toMutableList()
         stateCopy.add(mutableMapOf())
-        return this.copy(nodeDepthState = stateCopy, requiredType = null)
+        return this.copy(nodeDepthState = stateCopy, requiredType = null, lifetimeRequirement = null)
     }
 
     fun forDependantDeclaration(): Context {

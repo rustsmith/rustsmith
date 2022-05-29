@@ -3,7 +3,6 @@ package com.rustsmith.ast
 import com.rustsmith.CustomRandom
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
-import java.util.*
 
 enum class OwnershipState {
     VALID, BORROWED, MUTABLY_BORROWED, PARTIALLY_VALID, INVALID;
@@ -12,47 +11,14 @@ enum class OwnershipState {
     fun movable() = this == VALID
     fun assignable() = this == VALID || this == PARTIALLY_VALID
 
-    fun overridingState() = this in listOf(INVALID)
+    fun overridingState() = this in listOf(INVALID, PARTIALLY_VALID)
 }
 
-class StackedOwnershipState(ownershipState: OwnershipState, depth: Int) {
-    private val internalStack: Stack<Pair<Int, OwnershipState>> = Stack()
-
-    init {
-        internalStack.push(depth to ownershipState)
-    }
-
-    fun getState(): OwnershipState {
-        return get().second
-    }
-
-    fun get(): Pair<Int, OwnershipState> {
-        return internalStack.peek()
-    }
-
-    fun set(depth: Int, ownershipState: OwnershipState) {
-        if (ownershipState.overridingState()) {
-            overrideStates(ownershipState)
-        } else {
-            if (internalStack.peek().first == depth) {
-                internalStack.pop()
-            }
-            internalStack.push(depth to ownershipState)
-        }
-    }
-
-    fun exitScope(depth: Int) {
-        if (internalStack.peek().first == depth) {
-            internalStack.pop()
-        }
-    }
-
-    private fun overrideStates(ownershipState: OwnershipState) {
-        internalStack.replaceAll { it.first to ownershipState }
+data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int) {
+    fun clone(): IdentifierData {
+        return this.copy(type = type.clone())
     }
 }
-
-data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int)
 
 class SymbolTableIterator(private val symbolTable: SymbolTable) : Iterator<SymbolTable> {
     private var current: SymbolTable? = null
@@ -131,16 +97,27 @@ class GlobalSymbolTable {
 data class SymbolTable(
     val parent: SymbolTable?,
     val functionSymbolTable: FunctionSymbolTable,
-    val globalSymbolTable: GlobalSymbolTable
+    val globalSymbolTable: GlobalSymbolTable,
+    private val symbolMap: MutableMap<String, IdentifierData> = mutableMapOf()
 ) : Iterable<SymbolTable> {
-    private val symbolMap = mutableMapOf<String, IdentifierData>()
-
     val depth = lazy {
         var count = 0
         for (table in iterator()) {
             count++
         }
         count
+    }
+
+    fun snapshot(): SymbolTable {
+        return SymbolTable(parent?.snapshot(), functionSymbolTable, globalSymbolTable, symbolMap.mapValues { it.value.clone() }.toMutableMap())
+    }
+
+    fun mergeSnapshot(symbolTable: SymbolTable) {
+        for (table in symbolTable.iterator()) {
+            table.symbolMap.forEach {
+                table.setVariableOwnershipState(it.key, it.value.validity, it.value.depth)
+            }
+        }
     }
 
     operator fun get(key: String): IdentifierData? {
@@ -152,12 +129,21 @@ data class SymbolTable(
         return functionSymbolTable[key]
     }
 
-    fun setVariableOwnershipState(key: String, ownershipState: OwnershipState) {
-        for (table in iterator()) {
-            if (table.symbolMap.containsKey(key)) {
-                table.symbolMap[key] = table.symbolMap[key]!!.copy(validity = ownershipState)
-                return
+    fun setVariableOwnershipState(key: String, ownershipState: OwnershipState, depth: Int?) {
+        if (ownershipState.overridingState()) {
+            for (table in iterator()) {
+                if (table.symbolMap.containsKey(key)) {
+                    table.symbolMap[key] = table.symbolMap[key]!!.copy(validity = ownershipState)
+                }
             }
+        } else if (depth != null) {
+            for (table in iterator()) {
+                if (table.depth.value == depth) {
+                    table.symbolMap[key] = get(key)!!.copy(validity = ownershipState)
+                }
+            }
+        } else {
+            symbolMap[key] = get(key)!!.copy(validity = ownershipState)
         }
     }
 
@@ -183,7 +169,8 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.map { it.first }.toSet()
+        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }
+            .map { it.first }.toSet()
     }
 
     private fun findMutableSubExpressions(expression: LHSAssignmentNode): List<LHSAssignmentNode> {
@@ -194,12 +181,14 @@ data class SymbolTable(
                         StructElementAccessExpression(
                             expression, type.types[index].first, this
                         ) to pair
-                    }.filter { it.second.second.assignable() }.flatMap { findMutableSubExpressions(it.first) }
+                    }.filter { it.second.second.assignable() }
+                        .flatMap { findMutableSubExpressions(it.first) }
                     is TupleType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
                         TupleElementAccessExpression(
                             expression, index, this
                         ) to pair
-                    }.filter { it.second.second.assignable() }.flatMap { findMutableSubExpressions(it.first) }
+                    }.filter { it.second.second.assignable() }
+                        .flatMap { findMutableSubExpressions(it.first) }
                 }
             }
             else -> listOf(expression)
@@ -248,16 +237,18 @@ data class SymbolTable(
             }
         } else {
             for (table in iterator()) {
-                if (ctx.lifetimeRequirement == null ||
-                    (
-                        type.memberTypes()
-                            .count { it is ReferencingTypes } == 0 && ctx.getDepth(ReferencingExpressions::class) == 0
-                        ) ||
-                    table.depth.value <= ctx.lifetimeRequirement
-                ) {
-                    table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
-                }
+                table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
             }
+        }
+        if ((
+            type.memberTypes()
+                .count { it is ReferencingTypes } > 0 || ctx.getDepth(ReferencingExpressions::class) > 0
+            ) &&
+            ctx.lifetimeRequirement != null
+        ) {
+            overallMap = overallMap.filter {
+                it.value.depth <= ctx.lifetimeRequirement
+            }.toMutableMap()
         }
 
         overallMap = overallMap.filter {
@@ -269,16 +260,22 @@ data class SymbolTable(
                 .filter { it.second.validity != OwnershipState.INVALID }
                 .filter { if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity != OwnershipState.PARTIALLY_VALID else true }
             return partiallyOrCompletelyValidVariables.filter { variable ->
-                (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.VALID } ||
+                (variable.second.type as RecursiveType).argumentsToOwnershipMap.any {
+                    it.first == requiredType && it.second == OwnershipState.VALID
+                } ||
                     if (ctx.getDepthLast(PartialMoveExpression::class) > 1)
-                        (variable.second.type as RecursiveType).argumentsToOwnershipMap.any { it == requiredType to OwnershipState.PARTIALLY_VALID }
+                        (variable.second.type as RecursiveType).argumentsToOwnershipMap.any {
+                            it.first == requiredType && it.second == OwnershipState.PARTIALLY_VALID
+                        }
                     else false
             }.filter { it.second.type == type }.filter {
-                if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity.borrowable() else it.second.validity.movable()
+                if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity
+                    .borrowable() else it.second.validity.movable()
             }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
         }
         return overallMap.toList().filter { it.second.type == type }.filter {
-            if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity.borrowable() else it.second.validity.movable()
+            if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity
+                .borrowable() else it.second.validity.movable()
         }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
     }
 

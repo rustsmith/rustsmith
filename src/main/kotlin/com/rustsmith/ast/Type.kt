@@ -8,6 +8,8 @@ import kotlin.reflect.full.hasAnnotation
 sealed interface Type : ASTNode {
     fun clone(): Type
 
+    fun snapshot(): Type = clone()
+
     fun memberTypes(): List<Type>
 
     fun lifetimeParameters(): List<UInt>
@@ -25,7 +27,11 @@ sealed interface IntType : NumberType, BitWiseCompatibleType
 data class LifetimeParameterizedType<T : Type>(val type: T) : Type {
     override fun toRust(): String {
         if (type is StructType) {
-            return type.copy(structName = "${type.structName}<${type.lifetimeParameters().toSet().joinToString(",") { "'a$it" }}>").toRust()
+            return type.copy(
+                structName = "${type.structName}<${
+                type.lifetimeParameters().toSet().joinToString(",") { "'a$it" }
+                }>"
+            ).toRust()
         }
         if (type is MutableReferenceType) {
             return "&'a${type.lifetimeParameter} mut ${type.internalType.toRust()}"
@@ -175,9 +181,11 @@ sealed interface RecursiveType : NonVoidType {
 sealed interface ContainerType : RecursiveType
 
 @GenNode
-data class TupleType(val types: List<Type>) : RecursiveType, ContainerType {
-    override val argumentsToOwnershipMap = types.map { it to OwnershipState.VALID }.toMutableList()
-
+data class TupleType(
+    val types: List<Type>,
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = types.map { it to OwnershipState.VALID }
+        .toMutableList()
+) : RecursiveType, ContainerType {
     override fun toRust(): String {
         return "(${types.joinToString(",") { it.toRust() }})"
     }
@@ -187,12 +195,26 @@ data class TupleType(val types: List<Type>) : RecursiveType, ContainerType {
     override fun lifetimeParameters(): List<UInt> = types.flatMap { it.lifetimeParameters() }
 
     override fun clone() = TupleType(types.map { it.clone() })
+
+    override fun snapshot(): Type = TupleType(types.map { it.snapshot() }, argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList())
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as TupleType
+
+        if (types != other.types) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return types.hashCode()
+    }
 }
 
 @GenNode
-data class StructType(val structName: String, val types: List<Pair<String, Type>>) : RecursiveType, ContainerType {
-    override val argumentsToOwnershipMap = types.map { it.second to OwnershipState.VALID }.toMutableList()
-
+data class StructType(val structName: String, val types: List<Pair<String, Type>>, override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = types.map { it.second to OwnershipState.VALID }.toMutableList()) : RecursiveType, ContainerType {
     override fun toRust(): String {
         return structName
     }
@@ -202,6 +224,26 @@ data class StructType(val structName: String, val types: List<Pair<String, Type>
     override fun lifetimeParameters(): List<UInt> = types.flatMap { it.second.lifetimeParameters() }
 
     override fun clone() = StructType(structName, types.map { it.first to it.second.clone() })
+
+    override fun snapshot(): StructType = StructType(structName, types.map { it.first to it.second.snapshot() }, argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as StructType
+
+        if (structName != other.structName) return false
+        if (types != other.types) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = structName.hashCode()
+        result = 31 * result + types.hashCode()
+        return result
+    }
 }
 
 sealed interface ReferencingTypes : NonVoidType {
