@@ -277,13 +277,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateTupleLiteral(type: Type, ctx: Context): TupleLiteral {
         if (type is TupleType) {
-            val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
-            membersWithReferenceType.forEach {
-                dependantStatements.add(
-                    generateDependantDeclarationOfType(
-                        it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+            if (!failFast) {
+                val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
+                membersWithReferenceType.forEach {
+                    dependantStatements.add(
+                        generateDependantDeclarationOfType(
+                            it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+                        )
                     )
-                )
+                }
             }
             return TupleLiteral(
                 type.types.map { generateExpression(it, ctx.incrementCount(TupleLiteral::class)) }, symbolTable
@@ -571,13 +573,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         } else {
             functionData.first to (functionData.second.type as FunctionType)
         }
-        val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
-        membersWithReferenceType.forEach {
-            dependantStatements.add(
-                generateDependantDeclarationOfType(
-                    it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+        if (!failFast) {
+            val membersWithReferenceType = functionInformation.second.args.flatMap { it.memberTypes().filterIsInstance<ReferencingTypes>() }
+            membersWithReferenceType.forEach {
+                dependantStatements.add(
+                    generateDependantDeclarationOfType(
+                        it, ctx = ctx.incrementCount(FunctionCallExpression::class)
+                    )
                 )
-            )
+            }
         }
         return FunctionCallExpression(
             functionInformation.first,
@@ -620,13 +624,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         if (type !is StructType) {
             throw IllegalArgumentException("Type is not a struct type")
         } else {
-            val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
-            membersWithReferenceType.forEach {
-                dependantStatements.add(
-                    generateDependantDeclarationOfType(
-                        it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+            if (!failFast) {
+                val membersWithReferenceType = type.memberTypes().filterIsInstance<ReferencingTypes>()
+                membersWithReferenceType.forEach {
+                    dependantStatements.add(
+                        generateDependantDeclarationOfType(
+                            it, ctx = ctx.incrementCount(StructInstantiationExpression::class)
+                        )
                     )
-                )
+                }
             }
             return StructInstantiationExpression(
                 structName = type.structName,

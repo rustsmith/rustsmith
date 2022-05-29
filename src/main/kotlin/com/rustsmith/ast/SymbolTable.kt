@@ -115,7 +115,7 @@ data class SymbolTable(
     fun mergeSnapshot(symbolTable: SymbolTable) {
         for (table in symbolTable.iterator()) {
             table.symbolMap.forEach {
-                table.setVariableOwnershipState(it.key, it.value.validity, it.value.depth)
+                this.setVariableOwnershipState(it.key, it.value.validity, it.value.depth)
             }
         }
     }
