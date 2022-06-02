@@ -1,13 +1,9 @@
 package com.rustsmith.ast
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.rustsmith.generation.ASTGenerator
 import com.rustsmith.generation.Context
 import com.rustsmith.recondition.Macros
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
-@JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface ASTNode {
     fun toRust(): String
 }

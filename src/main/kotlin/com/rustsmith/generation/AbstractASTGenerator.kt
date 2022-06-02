@@ -36,6 +36,7 @@ import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
 import com.rustsmith.ast.MutableReferenceExpression
 import com.rustsmith.ast.MutableReferenceType
+import com.rustsmith.ast.PrintElementStatement
 import com.rustsmith.ast.ReferenceExpression
 import com.rustsmith.ast.ReferenceType
 import com.rustsmith.ast.ReturnStatement
@@ -63,6 +64,8 @@ public interface AbstractASTGenerator {
 
     public fun generateAssignment(ctx: Context): Assignment
 
+    public fun generatePrintElementStatement(ctx: Context): PrintElementStatement
+
     public fun generateReturnStatement(ctx: Context): ReturnStatement
 
     public fun generateBreakStatement(ctx: Context): BreakStatement
@@ -76,6 +79,7 @@ public interface AbstractASTGenerator {
             ExpressionStatement::class -> generateExpressionStatement(ctx)
             Declaration::class -> generateDeclaration(ctx)
             Assignment::class -> generateAssignment(ctx)
+            PrintElementStatement::class -> generatePrintElementStatement(ctx)
             ReturnStatement::class -> generateReturnStatement(ctx)
             BreakStatement::class -> generateBreakStatement(ctx)
             else -> throw Exception("Unrecognized type")

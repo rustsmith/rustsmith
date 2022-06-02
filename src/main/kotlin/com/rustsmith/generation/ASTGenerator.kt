@@ -207,6 +207,24 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         }
     }
 
+    override fun generatePrintElementStatement(ctx: Context): PrintElementStatement {
+        val variableName = symbolTable.getOwnedVariables().randomOrNull()
+        return if (variableName == null) {
+            if (failFast) throw StatementGenerationRejectedException()
+            val declaration = generateDependantDeclarationOfType(
+                generateType(ctx.incrementCount(Assignment::class)),
+                true,
+                ctx.forDependantDeclaration().incrementCount(Assignment::class)
+            )
+            dependantStatements.add(declaration)
+            symbolTable.setVariableOwnershipState(declaration.variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            PrintElementStatement(declaration.variableName, symbolTable)
+        } else {
+            symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            PrintElementStatement(variableName, symbolTable)
+        }
+    }
+
     override fun generateReturnStatement(ctx: Context): ReturnStatement {
         val expression = generateExpression(ctx.returnExpressionType!!, ctx.incrementCount(ReturnStatement::class))
         return ReturnStatement(expression, symbolTable)

@@ -94,6 +94,7 @@ class Reconditioner {
             is BreakStatement -> node.copy()
             is Output -> node
             is FetchCLIArgs -> node
+            is PrintElementStatement -> node
         }
     }
 

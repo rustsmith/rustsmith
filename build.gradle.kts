@@ -22,11 +22,9 @@ tasks.withType<KotlinCompile> {
 }
 dependencies {
     testImplementation(kotlin("test"))
-    implementation("org.mockito:mockito-core:3.9.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.0")
-    implementation("com.github.ajalt.clikt:clikt:3.4.0")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.2")
+    implementation("com.github.ajalt.clikt:clikt:3.4.2")
     implementation("com.squareup:kotlinpoet:1.11.0")
     implementation("me.tongfei:progressbar:0.9.3")
     implementation("com.andreapivetta.kolor:kolor:1.0.0")

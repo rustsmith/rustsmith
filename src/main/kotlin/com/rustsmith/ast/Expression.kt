@@ -1,6 +1,5 @@
 package com.rustsmith.ast
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.rustsmith.recondition.ReconditionedDivision
 import com.rustsmith.recondition.ReconditionedMod
 import java.math.BigInteger
@@ -10,7 +9,6 @@ annotation class ExpressionGenNode(val compatibleType: KClass<out Type>)
 
 annotation class SwarmNode
 
-@JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface Expression : ASTNode {
     val symbolTable: SymbolTable
 }

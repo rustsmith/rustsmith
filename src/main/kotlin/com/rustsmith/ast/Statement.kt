@@ -1,10 +1,7 @@
 package com.rustsmith.ast
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
 annotation class GenNode
 
-@JsonIgnoreProperties(value = ["symbolTable"])
 sealed interface Statement : ASTNode {
     val symbolTable: SymbolTable
 }
@@ -66,6 +63,15 @@ data class BreakStatement(
 }
 
 @GenNode
+data class PrintElementStatement(
+    val variableName: String,
+    override val symbolTable: SymbolTable
+) : Statement {
+    override fun toRust(): String {
+        return "println!(\"{:?}\", (\"$variableName\", $variableName));"
+    }
+}
+
 data class StatementBlock(val statements: List<Statement>, val symbolTable: SymbolTable) : ASTNode {
 
     override fun toRust(): String {
@@ -80,11 +86,11 @@ data class FetchCLIArgs(override val symbolTable: SymbolTable) : Statement {
     }
 }
 
-data class Output(override val symbolTable: SymbolTable, val programSeed: Long) : Statement {
+data class Output(override val symbolTable: SymbolTable, val programSeed: Long?) : Statement {
 
     override fun toRust(): String {
         val hashString = mutableListOf<String>()
-        hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
+        if (programSeed != null) hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
         symbolTable.getOwnedVariables().sorted().forEach {
             hashString.add("println!(\"{:?}\", ${"\"$it\"" to it});")
         }
