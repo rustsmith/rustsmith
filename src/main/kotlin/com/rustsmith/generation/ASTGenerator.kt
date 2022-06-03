@@ -208,7 +208,9 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generatePrintElementStatement(ctx: Context): PrintElementStatement {
-        val variableName = symbolTable.getOwnedVariables().randomOrNull()
+        val variableName = symbolTable.getOwnedVariables().filter { ctx.assignmentRootNode?.map { variable -> variable.value }?.contains(it)?.not() ?: true }.randomOrNull(
+            CustomRandom
+        )
         return if (variableName == null) {
             if (failFast) throw StatementGenerationRejectedException()
             val declaration = generateDependantDeclarationOfType(

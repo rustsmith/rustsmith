@@ -48,6 +48,11 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.returnLoopType == null) {
             filteredStatements.remove(BreakStatement::class)
         }
+
+        if (ctx.getDepth(LoopExpression::class) > 0) {
+            filteredStatements.remove(PrintElementStatement::class)
+        }
+
         ctx.failedGenerationNodes.forEach {
             filteredStatements.remove(it)
         }
