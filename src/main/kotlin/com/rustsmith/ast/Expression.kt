@@ -320,7 +320,6 @@ data class StructInstantiationExpression(
     }
 }
 
-@SwarmNode
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: StatementBlock,
@@ -332,7 +331,6 @@ data class BlockExpression(
     }
 }
 
-@SwarmNode
 @ExpressionGenNode(Type::class)
 data class IfElseExpression(
     val predicate: Expression,
@@ -346,7 +344,6 @@ data class IfElseExpression(
     }
 }
 
-@SwarmNode
 @ExpressionGenNode(VoidType::class)
 data class IfExpression(
     val predicate: Expression,

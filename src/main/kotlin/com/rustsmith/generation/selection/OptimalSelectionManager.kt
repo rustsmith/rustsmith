@@ -17,7 +17,7 @@ open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expr
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 20.0 / (ctx.statementsPerScope.last().size + 1)
+        newStatementWeightings[true] = 30.0 / (ctx.statementsPerScope.last().size + 1)
         newStatementWeightings[false] = 1 - newStatementWeightings[true]!!
         return newStatementWeightings
     }

@@ -12,7 +12,7 @@ object Logger {
         if (DEBUG) {
             val spaceLeftSize: Int = ctx.nodeDepthState.sumOf { it.values.sum() }
             val logText = Kolor.foreground("${IntRange(0, spaceLeftSize).joinToString("") { "\t" }}$text", color)
-            println("[RUSTSMITH-${Date().toLocaleString()}]:$logText".lightBlue())
+            println("[RUSTSMITH: ${Date().toLocaleString()}]:$logText".lightBlue())
         }
     }
 }

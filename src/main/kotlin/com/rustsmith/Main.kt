@@ -29,8 +29,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
     override fun run() {
-        val currentConfig = getRandomConfiguration()
-        selectionManager = OptimalSelectionManager(currentConfig)
+
         if (!print) {
             File(directory).deleteRecursively()
             File(directory).mkdirs()
@@ -40,6 +39,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
         var i = 0
         while (i < count) {
+            val currentConfig = getRandomConfiguration()
+            selectionManager = OptimalSelectionManager(currentConfig)
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
             val reconditioner = Reconditioner()

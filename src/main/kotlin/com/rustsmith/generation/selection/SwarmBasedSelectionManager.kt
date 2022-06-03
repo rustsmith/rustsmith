@@ -3,6 +3,7 @@ package com.rustsmith.generation.selection
 import com.rustsmith.ast.Expression
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.Type
+import com.rustsmith.exceptions.NoAvailableExpressionException
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
@@ -14,18 +15,18 @@ open class SwarmBasedSelectionManager(private val expressionConfiguration: List<
         expressionConfiguration.forEach {
             expressionWeightings.removeWeighting(it)
         }
+
+        if (expressionWeightings.weightings.isEmpty()) {
+            throw NoAvailableExpressionException()
+        }
         return expressionWeightings
     }
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
-        val statementWeightings = super.availableStatementsWeightings(ctx)
-
-        return statementWeightings
+        return super.availableStatementsWeightings(ctx)
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
-        val typeWeightings = super.availableTypesWeightings(ctx)
-
-        return typeWeightings
+        return super.availableTypesWeightings(ctx)
     }
 }
