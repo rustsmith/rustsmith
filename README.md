@@ -65,10 +65,10 @@ Usage: rustsmith [OPTIONS]
 Options:
   -n, -count INT    No. of files to generate
   -p, -print        Print out program only
+  -f, -fail-fast    Use fail fast approach
   -s, -seed INT     Optional Seed
   --directory TEXT  Directory to save files
   -h, --help        Show this message and exit
-
 ```
 
 ## Documentation
