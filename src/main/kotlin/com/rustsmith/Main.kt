@@ -39,10 +39,10 @@ class RustSmith : CliktCommand(name = "rustsmith") {
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
         var i = 0
         while (i < count) {
-            val currentConfig = getRandomConfiguration()
-            selectionManager = OptimalSelectionManager(currentConfig)
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
+            val currentConfig = getRandomConfiguration()
+            selectionManager = OptimalSelectionManager(currentConfig)
             val reconditioner = Reconditioner()
             try {
                 val (generatedProgram, cliArguments) = generateProgram(randomSeed, failFast)
