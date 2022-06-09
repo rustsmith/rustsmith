@@ -9,7 +9,7 @@ import kotlin.reflect.full.hasAnnotation
 fun getRandomConfiguration(): List<KClass<out Expression>> {
     val expressionConfigurableNodes = Expression::class.subclasses()
         .filter { it.hasAnnotation<ExpressionGenNode>() && it.hasAnnotation<SwarmNode>() }
-    val numberNodesToTurnOff = (0..5).random()
+    val numberNodesToTurnOff = (0..5).random(CustomRandom)
     return expressionConfigurableNodes.shuffled(CustomRandom).take(numberNodesToTurnOff)
 }
 

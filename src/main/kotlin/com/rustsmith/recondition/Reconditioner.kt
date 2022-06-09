@@ -1,10 +1,22 @@
 package com.rustsmith.recondition
 
 import com.rustsmith.ast.*
+import com.rustsmith.subclasses
+import kotlin.reflect.KClass
+import kotlin.reflect.full.hasAnnotation
 
 class Reconditioner {
-
     private val reconditioningMacros = mutableSetOf<Macros>()
+    val nodeCounters: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf()
+
+    init {
+        Statement::class.subclasses().map {
+            nodeCounters[it] = 0
+        }
+        Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.map {
+            nodeCounters[it] = 0
+        }
+    }
 
     private fun reconditionBinOpExpression(node: BinOpExpression): Expression {
         val (expr1, expr2) = reconditionExpression(node.expr1) to reconditionExpression(node.expr2)
@@ -43,6 +55,7 @@ class Reconditioner {
     }
 
     private fun reconditionExpression(node: Expression): Expression {
+        nodeCounters[node::class] = nodeCounters.getValue(node::class) + 1
         return when (node) {
             is Float32Literal -> node
             is Int32Literal -> node
@@ -86,6 +99,7 @@ class Reconditioner {
     }
 
     private fun reconditionStatement(node: Statement): Statement {
+        nodeCounters[node::class] = nodeCounters.getValue(node::class) + 1
         return when (node) {
             is Assignment -> node.copy(value = reconditionExpression(node.value))
             is Declaration -> node.copy(value = reconditionExpression(node.value))
@@ -101,6 +115,8 @@ class Reconditioner {
     fun recondition(node: ASTNode): ASTNode {
         return when (node) {
             is Program -> {
+                nodeCounters[FunctionDefinition::class] = node.functions.size
+                nodeCounters[StructDefinition::class] = node.structs.size
                 val reconditionedFunctions = node.functions.map { it.copy(body = reconditionStatementBlock(it.body)) }
                 Program(
                     node.seed,

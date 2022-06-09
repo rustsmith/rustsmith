@@ -1,35 +1,63 @@
 package com.rustsmith
 
+import com.andreapivetta.kolor.Color
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import com.rustsmith.ast.generateProgram
+import com.rustsmith.ast.*
 import com.rustsmith.exceptions.NoAvailableStatementException
 import com.rustsmith.generation.IdentGenerator
-import com.rustsmith.generation.selection.OptimalSelectionManager
-import com.rustsmith.generation.selection.SelectionManager
+import com.rustsmith.generation.selection.*
+import com.rustsmith.logging.Logger
 import com.rustsmith.recondition.Reconditioner
 import me.tongfei.progressbar.ProgressBarBuilder
 import me.tongfei.progressbar.ProgressBarStyle
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.random.Random
+import kotlin.reflect.full.isSubclassOf
 
 lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int().default(1)
+    private val count: Int by option(help = "No. of files to generate", names = arrayOf("-n", "-count")).int()
+        .default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
+    private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
+        "selection-manager",
+        help = "Choose selection manager(s) for generation"
+    ).enum<SelectionManagerOptions>().multiple()
     private val failFast: Boolean by option("-f", "-fail-fast", help = "Use fail fast approach").flag(default = true)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
-    override fun run() {
+    enum class SelectionManagerOptions {
+        BASE_SELECTION,
+        SWARM_SELECTION,
+        OPTIMAL_SELECTION,
+        AGGRESSIVE_SELECTION
+    }
 
+    private fun getSelectionManager(): List<SelectionManager> {
+        return chosenSelectionManagers.toSet().ifEmpty { setOf(SelectionManagerOptions.SWARM_SELECTION) }.map {
+            when (it) {
+                SelectionManagerOptions.BASE_SELECTION -> BaseSelectionManager()
+                SelectionManagerOptions.SWARM_SELECTION -> SwarmBasedSelectionManager(getRandomConfiguration())
+                SelectionManagerOptions.OPTIMAL_SELECTION -> OptimalSelectionManager()
+                SelectionManagerOptions.AGGRESSIVE_SELECTION -> AggressiveSelectionManager(AddExpression::class)
+            }
+        }
+    }
+
+    override fun run() {
         if (!print) {
             File(directory).deleteRecursively()
             File(directory).mkdirs()
@@ -41,8 +69,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         while (i < count) {
             val randomSeed = seed ?: Random.nextLong()
             CustomRandom = Random(randomSeed)
-            val currentConfig = getRandomConfiguration()
-            selectionManager = OptimalSelectionManager(currentConfig)
+            selectionManager = getSelectionManager().random(CustomRandom)
+            Logger.logText("Chosen selection manager ${selectionManager::class}", null, Color.YELLOW)
             val reconditioner = Reconditioner()
             try {
                 val (generatedProgram, cliArguments) = generateProgram(randomSeed, failFast)
@@ -57,6 +85,14 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 path.toFile().mkdir()
                 path.resolve("file$i.rs").toFile().writeText(program.toRust())
                 path.resolve("file$i.txt").toFile().writeText(cliArguments.joinToString(" "))
+                path.resolve("file$i.json").toFile()
+                    .writeText(
+                        jacksonObjectMapper().writeValueAsString(
+                            reconditioner.nodeCounters.filter {
+                                it.key.isSubclassOf(Expression::class)
+                            }.mapKeys { it.key.simpleName }
+                        )
+                    )
                 IdentGenerator.reset()
                 progressBar?.step()
                 i++

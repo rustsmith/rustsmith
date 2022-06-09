@@ -5,10 +5,9 @@ import com.rustsmith.generation.Context
 import com.rustsmith.logging.Logger
 import kotlin.reflect.KClass
 
-open class OptimalSelectionManager(expressionConfiguration: List<KClass<out Expression>>) :
-    SwarmBasedSelectionManager(expressionConfiguration) {
+open class OptimalSelectionManager : BaseSelectionManager() {
 
-    override val config: Map<KClass<out ASTNode>, Int> = mapOf(
+    override val config: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf(
         FunctionCallExpression::class to 5,
         StructType::class to 5,
         TupleType::class to 5,

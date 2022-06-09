@@ -18,13 +18,14 @@ import kotlin.reflect.full.isSubclassOf
 open class BaseSelectionManager : SelectionManager {
 
     // Config describes what limit each specific ASTNode should have in terms of depth
-    override val config: Map<KClass<out ASTNode>, Int> = mapOf(
+    override val config: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf(
         FunctionCallExpression::class to 3,
-        TupleType::class to 3
+        TupleType::class to 3,
+        RecursiveExpression::class to 3
     ).withDefault { Int.MAX_VALUE }
 
     /* Block size for statement blocks */
-    override fun choiceGenerateNewStatementWeightings(ctx: Context) = mapOf(true to 0.7, false to 0.3)
+    override fun choiceGenerateNewStatementWeightings(ctx: Context) = mapOf(true to 0.9, false to 0.1)
 
     /* Both false as default. Eg: never create a new struct or function if a struct already exists or a function
        with the return type required already exists
@@ -122,6 +123,11 @@ open class BaseSelectionManager : SelectionManager {
             allTypes.remove(ReferenceType::class)
             allTypes.remove(MutableReferenceType::class)
         }
+
+        if (ctx.previousIncrement != ExpressionStatement::class) {
+            allTypes.remove(VoidType::class)
+        }
+
         ctx.failedGenerationNodes.forEach {
             allTypes.remove(it)
         }

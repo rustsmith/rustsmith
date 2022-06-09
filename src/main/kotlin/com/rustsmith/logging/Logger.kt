@@ -8,9 +8,9 @@ const val DEBUG = false
 
 object Logger {
 
-    fun logText(text: String, ctx: Context, color: Color = Color.YELLOW) {
+    fun logText(text: String, ctx: Context?, color: Color = Color.YELLOW) {
         if (DEBUG) {
-            val spaceLeftSize: Int = ctx.nodeDepthState.sumOf { it.values.sum() }
+            val spaceLeftSize: Int = ctx?.nodeDepthState?.sumOf { it.values.sum() } ?: 0
             val logText = Kolor.foreground("${IntRange(0, spaceLeftSize).joinToString("") { "\t" }}$text", color)
             println("[RUSTSMITH: ${Date().toLocaleString()}]:$logText".lightBlue())
         }

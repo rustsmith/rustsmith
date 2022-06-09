@@ -83,13 +83,13 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             symbolTable.globalSymbolTable.commandLineTypes.add(type as CLIInputType)
             return CLIArgumentAccessExpression(
                 symbolTable.globalSymbolTable.commandLineTypes.mapIndexed { i, t -> i to t }
-                    .filter { it.second == type }.random().first + 1,
+                    .filter { it.second == type }.random(CustomRandom).first + 1,
                 type, symbolTable
             )
         }
         return CLIArgumentAccessExpression(
             symbolTable.globalSymbolTable.commandLineTypes.mapIndexed { i, t -> i to t }
-                .filter { it.second == type }.random().first + 1,
+                .filter { it.second == type }.random(CustomRandom).first + 1,
             type, symbolTable
         )
     }

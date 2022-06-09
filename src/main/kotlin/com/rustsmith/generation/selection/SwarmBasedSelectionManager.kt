@@ -7,7 +7,7 @@ import com.rustsmith.exceptions.NoAvailableExpressionException
 import com.rustsmith.generation.Context
 import kotlin.reflect.KClass
 
-open class SwarmBasedSelectionManager(private val expressionConfiguration: List<KClass<out Expression>>) : BaseSelectionManager() {
+open class SwarmBasedSelectionManager(private val expressionConfiguration: List<KClass<out Expression>>) : OptimalSelectionManager() {
 
     override fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression> {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
