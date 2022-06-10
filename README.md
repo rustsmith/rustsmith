@@ -1,6 +1,7 @@
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Release CI](https://github.com/rustsmith/rustsmith/actions/workflows/release.yml/badge.svg)](https://github.com/rustsmith/rustsmith/actions/workflows/release.yml)
 ![Version](https://img.shields.io/github/v/release/rustsmith/rustsmith?label=version)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Frustsmith%2Frustsmith.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Frustsmith%2Frustsmith?ref=badge_shield)
 
 ## RustSmith: A randomized program generator for Rust
 
@@ -84,3 +85,7 @@ our [code of conduct][code-of-conduct].
 [contributing]: https://github.com/rustsmith/rustsmith/blob/master/CONTRIBUTING.md
 
 [code-of-conduct]: https://github.com/rustsmith/rustsmith/blob/master/CODE_OF_CONDUCT.md
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Frustsmith%2Frustsmith.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Frustsmith%2Frustsmith?ref=badge_large)
