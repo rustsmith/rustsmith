@@ -64,6 +64,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val statementWeightings = super.availableStatementsWeightings(ctx)
+        statementWeightings.updateWeighting(Declaration::class, 10.0 / (ctx.numberOfDeclarationsInScope.value + 1))
         statementWeightings.updateWeighting(ExpressionStatement::class, 2.0)
         if (ctx.statementsPerScope.last().count { it is ReturnStatement } > 0) {
             statementWeightings.updateWeighting(ReturnStatement::class, 0.0)
@@ -82,8 +83,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val typeWeightings = super.availableTypesWeightings(ctx)
-        typeWeightings.updateWeighting(StructType::class, 1.0 / (ctx.getDepth(StructType::class) + 1))
-        typeWeightings.updateWeighting(TupleType::class, 1.0 / (ctx.getDepth(TupleType::class) + 1))
+        typeWeightings.updateWeighting(ContainerType::class, 2.0 / (ctx.getDepth(ContainerType::class) + 1))
         typeWeightings.updateWeighting(ReferenceType::class, 1.0 / (ctx.getDepth(ReferenceType::class) + 1))
         if (ctx.previousIncrement == ExpressionStatement::class) {
             typeWeightings.updateWeighting(VoidType::class, 2.0)

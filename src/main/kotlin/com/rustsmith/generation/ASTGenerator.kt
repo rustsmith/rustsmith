@@ -516,6 +516,13 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         )
     }
 
+    override fun generateArrayLiteral(type: Type, ctx: Context): ArrayLiteral {
+        if (type is ArrayType) {
+            return ArrayLiteral((0 until type.size).map { generateExpression(type.type, ctx.incrementCount(ArrayLiteral::class)) }, symbolTable)
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
     override fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression {
         if (type is ReferenceType) {
             val internalExpression =
@@ -605,6 +612,74 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         return BitwiseAndLogicalXor(
             generateExpression(type, ctx.incrementCount(BitwiseAndLogicalXor::class)),
             generateExpression(type, ctx.incrementCount(BitwiseAndLogicalXor::class)),
+            symbolTable
+        )
+    }
+
+    private fun generateEqType(ctx: Context): EqType {
+        do {
+            val type = generateType(ctx)
+            if (type is EqType) return type
+        } while (true)
+    }
+
+    private fun generateComparableType(ctx: Context): ComparableType {
+        do {
+            val type = generateType(ctx)
+            if (type is ComparableType) return type
+        } while (true)
+    }
+
+    override fun generateEqExpression(type: Type, ctx: Context): EqExpression {
+        val eqType = generateEqType(ctx)
+        return EqExpression(
+            generateExpression(eqType, ctx.incrementCount(EqExpression::class)),
+            generateExpression(eqType, ctx.incrementCount(EqExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateNEqExpression(type: Type, ctx: Context): NEqExpression {
+        val eqType = generateEqType(ctx)
+        return NEqExpression(
+            generateExpression(eqType, ctx.incrementCount(NEqExpression::class)),
+            generateExpression(eqType, ctx.incrementCount(NEqExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateGTExpression(type: Type, ctx: Context): GTExpression {
+        val cmpType = generateComparableType(ctx)
+        return GTExpression(
+            generateExpression(cmpType, ctx.incrementCount(GTExpression::class)),
+            generateExpression(cmpType, ctx.incrementCount(GTExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateGTEExpression(type: Type, ctx: Context): GTEExpression {
+        val cmpType = generateComparableType(ctx)
+        return GTEExpression(
+            generateExpression(cmpType, ctx.incrementCount(GTEExpression::class)),
+            generateExpression(cmpType, ctx.incrementCount(GTEExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateLTExpression(type: Type, ctx: Context): LTExpression {
+        val cmpType = generateComparableType(ctx)
+        return LTExpression(
+            generateExpression(cmpType, ctx.incrementCount(LTExpression::class)),
+            generateExpression(cmpType, ctx.incrementCount(LTExpression::class)),
+            symbolTable
+        )
+    }
+
+    override fun generateLTEExpression(type: Type, ctx: Context): LTEExpression {
+        val cmpType = generateComparableType(ctx)
+        return LTEExpression(
+            generateExpression(cmpType, ctx.incrementCount(LTEExpression::class)),
+            generateExpression(cmpType, ctx.incrementCount(LTEExpression::class)),
             symbolTable
         )
     }
@@ -764,6 +839,12 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         }
     }
 
+    override fun generateArrayType(ctx: Context): ArrayType {
+        val internalType = generateType(ctx.incrementCount(ArrayType::class))
+        val arraySize = CustomRandom.nextInt(1, 10)
+        return ArrayType(internalType, arraySize)
+    }
+
     private fun wrapWithLifetimeParameters(type: Type): Type {
         return when (type) {
             is RecursiveType -> when (type) {
@@ -775,6 +856,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                     )
                 )
                 is TupleType -> type.copy(types = type.types.map { wrapWithLifetimeParameters(it) })
+                is ArrayType -> type.copy(type = wrapWithLifetimeParameters(type.type))
             }
             is ReferencingTypes -> {
                 when (type) {

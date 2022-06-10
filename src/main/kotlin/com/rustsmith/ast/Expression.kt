@@ -326,6 +326,84 @@ data class BitwiseAndLogicalXor(
 }
 
 @SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class EqExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} == ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class NEqExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} != ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class GTExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} > ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class GTEExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} >= ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class LTExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} < ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(BoolType::class)
+data class LTEExpression(
+    override val expr1: Expression,
+    override val expr2: Expression,
+    override val symbolTable: SymbolTable
+) : BinOpExpression {
+
+    override fun toRust(): String {
+        return "(${expr1.toRust()} <= ${expr2.toRust()})"
+    }
+}
+
+@SwarmNode
 @ExpressionGenNode(NonVoidType::class)
 data class GroupedExpression(
     val expression: Expression,
@@ -450,6 +528,16 @@ data class DereferenceExpression(
     }
 }
 
+@ExpressionGenNode(ArrayType::class)
+data class ArrayLiteral(
+    val expressions: List<Expression>,
+    override val symbolTable: SymbolTable
+) : LiteralExpression {
+    override fun toRust(): String {
+        return "[${expressions.joinToString(",") { it.toRust() }}]"
+    }
+}
+
 sealed interface ReconditionedExpression : Expression
 
 data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) :
@@ -522,7 +610,6 @@ fun Expression.toType(): Type {
         is WrappingMul -> this.multiplyExpression.toType()
         is WrappingSubtract -> this.subtractExpression.toType()
         is ReconditionedDivisionExpression -> this.divideExpression.toType()
-        is BinOpExpression -> this.expr1.toType()
         is GroupedExpression -> this.expression.toType()
         is BlockExpression -> this.type!!
         is ReconditionedModExpression -> this.modExpression.toType()
@@ -542,6 +629,21 @@ fun Expression.toType(): Type {
             this.symbolTable.depth.value.toUInt()
         )
         is DereferenceExpression -> (this.expression.toType() as ReferencingTypes).internalType
+        is AddExpression -> this.expr1.toType()
+        is BitwiseAndLogicalAnd -> this.expr1.toType()
+        is BitwiseAndLogicalOr -> this.expr1.toType()
+        is BitwiseAndLogicalXor -> this.expr1.toType()
+        is DivideExpression -> this.expr1.toType()
+        is ModExpression -> this.expr1.toType()
+        is MultiplyExpression -> this.expr1.toType()
+        is SubtractExpression -> this.expr1.toType()
+        is EqExpression -> BoolType
+        is NEqExpression -> BoolType
+        is GTEExpression -> BoolType
+        is GTExpression -> BoolType
+        is LTEExpression -> BoolType
+        is LTExpression -> BoolType
+        is ArrayLiteral -> ArrayType(this.expressions.first().toType(), this.expressions.size)
     }
 }
 

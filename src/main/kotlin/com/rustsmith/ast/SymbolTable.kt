@@ -189,6 +189,8 @@ data class SymbolTable(
                         ) to pair
                     }.filter { it.second.second.assignable() }
                         .flatMap { findMutableSubExpressions(it.first) }
+                    // TODO: Add array access
+                    is ArrayType -> listOf(expression)
                 }
             }
             else -> listOf(expression)

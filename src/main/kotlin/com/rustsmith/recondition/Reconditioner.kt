@@ -52,6 +52,12 @@ class Reconditioner {
             is BitwiseAndLogicalAnd -> node.copy(expr1 = expr1, expr2 = expr2)
             is BitwiseAndLogicalOr -> node.copy(expr1 = expr1, expr2 = expr2)
             is BitwiseAndLogicalXor -> node.copy(expr1 = expr1, expr2 = expr2)
+            is EqExpression -> node.copy(expr1 = expr1, expr2 = expr2)
+            is NEqExpression -> node.copy(expr1 = expr1, expr2 = expr2)
+            is GTEExpression -> node.copy(expr1 = expr1, expr2 = expr2)
+            is GTExpression -> node.copy(expr1 = expr1, expr2 = expr2)
+            is LTEExpression -> node.copy(expr1 = expr1, expr2 = expr2)
+            is LTExpression -> node.copy(expr1 = expr1, expr2 = expr2)
         }
     }
 
@@ -102,6 +108,7 @@ class Reconditioner {
             is UInt32Literal -> node
             is UInt64Literal -> node
             is UInt8Literal -> node
+            is ArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
         }
     }
 

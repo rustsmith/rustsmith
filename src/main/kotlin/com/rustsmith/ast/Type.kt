@@ -20,7 +20,11 @@ sealed interface NonVoidType : Type
 sealed interface CLIInputType : NonVoidType
 sealed interface BitWiseCompatibleType : NonVoidType
 
-sealed interface NumberType : NonVoidType, CLIInputType
+sealed interface ComparableType : Type
+
+sealed interface EqType : Type
+
+sealed interface NumberType : NonVoidType, CLIInputType, EqType, ComparableType
 
 sealed interface IntType : NumberType, BitWiseCompatibleType
 
@@ -216,7 +220,7 @@ object F64Type : FloatType {
 }
 
 @GenNode
-object StringType : CLIInputType, NonVoidType {
+object StringType : CLIInputType, NonVoidType, EqType {
     override fun toRust(): String {
         return "String"
     }
@@ -229,7 +233,7 @@ object StringType : CLIInputType, NonVoidType {
 }
 
 @GenNode
-object BoolType : CLIInputType, BitWiseCompatibleType {
+object BoolType : CLIInputType, BitWiseCompatibleType, EqType {
     override fun toRust(): String {
         return "bool"
     }
@@ -263,7 +267,11 @@ data class TupleType(
 
     override fun clone() = TupleType(types.map { it.clone() })
 
-    override fun snapshot(): Type = TupleType(types.map { it.snapshot() }, argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList())
+    override fun snapshot(): Type = TupleType(
+        types.map { it.snapshot() },
+        argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList()
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -281,7 +289,12 @@ data class TupleType(
 }
 
 @GenNode
-data class StructType(val structName: String, val types: List<Pair<String, Type>>, override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = types.map { it.second to OwnershipState.VALID }.toMutableList()) : RecursiveType, ContainerType {
+data class StructType(
+    val structName: String,
+    val types: List<Pair<String, Type>>,
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = types.map { it.second to OwnershipState.VALID }
+        .toMutableList()
+) : RecursiveType, ContainerType {
     override fun toRust(): String {
         return structName
     }
@@ -292,7 +305,11 @@ data class StructType(val structName: String, val types: List<Pair<String, Type>
 
     override fun clone() = StructType(structName, types.map { it.first to it.second.clone() })
 
-    override fun snapshot(): StructType = StructType(structName, types.map { it.first to it.second.snapshot() }, argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList())
+    override fun snapshot(): StructType = StructType(
+        structName,
+        types.map { it.first to it.second.snapshot() },
+        argumentsToOwnershipMap.map { it.first.snapshot() to it.second }.toMutableList()
+    )
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -311,6 +328,20 @@ data class StructType(val structName: String, val types: List<Pair<String, Type>
         result = 31 * result + types.hashCode()
         return result
     }
+}
+
+@GenNode
+data class ArrayType(val type: Type, val size: Int) : RecursiveType, ContainerType {
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
+    override fun toRust(): String {
+        return "[${type.toRust()}; $size]"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(type) + this
+
+    override fun lifetimeParameters(): List<UInt> = type.lifetimeParameters()
+
+    override fun clone() = ArrayType(type.clone(), size)
 }
 
 sealed interface ReferencingTypes : NonVoidType {
@@ -460,6 +491,7 @@ fun Type.getOwnership(): OwnershipModel {
         is ReferenceType -> OwnershipModel.COPY
         is MutableReferenceType -> OwnershipModel.MOVE
         is LifetimeParameterizedType<*> -> this.type.getOwnership()
+        is ArrayType -> this.type.getOwnership()
     }
 }
 
