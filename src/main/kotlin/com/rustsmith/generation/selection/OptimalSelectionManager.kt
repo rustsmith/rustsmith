@@ -4,6 +4,7 @@ import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
 import com.rustsmith.logging.Logger
 import kotlin.reflect.KClass
+import kotlin.reflect.full.isSubclassOf
 
 open class OptimalSelectionManager : BaseSelectionManager() {
 
@@ -53,7 +54,9 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         )
 
         if (ctx.getDepth(Variable::class) > 0) {
-            expressionWeightings.updateWeighting(RecursiveExpression::class, 0.0)
+            if (expressionWeightings.weightings.filter { !it.key.isSubclassOf(RecursiveExpression::class) }.values.sum() != 0.0) {
+                expressionWeightings.updateWeighting(RecursiveExpression::class, 0.0)
+            }
         }
         Logger.logText("Weightings for expressions ${expressionWeightings.weightings}", ctx)
         return expressionWeightings

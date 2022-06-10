@@ -22,7 +22,6 @@ import me.tongfei.progressbar.ProgressBarStyle
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.random.Random
-import kotlin.reflect.full.isSubclassOf
 
 lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
@@ -81,6 +80,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                     print(cliArguments.joinToString(" "))
                     return
                 }
+                val stats: MutableMap<String, Any> = reconditioner.nodeCounters.mapKeys { it.key.simpleName!! }.toMutableMap()
+                stats["averageVarUse"] = reconditioner.variableUsageCounter.map { it.value }.sum().toDouble() / reconditioner.variableUsageCounter.size.toDouble()
                 val path = Path(directory, "file$i")
                 path.toFile().mkdir()
                 path.resolve("file$i.rs").toFile().writeText(program.toRust())
@@ -88,9 +89,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 path.resolve("file$i.json").toFile()
                     .writeText(
                         jacksonObjectMapper().writeValueAsString(
-                            reconditioner.nodeCounters.filter {
-                                it.key.isSubclassOf(Expression::class)
-                            }.mapKeys { it.key.simpleName }
+                            stats
                         )
                     )
                 IdentGenerator.reset()

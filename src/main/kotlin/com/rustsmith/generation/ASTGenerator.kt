@@ -374,7 +374,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             structTypeWithType.types.mapIndexed { index, triple -> triple to index }.filter { it.first.second == type }
                 .filter { structType.argumentsToOwnershipMap[it.second].second != OwnershipState.INVALID }
                 .map { it.first.first }
-        val chosenElement = typeIndices.random(CustomRandom)
+        val chosenElement = typeIndices.randomOrNull(CustomRandom) ?: throw ExpressionGenerationRejectedException()
         if (type.getOwnership() == OwnershipModel.MOVE) {
             val newOwnershipState = if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
                 /* A partial move, so set the ownership state to partially valid */

@@ -8,6 +8,7 @@ import kotlin.reflect.full.hasAnnotation
 class Reconditioner {
     private val reconditioningMacros = mutableSetOf<Macros>()
     val nodeCounters: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf()
+    val variableUsageCounter: MutableMap<String, Int> = mutableMapOf()
 
     init {
         Statement::class.subclasses().map {
@@ -60,7 +61,12 @@ class Reconditioner {
             is Float32Literal -> node
             is Int32Literal -> node
             is StringLiteral -> node
-            is Variable -> node
+            is Variable -> {
+                if (node.toType().getOwnership() == OwnershipModel.COPY) {
+                    variableUsageCounter[node.value] = (variableUsageCounter[node.value] ?: 0) + 1
+                }
+                node
+            }
             is BooleanLiteral -> node
             is Float64Literal -> node
             is Int128Literal -> node

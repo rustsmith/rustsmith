@@ -9,7 +9,7 @@ import kotlin.reflect.full.isSubclassOf
 
 open class AggressiveSelectionManager(
     private val aggressiveNode: KClass<out ASTNode>,
-    private val weighting: Double = 20.0
+    private val weighting: Double = 5.0
 ) : OptimalSelectionManager() {
 
     private val randomType: KClass<out Type>? = if (aggressiveNode.isSubclassOf(Expression::class)) {

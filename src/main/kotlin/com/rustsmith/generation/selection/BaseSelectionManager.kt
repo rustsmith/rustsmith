@@ -21,7 +21,8 @@ open class BaseSelectionManager : SelectionManager {
     override val config: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf(
         FunctionCallExpression::class to 3,
         TupleType::class to 3,
-        RecursiveExpression::class to 3
+        RecursiveExpression::class to 3,
+        ContainerType::class to 3,
     ).withDefault { Int.MAX_VALUE }
 
     /* Block size for statement blocks */
@@ -107,13 +108,14 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions[Variable::class] = 1.0
         }
 
+        val weightings = filterNodes(filteredExpressions.keys.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         ctx.failedGenerationNodes.forEach {
-            filteredExpressions.remove(it)
+            weightings.remove(it)
         }
-        if (filteredExpressions.isEmpty()) {
+        if (weightings.isEmpty()) {
             throw NoAvailableExpressionException()
         }
-        return NodeSelectionWeighting(filteredExpressions)
+        return NodeSelectionWeighting(weightings)
     }
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
