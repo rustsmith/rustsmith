@@ -14,7 +14,10 @@ import com.rustsmith.selectionManager
 import com.rustsmith.subclasses
 import java.math.BigInteger
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.random.asJavaRandom
+import kotlin.random.nextUInt
+import kotlin.random.nextULong
 import kotlin.reflect.KClass
 
 const val MAX_TRIES_FOR_TYPES = 10
@@ -276,6 +279,26 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateInt128Literal(type: Type, ctx: Context): Int128Literal =
         Int128Literal(BigInteger(127, CustomRandom.asJavaRandom()), symbolTable)
+
+    override fun generateUInt8Literal(type: Type, ctx: Context): UInt8Literal {
+        return UInt8Literal(CustomRandom.nextUInt(2.0.pow(8).toUInt()), symbolTable)
+    }
+
+    override fun generateUInt16Literal(type: Type, ctx: Context): UInt16Literal {
+        return UInt16Literal(CustomRandom.nextUInt(2.0.pow(16).toUInt()), symbolTable)
+    }
+
+    override fun generateUInt32Literal(type: Type, ctx: Context): UInt32Literal {
+        return UInt32Literal(CustomRandom.nextUInt(2.0.pow(32).toUInt()), symbolTable)
+    }
+
+    override fun generateUInt64Literal(type: Type, ctx: Context): UInt64Literal {
+        return UInt64Literal(CustomRandom.nextULong(), symbolTable)
+    }
+
+    override fun generateUInt128Literal(type: Type, ctx: Context): UInt128Literal {
+        return UInt128Literal(BigInteger(127, CustomRandom.asJavaRandom()), symbolTable)
+    }
 
     override fun generateFloat32Literal(type: Type, ctx: Context): Float32Literal =
         Float32Literal(CustomRandom.nextFloat(), symbolTable)
@@ -688,6 +711,16 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateI128Type(ctx: Context) = I128Type
 
+    override fun generateU8Type(ctx: Context) = U8Type
+
+    override fun generateU16Type(ctx: Context) = U16Type
+
+    override fun generateU32Type(ctx: Context) = U32Type
+
+    override fun generateU64Type(ctx: Context) = U64Type
+
+    override fun generateU128Type(ctx: Context) = U128Type
+
     override fun generateF32Type(ctx: Context) = F32Type
 
     override fun generateF64Type(ctx: Context) = F64Type
@@ -783,6 +816,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             I64Type -> generateInt64Literal(type, ctx).value.toString()
             I8Type -> generateInt8Literal(type, ctx).value.toString()
             StringType -> generateStringLiteral(type, ctx).value
+            U128Type -> generateUInt128Literal(type, ctx).value.toString()
+            U16Type -> generateUInt16Literal(type, ctx).value.toString()
+            U32Type -> generateUInt32Literal(type, ctx).value.toString()
+            U64Type -> generateUInt64Literal(type, ctx).value.toString()
+            U8Type -> generateUInt8Literal(type, ctx).value.toString()
         }
     }
 }

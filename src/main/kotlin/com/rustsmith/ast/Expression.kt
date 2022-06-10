@@ -78,6 +78,49 @@ data class Int128Literal(val value: BigInteger, override val symbolTable: Symbol
     }
 }
 
+@ExpressionGenNode(U8Type::class)
+data class UInt8Literal(val value: UInt, override val symbolTable: SymbolTable) : LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}u8"
+    }
+}
+
+@ExpressionGenNode(U16Type::class)
+data class UInt16Literal(val value: UInt, override val symbolTable: SymbolTable) : LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}u16"
+    }
+}
+
+@ExpressionGenNode(U32Type::class)
+data class UInt32Literal(val value: UInt, override val symbolTable: SymbolTable) :
+    LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}u32"
+    }
+}
+
+@ExpressionGenNode(U64Type::class)
+data class UInt64Literal(val value: ULong, override val symbolTable: SymbolTable) :
+    LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}u64"
+    }
+}
+
+@ExpressionGenNode(U128Type::class)
+data class UInt128Literal(val value: BigInteger, override val symbolTable: SymbolTable) :
+    LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}u128"
+    }
+}
+
 @ExpressionGenNode(F32Type::class)
 data class Float32Literal(val value: Float, override val symbolTable: SymbolTable) : LiteralExpression {
     override fun toRust(): String {
@@ -465,6 +508,11 @@ fun Expression.toType(): Type {
         is Int32Literal -> I32Type
         is Int64Literal -> I64Type
         is Int128Literal -> I128Type
+        is UInt8Literal -> U8Type
+        is UInt16Literal -> U16Type
+        is UInt32Literal -> U32Type
+        is UInt64Literal -> U64Type
+        is UInt128Literal -> U128Type
         is Float32Literal -> F32Type
         is Float64Literal -> F64Type
         is StringLiteral -> StringType

@@ -24,6 +24,8 @@ sealed interface NumberType : NonVoidType, CLIInputType
 
 sealed interface IntType : NumberType, BitWiseCompatibleType
 
+sealed interface UIntType : NumberType, BitWiseCompatibleType
+
 data class LifetimeParameterizedType<T : Type>(val type: T) : Type {
     override fun toRust(): String {
         if (type is StructType) {
@@ -118,6 +120,71 @@ object I128Type : IntType {
     override fun lifetimeParameters(): List<UInt> = listOf()
 
     override fun clone() = I128Type
+}
+
+@GenNode
+object U8Type : UIntType {
+    override fun toRust(): String {
+        return "u8"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(U8Type)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = U8Type
+}
+
+@GenNode
+object U16Type : UIntType {
+    override fun toRust(): String {
+        return "u16"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(U16Type)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = U16Type
+}
+
+@GenNode
+object U32Type : UIntType {
+    override fun toRust(): String {
+        return "u32"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(U32Type)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = U32Type
+}
+
+@GenNode
+object U64Type : UIntType {
+    override fun toRust(): String {
+        return "u64"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(U64Type)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = U64Type
+}
+
+@GenNode
+object U128Type : UIntType {
+    override fun toRust(): String {
+        return "u128"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(U128Type)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = U128Type
 }
 
 sealed interface FloatType : NumberType
@@ -368,6 +435,11 @@ fun NumberType.zero(symbolTable: SymbolTable): Expression {
         I32Type -> Int32Literal(0, symbolTable = symbolTable)
         I64Type -> Int64Literal(0, symbolTable = symbolTable)
         I128Type -> Int128Literal(BigInteger.ZERO, symbolTable = symbolTable)
+        U8Type -> UInt8Literal(0u, symbolTable = symbolTable)
+        U16Type -> UInt16Literal(0u, symbolTable = symbolTable)
+        U32Type -> UInt32Literal(0u, symbolTable = symbolTable)
+        U64Type -> UInt64Literal(0uL, symbolTable = symbolTable)
+        U128Type -> UInt128Literal(BigInteger.ZERO, symbolTable = symbolTable)
     }
 }
 
@@ -378,13 +450,7 @@ enum class OwnershipModel {
 fun Type.getOwnership(): OwnershipModel {
     return when (this) {
         BoolType -> OwnershipModel.COPY
-        I8Type -> OwnershipModel.COPY
-        I16Type -> OwnershipModel.COPY
-        I32Type -> OwnershipModel.COPY
-        I64Type -> OwnershipModel.COPY
-        I128Type -> OwnershipModel.COPY
-        F32Type -> OwnershipModel.COPY
-        F64Type -> OwnershipModel.COPY
+        is NumberType -> OwnershipModel.COPY
         StringType -> OwnershipModel.MOVE
         is TupleType -> this.types.map { it.getOwnership() }.firstOrNull { it == OwnershipModel.MOVE }
             ?: OwnershipModel.COPY

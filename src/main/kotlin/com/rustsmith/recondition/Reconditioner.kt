@@ -23,15 +23,15 @@ class Reconditioner {
         val (expr1, expr2) = reconditionExpression(node.expr1) to reconditionExpression(node.expr2)
         val symbolTable = node.symbolTable
         return when (node) {
-            is AddExpression -> if (node.toType() is IntType) WrappingAdd(
+            is AddExpression -> if (node.toType() is IntType || node.toType() is UIntType) WrappingAdd(
                 node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
-            is MultiplyExpression -> if (node.toType() is IntType) WrappingMul(
+            is MultiplyExpression -> if (node.toType() is IntType || node.toType() is UIntType) WrappingMul(
                 node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
-            is SubtractExpression -> if (node.toType() is IntType) WrappingSubtract(
+            is SubtractExpression -> if (node.toType() is IntType || node.toType() is UIntType) WrappingSubtract(
                 node.copy(expr1 = expr1, expr2 = expr2),
                 symbolTable
             ) else node.copy(expr1 = expr1, expr2 = expr2)
@@ -58,7 +58,6 @@ class Reconditioner {
     private fun reconditionExpression(node: Expression): Expression {
         nodeCounters[node::class] = nodeCounters.getValue(node::class) + 1
         return when (node) {
-            is Float32Literal -> node
             is Int32Literal -> node
             is StringLiteral -> node
             is Variable -> {
@@ -97,6 +96,12 @@ class Reconditioner {
             is ReferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
             is MutableReferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
             is DereferenceExpression -> node.copy(expression = reconditionExpression(node.expression))
+            is Float32Literal -> node
+            is UInt128Literal -> node
+            is UInt16Literal -> node
+            is UInt32Literal -> node
+            is UInt64Literal -> node
+            is UInt8Literal -> node
         }
     }
 
