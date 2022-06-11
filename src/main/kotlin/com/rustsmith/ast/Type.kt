@@ -191,6 +191,19 @@ object U128Type : UIntType {
     override fun clone() = U128Type
 }
 
+@GenNode
+object USizeType : UIntType {
+    override fun toRust(): String {
+        return "usize"
+    }
+
+    override fun memberTypes(): List<Type> = listOf(USizeType)
+
+    override fun lifetimeParameters(): List<UInt> = listOf()
+
+    override fun clone() = USizeType
+}
+
 sealed interface FloatType : NumberType
 
 @GenNode
@@ -331,17 +344,32 @@ data class StructType(
 }
 
 @GenNode
-data class ArrayType(val type: Type, val size: Int) : RecursiveType, ContainerType {
+data class ArrayType(val type: Type) : RecursiveType, ContainerType {
     override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
     override fun toRust(): String {
-        return "[${type.toRust()}; $size]"
+        return "Vec<${type.toRust()}>"
     }
 
-    override fun memberTypes(): List<Type> = listOf(type) + this
+    override fun memberTypes(): List<Type> = listOf(this) + this.type.memberTypes()
 
     override fun lifetimeParameters(): List<UInt> = type.lifetimeParameters()
 
-    override fun clone() = ArrayType(type.clone(), size)
+    override fun clone() = ArrayType(type.clone())
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ArrayType
+
+        if (type != other.type) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return type.hashCode()
+    }
 }
 
 sealed interface ReferencingTypes : NonVoidType {
@@ -471,6 +499,7 @@ fun NumberType.zero(symbolTable: SymbolTable): Expression {
         U32Type -> UInt32Literal(0u, symbolTable = symbolTable)
         U64Type -> UInt64Literal(0uL, symbolTable = symbolTable)
         U128Type -> UInt128Literal(BigInteger.ZERO, symbolTable = symbolTable)
+        USizeType -> USizeLiteral(0uL, symbolTable = symbolTable)
     }
 }
 
@@ -491,7 +520,7 @@ fun Type.getOwnership(): OwnershipModel {
         is ReferenceType -> OwnershipModel.COPY
         is MutableReferenceType -> OwnershipModel.MOVE
         is LifetimeParameterizedType<*> -> this.type.getOwnership()
-        is ArrayType -> this.type.getOwnership()
+        is ArrayType -> OwnershipModel.MOVE
     }
 }
 

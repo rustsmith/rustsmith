@@ -1,5 +1,6 @@
 package com.rustsmith.ast
 
+import com.rustsmith.recondition.ReconditionedArrayAccess
 import com.rustsmith.recondition.ReconditionedDivision
 import com.rustsmith.recondition.ReconditionedMod
 import java.math.BigInteger
@@ -118,6 +119,15 @@ data class UInt128Literal(val value: BigInteger, override val symbolTable: Symbo
 
     override fun toRust(): String {
         return "${value}u128"
+    }
+}
+
+@ExpressionGenNode(USizeType::class)
+data class USizeLiteral(val value: ULong, override val symbolTable: SymbolTable) :
+    LiteralExpression {
+
+    override fun toRust(): String {
+        return "${value}usize"
     }
 }
 
@@ -490,6 +500,7 @@ data class LoopExpression(
 
 sealed interface ReferencingExpressions : Expression
 
+@SwarmNode
 @ExpressionGenNode(ReferenceType::class)
 data class ReferenceExpression(
     val expression: Expression,
@@ -500,6 +511,7 @@ data class ReferenceExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(MutableReferenceType::class)
 data class MutableReferenceExpression(
     val expression: Expression,
@@ -510,6 +522,7 @@ data class MutableReferenceExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(NonVoidType::class)
 data class DereferenceExpression(
     val expression: Expression,
@@ -528,13 +541,51 @@ data class DereferenceExpression(
     }
 }
 
+@SwarmNode
 @ExpressionGenNode(ArrayType::class)
 data class ArrayLiteral(
     val expressions: List<Expression>,
     override val symbolTable: SymbolTable
 ) : LiteralExpression {
     override fun toRust(): String {
-        return "[${expressions.joinToString(",") { it.toRust() }}]"
+        return "vec![${expressions.joinToString(",") { it.toRust() }}]"
+    }
+}
+
+sealed interface NonMovingExpressions : Expression
+
+@SwarmNode
+@ExpressionGenNode(NonVoidType::class)
+data class ArrayAccess(
+    val arrayExpression: Expression,
+    val indexExpression: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression, NonMovingExpressions {
+    override fun toRust(): String {
+        return "${arrayExpression.toRust()}[${indexExpression.toRust()}]"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(USizeType::class)
+data class ArrayLengthExpression(
+    val arrayExpression: Expression,
+    override val symbolTable: SymbolTable
+) : NonMovingExpressions {
+    override fun toRust(): String {
+        return "${arrayExpression.toRust()}.len()"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(VoidType::class)
+data class ArrayPushExpression(
+    val arrayExpression: Expression,
+    val pushExpression: Expression,
+    override val symbolTable: SymbolTable
+) : NonMovingExpressions {
+    override fun toRust(): String {
+        return "${arrayExpression.toRust()}.push(${pushExpression.toRust()})"
     }
 }
 
@@ -589,6 +640,16 @@ data class ReconditionedModExpression(
     }
 }
 
+data class ReconditionedIndexAccess(
+    val arrayAccessExpression: ArrayAccess,
+    override val symbolTable: SymbolTable
+) :
+    ReconditionedExpression {
+    override fun toRust(): String {
+        return "${ReconditionedArrayAccess.macroName}!(${arrayAccessExpression.arrayExpression.toRust()}, ${arrayAccessExpression.indexExpression.toRust()})"
+    }
+}
+
 fun Expression.toType(): Type {
     return when (this) {
         is Int8Literal -> I8Type
@@ -601,6 +662,7 @@ fun Expression.toType(): Type {
         is UInt32Literal -> U32Type
         is UInt64Literal -> U64Type
         is UInt128Literal -> U128Type
+        is USizeLiteral -> USizeType
         is Float32Literal -> F32Type
         is Float64Literal -> F64Type
         is StringLiteral -> StringType
@@ -643,7 +705,11 @@ fun Expression.toType(): Type {
         is GTExpression -> BoolType
         is LTEExpression -> BoolType
         is LTExpression -> BoolType
-        is ArrayLiteral -> ArrayType(this.expressions.first().toType(), this.expressions.size)
+        is ArrayLiteral -> ArrayType(this.expressions.first().toType())
+        is ArrayAccess -> (this.arrayExpression.toType() as ArrayType).type
+        is ReconditionedIndexAccess -> this.arrayAccessExpression.toType()
+        is ArrayLengthExpression -> USizeType
+        is ArrayPushExpression -> VoidType
     }
 }
 

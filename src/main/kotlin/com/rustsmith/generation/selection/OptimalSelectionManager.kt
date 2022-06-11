@@ -49,6 +49,10 @@ open class OptimalSelectionManager : BaseSelectionManager() {
             1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
+            ArrayLengthExpression::class,
+            1.0 / (ctx.getDepth(ArrayLengthExpression::class) + 1)
+        )
+        expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
             1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 1)
         )

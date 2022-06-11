@@ -58,9 +58,10 @@ class FunctionSymbolTable {
 
 class GlobalSymbolTable {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
-    val structs = mutableListOf<StructDefinition>()
-    val tupleTypes = mutableListOf<TupleType>()
-    val commandLineTypes = mutableListOf<CLIInputType>()
+    val structs = mutableSetOf<StructDefinition>()
+    val tupleTypes = mutableSetOf<TupleType>()
+    val arrayTypes = mutableSetOf<Type>()
+    val commandLineTypes = mutableSetOf<CLIInputType>()
 
     operator fun get(key: String): IdentifierData? {
         return symbolMap[key]
@@ -69,6 +70,12 @@ class GlobalSymbolTable {
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
     }
+
+    /* Array methods */
+
+    fun addArrayType(type: Type) = arrayTypes.add(type)
+
+    fun getRandomArrayType(): Type? = arrayTypes.randomOrNull(CustomRandom)
 
     /* Struct methods */
 
@@ -174,7 +181,7 @@ data class SymbolTable(
     }
 
     private fun findMutableSubExpressions(expression: LHSAssignmentNode): List<LHSAssignmentNode> {
-        return when (val type = expression.toType()) {
+        return listOf(expression) + when (val type = expression.toType()) {
             is ContainerType -> {
                 when (type) {
                     is StructType -> type.argumentsToOwnershipMap.mapIndexed { index, pair ->
@@ -190,10 +197,10 @@ data class SymbolTable(
                     }.filter { it.second.second.assignable() }
                         .flatMap { findMutableSubExpressions(it.first) }
                     // TODO: Add array access
-                    is ArrayType -> listOf(expression)
+                    is ArrayType -> listOf()
                 }
             }
-            else -> listOf(expression)
+            else -> listOf()
         }
     }
 

@@ -60,5 +60,5 @@ fun generateProgram(programSeed: Long, failFast: Boolean): Pair<Program, List<St
         body = bodyWithOutput
     )
     val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
-    return Program(programSeed, setOf(), globalSymbolTable.structs, functionSymbolTable.functions + mainFunction) to cliArguments
+    return Program(programSeed, setOf(), globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments
 }

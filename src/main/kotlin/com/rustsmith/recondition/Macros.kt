@@ -38,3 +38,23 @@ object ReconditionedMod : Macros {
         """.trimIndent()
     }
 }
+
+object ReconditionedArrayAccess : Macros {
+    override val macroName: String = "reconditioned_access"
+
+    override fun toRust(): String {
+        return """
+            macro_rules! reconditioned_access{
+                (${"$"}a:expr,${"$"}b:expr) => {{
+                    let index_expr = ${"$"}b;
+                    let array = ${"$"}a;
+                    if (index_expr < array.len()) {
+                        array[index_expr]
+                    } else {
+                        array[0]
+                    }
+                }};
+            }
+        """.trimIndent()
+    }
+}

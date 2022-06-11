@@ -1,5 +1,8 @@
 import com.rustsmith.ast.AddExpression
+import com.rustsmith.ast.ArrayAccess
+import com.rustsmith.ast.ArrayLengthExpression
 import com.rustsmith.ast.ArrayLiteral
+import com.rustsmith.ast.ArrayPushExpression
 import com.rustsmith.ast.ArrayType
 import com.rustsmith.ast.Assignment
 import com.rustsmith.ast.BitwiseAndLogicalAnd
@@ -69,6 +72,8 @@ import com.rustsmith.ast.UInt16Literal
 import com.rustsmith.ast.UInt32Literal
 import com.rustsmith.ast.UInt64Literal
 import com.rustsmith.ast.UInt8Literal
+import com.rustsmith.ast.USizeLiteral
+import com.rustsmith.ast.USizeType
 import com.rustsmith.ast.Variable
 import com.rustsmith.ast.VoidLiteral
 import com.rustsmith.ast.VoidType
@@ -128,6 +133,8 @@ public interface AbstractASTGenerator {
 
     public fun generateUInt128Literal(type: Type, ctx: Context): UInt128Literal
 
+    public fun generateUSizeLiteral(type: Type, ctx: Context): USizeLiteral
+
     public fun generateFloat32Literal(type: Type, ctx: Context): Float32Literal
 
     public fun generateFloat64Literal(type: Type, ctx: Context): Float64Literal
@@ -140,6 +147,8 @@ public interface AbstractASTGenerator {
 
     public fun generateStructInstantiationExpression(type: Type, ctx: Context):
         StructInstantiationExpression
+
+    public fun generateArrayLiteral(type: Type, ctx: Context): ArrayLiteral
 
     public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
         TupleElementAccessExpression
@@ -163,7 +172,7 @@ public interface AbstractASTGenerator {
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
 
-    public fun generateArrayLiteral(type: Type, ctx: Context): ArrayLiteral
+    public fun generateArrayAccess(type: Type, ctx: Context): ArrayAccess
 
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
@@ -198,6 +207,10 @@ public interface AbstractASTGenerator {
     public fun generateMutableReferenceExpression(type: Type, ctx: Context):
         MutableReferenceExpression
 
+    public fun generateArrayLengthExpression(type: Type, ctx: Context): ArrayLengthExpression
+
+    public fun generateArrayPushExpression(type: Type, ctx: Context): ArrayPushExpression
+
     public fun selectRandomExpression(type: Type, ctx: Context): KClass<out Expression>
 
     public fun generateExpression(type: Type, ctx: Context): Expression
@@ -219,12 +232,14 @@ public interface AbstractASTGenerator {
         UInt32Literal::class -> generateUInt32Literal(type, ctx)
         UInt64Literal::class -> generateUInt64Literal(type, ctx)
         UInt128Literal::class -> generateUInt128Literal(type, ctx)
+        USizeLiteral::class -> generateUSizeLiteral(type, ctx)
         Float32Literal::class -> generateFloat32Literal(type, ctx)
         Float64Literal::class -> generateFloat64Literal(type, ctx)
         StringLiteral::class -> generateStringLiteral(type, ctx)
         BooleanLiteral::class -> generateBooleanLiteral(type, ctx)
         TupleLiteral::class -> generateTupleLiteral(type, ctx)
         StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
+        ArrayLiteral::class -> generateArrayLiteral(type, ctx)
         TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
         StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
         Variable::class -> generateVariable(type, ctx)
@@ -235,7 +250,7 @@ public interface AbstractASTGenerator {
         IfElseExpression::class -> generateIfElseExpression(type, ctx)
         IfExpression::class -> generateIfExpression(type, ctx)
         LoopExpression::class -> generateLoopExpression(type, ctx)
-        ArrayLiteral::class -> generateArrayLiteral(type, ctx)
+        ArrayAccess::class -> generateArrayAccess(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)
         DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -252,6 +267,8 @@ public interface AbstractASTGenerator {
         LTEExpression::class -> generateLTEExpression(type, ctx)
         ReferenceExpression::class -> generateReferenceExpression(type, ctx)
         MutableReferenceExpression::class -> generateMutableReferenceExpression(type, ctx)
+        ArrayLengthExpression::class -> generateArrayLengthExpression(type, ctx)
+        ArrayPushExpression::class -> generateArrayPushExpression(type, ctx)
         else -> throw Exception("Unrecognized type")
     }
 
@@ -280,6 +297,8 @@ public interface AbstractASTGenerator {
     public fun generateU64Type(ctx: Context): U64Type
 
     public fun generateU128Type(ctx: Context): U128Type
+
+    public fun generateUSizeType(ctx: Context): USizeType
 
     public fun generateF32Type(ctx: Context): F32Type
 
@@ -313,6 +332,7 @@ public interface AbstractASTGenerator {
         U32Type::class -> generateU32Type(ctx)
         U64Type::class -> generateU64Type(ctx)
         U128Type::class -> generateU128Type(ctx)
+        USizeType::class -> generateUSizeType(ctx)
         F32Type::class -> generateF32Type(ctx)
         F64Type::class -> generateF64Type(ctx)
         TupleType::class -> generateTupleType(ctx)

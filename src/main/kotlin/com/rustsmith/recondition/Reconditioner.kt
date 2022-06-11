@@ -109,6 +109,21 @@ class Reconditioner {
             is UInt64Literal -> node
             is UInt8Literal -> node
             is ArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
+            is ArrayAccess -> {
+                reconditioningMacros.add(ReconditionedArrayAccess)
+                ReconditionedIndexAccess(
+                    node.copy(arrayExpression = reconditionExpression(node.arrayExpression), indexExpression = reconditionExpression(node.indexExpression)),
+                    node.symbolTable
+                )
+            }
+            is USizeLiteral -> node
+            is ArrayLengthExpression -> {
+                node.copy(arrayExpression = reconditionExpression(node.arrayExpression))
+            }
+            is ArrayPushExpression -> node.copy(
+                arrayExpression = reconditionExpression(node.arrayExpression),
+                pushExpression = reconditionExpression(node.pushExpression)
+            )
         }
     }
 

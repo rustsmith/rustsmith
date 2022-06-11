@@ -69,11 +69,19 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             } catch (e: StatementGenerationRejectedException) {
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
-                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
+                Logger.logText(
+                    "Node $selectedStatement not possible currently, trying different node",
+                    currentCtx,
+                    Color.LIGHT_RED
+                )
             } catch (e: NoAvailableExpressionException) {
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
-                Logger.logText("Node $selectedStatement not possible currently, trying different node", currentCtx, Color.LIGHT_RED)
+                Logger.logText(
+                    "Node $selectedStatement not possible currently, trying different node",
+                    currentCtx,
+                    Color.LIGHT_RED
+                )
             }
         }
     }
@@ -120,7 +128,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             } catch (e: NoAvailableTypeException) {
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
-                Logger.logText("Expression Statement generation failed as no types available", currentCtx, Color.LIGHT_RED)
+                Logger.logText(
+                    "Expression Statement generation failed as no types available",
+                    currentCtx,
+                    Color.LIGHT_RED
+                )
                 throw StatementGenerationRejectedException()
             }
             count++
@@ -142,7 +154,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 } catch (e: NoAvailableExpressionException) {
                     symbolTable.mergeSnapshot(symbolTableSnapshot)
                     currentCtx = currentCtx.addFailedNode(declarationType::class)
-                    Logger.logText("Declaration generation failed for type $declarationType", currentCtx, Color.LIGHT_RED)
+                    Logger.logText(
+                        "Declaration generation failed for type $declarationType",
+                        currentCtx,
+                        Color.LIGHT_RED
+                    )
                 }
             } catch (e: NoAvailableTypeException) {
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
@@ -211,9 +227,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generatePrintElementStatement(ctx: Context): PrintElementStatement {
-        val variableName = symbolTable.getOwnedVariables().filter { ctx.assignmentRootNode?.map { variable -> variable.value }?.contains(it)?.not() ?: true }.randomOrNull(
-            CustomRandom
-        )
+        val variableName = symbolTable.getOwnedVariables()
+            .filter { ctx.assignmentRootNode?.map { variable -> variable.value }?.contains(it)?.not() ?: true }
+            .randomOrNull(
+                CustomRandom
+            )
         return if (variableName == null) {
             if (failFast) throw StatementGenerationRejectedException()
             val declaration = generateDependantDeclarationOfType(
@@ -222,7 +240,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 ctx.forDependantDeclaration().incrementCount(Assignment::class)
             )
             dependantStatements.add(declaration)
-            symbolTable.setVariableOwnershipState(declaration.variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            symbolTable.setVariableOwnershipState(
+                declaration.variableName,
+                OwnershipState.INVALID,
+                symbolTable.depth.value
+            )
             PrintElementStatement(declaration.variableName, symbolTable)
         } else {
             symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable.depth.value)
@@ -298,6 +320,10 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateUInt128Literal(type: Type, ctx: Context): UInt128Literal {
         return UInt128Literal(BigInteger(127, CustomRandom.asJavaRandom()), symbolTable)
+    }
+
+    override fun generateUSizeLiteral(type: Type, ctx: Context): USizeLiteral {
+        return USizeLiteral(CustomRandom.nextULong(), symbolTable)
     }
 
     override fun generateFloat32Literal(type: Type, ctx: Context): Float32Literal =
@@ -428,7 +454,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
-        val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0
+        val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0 || ctx.getDepthLast(ArrayPushExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
         if (value == null && failFast) throw ExpressionGenerationRejectedException()
         if (value == null &&
@@ -455,12 +481,22 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
         /* The variable is to be moved instead of copied */
         if (type.getOwnership() == OwnershipModel.MOVE) {
-            if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
-                /* A partial move, so set the ownership state to partially valid */
-                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.PARTIALLY_VALID, ctx.lifetimeRequirement)
-            } else {
-                /* Not a partial move, so set the ownership state to completely invalid */
-                symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.INVALID, ctx.lifetimeRequirement)
+            if (ctx.previousIncrement != NonMovingExpressions::class) {
+                if (ctx.previousIncrement in PartialMoveExpression::class.subclasses()) {
+                    /* A partial move, so set the ownership state to partially valid */
+                    symbolTable.setVariableOwnershipState(
+                        variableNode.value,
+                        OwnershipState.PARTIALLY_VALID,
+                        ctx.lifetimeRequirement
+                    )
+                } else {
+                    /* Not a partial move, so set the ownership state to completely invalid */
+                    symbolTable.setVariableOwnershipState(
+                        variableNode.value,
+                        OwnershipState.INVALID,
+                        ctx.lifetimeRequirement
+                    )
+                }
             }
         }
 
@@ -469,7 +505,11 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         }
 
         if (ctx.getDepthLast(MutableReferenceExpression::class) > 0) {
-            symbolTable.setVariableOwnershipState(variableNode.value, OwnershipState.MUTABLY_BORROWED, ctx.lifetimeRequirement)
+            symbolTable.setVariableOwnershipState(
+                variableNode.value,
+                OwnershipState.MUTABLY_BORROWED,
+                ctx.lifetimeRequirement
+            )
         }
         return variableNode
     }
@@ -518,9 +558,24 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateArrayLiteral(type: Type, ctx: Context): ArrayLiteral {
         if (type is ArrayType) {
-            return ArrayLiteral((0 until type.size).map { generateExpression(type.type, ctx.incrementCount(ArrayLiteral::class)) }, symbolTable)
+            val size = CustomRandom.nextInt(1, 10)
+            return ArrayLiteral(
+                (0 until size).map {
+                    generateExpression(
+                        type.type,
+                        ctx.incrementCount(ArrayLiteral::class)
+                    )
+                },
+                symbolTable
+            )
         }
         throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateArrayAccess(type: Type, ctx: Context): ArrayAccess {
+        val arrayExpression = generateExpression(ArrayType(type), ctx.incrementCount(ArrayAccess::class))
+        val indexExpression = generateExpression(USizeType, ctx.incrementCount(ArrayAccess::class))
+        return ArrayAccess(arrayExpression, indexExpression, symbolTable)
     }
 
     override fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression {
@@ -539,6 +594,25 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             return MutableReferenceExpression(internalExpression, symbolTable)
         }
         throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateArrayLengthExpression(type: Type, ctx: Context): ArrayLengthExpression {
+        val arrayExpression = generateExpression(
+            generateArrayType(ctx.incrementCount(ArrayLengthExpression::class)),
+            ctx.incrementCount(ArrayLengthExpression::class)
+        )
+        return ArrayLengthExpression(
+            arrayExpression, symbolTable
+        )
+    }
+
+    override fun generateArrayPushExpression(type: Type, ctx: Context): ArrayPushExpression {
+        val arrayExpression = generateExpression(
+            generateArrayType(ctx.incrementCount(ArrayPushExpression::class)),
+            ctx.incrementCount(ArrayPushExpression::class)
+        )
+        val pushExpression = generateExpression((arrayExpression.toType() as ArrayType).type, ctx)
+        return ArrayPushExpression(arrayExpression, pushExpression, symbolTable)
     }
 
     override fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression {
@@ -686,13 +760,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
 
     override fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression {
         val functionData = symbolTable.functionSymbolTable.getRandomFunctionOfType(type)
-        val functionInformation = if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
-            generateFunction(type.clone(), ctx)
-        } else {
-            functionData.first to (functionData.second.type as FunctionType)
-        }
+        val functionInformation =
+            if (functionData == null || selectionManager.choiceGenerateNewFunctionWeightings(ctx).randomByWeights()) {
+                generateFunction(type.clone(), ctx)
+            } else {
+                functionData.first to (functionData.second.type as FunctionType)
+            }
         if (!failFast) {
-            val membersWithReferenceType = functionInformation.second.args.flatMap { it.memberTypes().filterIsInstance<ReferencingTypes>() }
+            val membersWithReferenceType =
+                functionInformation.second.args.flatMap { it.memberTypes().filterIsInstance<ReferencingTypes>() }
             membersWithReferenceType.forEach {
                 dependantStatements.add(
                     generateDependantDeclarationOfType(
@@ -795,6 +871,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     override fun generateU64Type(ctx: Context) = U64Type
 
     override fun generateU128Type(ctx: Context) = U128Type
+    override fun generateUSizeType(ctx: Context): USizeType = USizeType
 
     override fun generateF32Type(ctx: Context) = F32Type
 
@@ -840,9 +917,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateArrayType(ctx: Context): ArrayType {
-        val internalType = generateType(ctx.incrementCount(ArrayType::class))
-        val arraySize = CustomRandom.nextInt(1, 10)
-        return ArrayType(internalType, arraySize)
+        val randomTupleType = symbolTable.globalSymbolTable.getRandomArrayType()
+        /* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (randomTupleType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+            val internalType = generateType(ctx.incrementCount(ArrayType::class))
+            symbolTable.globalSymbolTable.addArrayType(internalType)
+            return ArrayType(internalType)
+        }
+        return ArrayType(randomTupleType)
     }
 
     private fun wrapWithLifetimeParameters(type: Type): Type {
@@ -903,6 +986,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             U32Type -> generateUInt32Literal(type, ctx).value.toString()
             U64Type -> generateUInt64Literal(type, ctx).value.toString()
             U8Type -> generateUInt8Literal(type, ctx).value.toString()
+            USizeType -> generateUSizeLiteral(type, ctx).value.toString()
         }
     }
 }

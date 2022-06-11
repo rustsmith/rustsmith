@@ -22,6 +22,7 @@ data class Context(
     val numberOfFunctionsDefined = lazy { symbolTable.functionSymbolTable.functions.size }
     val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
     val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
+    val numberOfArrayTypesDefined = lazy { symbolTable.globalSymbolTable.arrayTypes.size }
 
     fun withLifetimeRequirement(lifetimeRequirement: Int): Context {
         return this.copy(lifetimeRequirement = lifetimeRequirement)
