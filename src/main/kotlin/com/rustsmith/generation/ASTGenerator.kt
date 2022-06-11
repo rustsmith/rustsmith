@@ -22,7 +22,11 @@ import kotlin.reflect.KClass
 
 const val MAX_TRIES_FOR_TYPES = 10
 
-class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: Boolean, private val identGenerator: IdentGenerator) : AbstractASTGenerator {
+class ASTGenerator(
+    private val symbolTable: SymbolTable,
+    private val failFast: Boolean,
+    private val identGenerator: IdentGenerator
+) : AbstractASTGenerator {
     private val dependantStatements = mutableListOf<Statement>()
 
     operator fun invoke(ctx: Context, type: Type = VoidType, depth: Int? = null): StatementBlock {
@@ -52,6 +56,19 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     /** Statement Generation **/
+
+    fun generateConstantDeclaration(ctx: Context): ConstDeclaration {
+        val constName = identGenerator.generateConst()
+        while (true) {
+            val type = generateType(ctx)
+            if (type is LiteralType && type !is StringType) {
+                symbolTable.root()[constName] = IdentifierData(type, false, OwnershipState.VALID, 0, true)
+                return ConstDeclaration(type, constName, generateLiteral(type, ctx), symbolTable)
+            } else {
+                continue
+            }
+        }
+    }
 
     override fun selectRandomStatement(ctx: Context): KClass<out Statement> {
         val pickRandomByWeight = selectionManager.availableStatementsWeightings(ctx).pickRandomByWeight()
@@ -91,7 +108,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         if (selectionManager.choiceGenerateNewCLIArgumentWeightings(ctx)
             .randomByWeights() || !symbolTable.globalSymbolTable.commandLineTypes.contains(type)
         ) {
-            symbolTable.globalSymbolTable.commandLineTypes.add(type as CLIInputType)
+            symbolTable.globalSymbolTable.commandLineTypes.add(type as LiteralType)
             return CLIArgumentAccessExpression(
                 symbolTable.globalSymbolTable.commandLineTypes.mapIndexed { i, t -> i to t }
                     .filter { it.second == type }.random(CustomRandom).first + 1,
@@ -227,7 +244,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generatePrintElementStatement(ctx: Context): PrintElementStatement {
-        val variableName = symbolTable.getOwnedVariables()
+        val variableName = symbolTable.getOwnedVariables(false)
             .filter { ctx.assignmentRootNode?.map { variable -> variable.value }?.contains(it)?.not() ?: true }
             .randomOrNull(
                 CustomRandom
@@ -240,14 +257,18 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
                 ctx.forDependantDeclaration().incrementCount(Assignment::class)
             )
             dependantStatements.add(declaration)
-            symbolTable.setVariableOwnershipState(
-                declaration.variableName,
-                OwnershipState.INVALID,
-                symbolTable.depth.value
-            )
+            if (declaration.type.getOwnership() == OwnershipModel.MOVE) {
+                symbolTable.setVariableOwnershipState(
+                    declaration.variableName,
+                    OwnershipState.INVALID,
+                    symbolTable.depth.value
+                )
+            }
             PrintElementStatement(declaration.variableName, symbolTable)
         } else {
-            symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            if (Variable(variableName, symbolTable).toType().getOwnership() == OwnershipModel.MOVE) {
+                symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            }
             PrintElementStatement(variableName, symbolTable)
         }
     }
@@ -454,7 +475,8 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
-        val mutableRequired = ctx.getDepthLast(MutableReferenceExpression::class) > 0 || ctx.getDepthLast(ArrayPushExpression::class) > 0
+        val mutableRequired =
+            ctx.getDepthLast(MutableReferenceExpression::class) > 0 || ctx.getDepthLast(ArrayPushExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
         if (value == null && failFast) throw ExpressionGenerationRejectedException()
         if (value == null &&
@@ -526,14 +548,19 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
         val currentSymbolTableDepth = symbolTable.depth.value
         val newScope = symbolTable.enterScope()
-        return ASTGenerator(newScope, failFast, identGenerator)(ctx.withSymbolTable(newScope), type, currentSymbolTableDepth)
+        return ASTGenerator(newScope, failFast, identGenerator)(
+            ctx.withSymbolTable(newScope),
+            type,
+            currentSymbolTableDepth
+        )
     }
 
     override fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression {
+        val ifBlock = generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class))
         return IfElseExpression(
             generateExpression(BoolType, ctx.incrementCount(IfElseExpression::class)),
-            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
-            generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
+            ifBlock,
+            if (mapOf(true to 0.1, false to 0.9).randomByWeights()) ifBlock else generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
             type,
             symbolTable
         )
@@ -790,7 +817,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         val numArgs = CustomRandom.nextInt(5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
         val symbolTableForFunction = SymbolTable(
-            null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
+            symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
         val arguments = argTypes.associateBy { identGenerator.generateVariable() }
         arguments.forEach {
@@ -970,7 +997,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         return structType
     }
 
-    fun generateCLIArgumentsForLiteralType(type: CLIInputType, ctx: Context): String {
+    fun generateCLIArgumentsForLiteralType(type: LiteralType, ctx: Context): String {
         return when (type) {
             BoolType -> generateBooleanLiteral(type, ctx).value.toString()
             F32Type -> generateFloat32Literal(type, ctx).value.toString()
@@ -987,6 +1014,26 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
             U64Type -> generateUInt64Literal(type, ctx).value.toString()
             U8Type -> generateUInt8Literal(type, ctx).value.toString()
             USizeType -> generateUSizeLiteral(type, ctx).value.toString()
+        }
+    }
+
+    fun generateLiteral(type: LiteralType, ctx: Context): LiteralExpression {
+        return when (type) {
+            BoolType -> generateBooleanLiteral(type, ctx)
+            F32Type -> generateFloat32Literal(type, ctx)
+            F64Type -> generateFloat64Literal(type, ctx)
+            I128Type -> generateInt128Literal(type, ctx)
+            I16Type -> generateInt16Literal(type, ctx)
+            I32Type -> generateInt32Literal(type, ctx)
+            I64Type -> generateInt64Literal(type, ctx)
+            I8Type -> generateInt8Literal(type, ctx)
+            StringType -> generateStringLiteral(type, ctx)
+            U128Type -> generateUInt128Literal(type, ctx)
+            U16Type -> generateUInt16Literal(type, ctx)
+            U32Type -> generateUInt32Literal(type, ctx)
+            U64Type -> generateUInt64Literal(type, ctx)
+            U8Type -> generateUInt8Literal(type, ctx)
+            USizeType -> generateUSizeLiteral(type, ctx)
         }
     }
 }

@@ -31,6 +31,18 @@ data class Declaration(
     }
 }
 
+data class ConstDeclaration(
+    val type: Type,
+    val variableName: String,
+    val value: LiteralExpression,
+    override val symbolTable: SymbolTable
+) : Statement {
+
+    override fun toRust(): String {
+        return "const $variableName: ${type.toRust()} = ${value.toRust()};"
+    }
+}
+
 @GenNode
 data class Assignment(val lhs: LHSAssignmentNode, val value: Expression, override val symbolTable: SymbolTable) :
     Statement {

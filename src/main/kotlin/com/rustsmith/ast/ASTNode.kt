@@ -1,5 +1,6 @@
 package com.rustsmith.ast
 
+import com.rustsmith.CustomRandom
 import com.rustsmith.generation.ASTGenerator
 import com.rustsmith.generation.Context
 import com.rustsmith.generation.IdentGenerator
@@ -33,12 +34,13 @@ data class StructDefinition(val structType: LifetimeParameterizedType<StructType
 data class Program(
     val seed: Long,
     val macros: Set<Macros>,
+    val constants: List<ConstDeclaration>,
     val structs: List<StructDefinition> = emptyList(),
     val functions: List<FunctionDefinition>
 ) :
     ASTNode {
     override fun toRust(): String {
-        return "#![allow(warnings, unused, unconditional_panic)]\n${macros.joinToString("\n") { it.toRust() }}\n${structs.joinToString("\n") { it.toRust() }}\n${
+        return "#![allow(warnings, unused, unconditional_panic)]\n${constants.joinToString("\n") { it.toRust() }}\n${macros.joinToString("\n") { it.toRust() }}\n${structs.joinToString("\n") { it.toRust() }}\n${
         functions.joinToString(
             "\n"
         ) { it.toRust() }
@@ -49,9 +51,10 @@ data class Program(
 fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast: Boolean): Pair<Program, List<String>> {
     val functionSymbolTable = FunctionSymbolTable()
     val globalSymbolTable = GlobalSymbolTable()
-    val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
+    val symbolTable = SymbolTable(SymbolTable(null, functionSymbolTable, globalSymbolTable), functionSymbolTable, globalSymbolTable)
     val astGenerator = ASTGenerator(symbolTable, failFast, identGenerator)
     val mainFunctionContext = Context(listOf(mapOf()), "main", listOf(), symbolTable)
+    val constantDeclarations = (0..CustomRandom.nextInt(10)).map { astGenerator.generateConstantDeclaration(mainFunctionContext) }
     val body = astGenerator(mainFunctionContext)
     val bodyWithOutput =
         StatementBlock(listOf(FetchCLIArgs(symbolTable)) + body.statements + Output(symbolTable, programSeed), symbolTable)
@@ -61,5 +64,5 @@ fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast:
         body = bodyWithOutput
     )
     val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
-    return Program(programSeed, setOf(), globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments
+    return Program(programSeed, setOf(), constantDeclarations, globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments
 }

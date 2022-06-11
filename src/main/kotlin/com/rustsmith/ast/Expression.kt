@@ -28,7 +28,7 @@ data class VoidLiteral(override val symbolTable: SymbolTable) : Expression {
     }
 }
 
-@ExpressionGenNode(CLIInputType::class)
+@ExpressionGenNode(LiteralType::class)
 data class CLIArgumentAccessExpression(val index: Int, val type: Type, override val symbolTable: SymbolTable) :
     LiteralExpression {
     override fun toRust(): String {

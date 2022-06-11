@@ -17,14 +17,15 @@ sealed interface Type : ASTNode {
 
 sealed interface NonVoidType : Type
 
-sealed interface CLIInputType : NonVoidType
+sealed interface LiteralType : NonVoidType
+
 sealed interface BitWiseCompatibleType : NonVoidType
 
 sealed interface ComparableType : Type
 
 sealed interface EqType : Type
 
-sealed interface NumberType : NonVoidType, CLIInputType, EqType, ComparableType
+sealed interface NumberType : NonVoidType, LiteralType, EqType, ComparableType
 
 sealed interface IntType : NumberType, BitWiseCompatibleType
 
@@ -233,7 +234,7 @@ object F64Type : FloatType {
 }
 
 @GenNode
-object StringType : CLIInputType, NonVoidType, EqType {
+object StringType : LiteralType, NonVoidType, EqType {
     override fun toRust(): String {
         return "String"
     }
@@ -246,7 +247,7 @@ object StringType : CLIInputType, NonVoidType, EqType {
 }
 
 @GenNode
-object BoolType : CLIInputType, BitWiseCompatibleType, EqType {
+object BoolType : LiteralType, BitWiseCompatibleType, EqType {
     override fun toRust(): String {
         return "bool"
     }

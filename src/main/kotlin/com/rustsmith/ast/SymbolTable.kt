@@ -14,7 +14,7 @@ enum class OwnershipState {
     fun overridingState() = this in listOf(INVALID, PARTIALLY_VALID)
 }
 
-data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int) {
+data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int, val constant: Boolean = false) {
     fun clone(): IdentifierData {
         return this.copy(type = type.clone())
     }
@@ -61,7 +61,7 @@ class GlobalSymbolTable {
     val structs = mutableSetOf<StructDefinition>()
     val tupleTypes = mutableSetOf<TupleType>()
     val arrayTypes = mutableSetOf<Type>()
-    val commandLineTypes = mutableSetOf<CLIInputType>()
+    val commandLineTypes = mutableSetOf<LiteralType>()
 
     operator fun get(key: String): IdentifierData? {
         return symbolMap[key]
@@ -81,7 +81,7 @@ class GlobalSymbolTable {
 
     fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
 
-    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().randomOrNull(CustomRandom)
+    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
@@ -113,6 +113,14 @@ data class SymbolTable(
             count++
         }
         count
+    }
+
+    fun root(): SymbolTable {
+        var current = this
+        for (table in this.iterator()) {
+            current = table
+        }
+        return current
     }
 
     fun snapshot(): SymbolTable {
@@ -171,12 +179,12 @@ data class SymbolTable(
         return currentVariables
     }
 
-    fun getOwnedVariables(): Set<String> {
+    fun getOwnedVariables(allowConstants: Boolean = true): Set<String> {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }
+        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.filter { if (allowConstants) true else !it.second.constant }
             .map { it.first }.toSet()
     }
 

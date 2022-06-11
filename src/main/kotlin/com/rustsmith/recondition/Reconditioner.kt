@@ -142,6 +142,7 @@ class Reconditioner {
             is Output -> node
             is FetchCLIArgs -> node
             is PrintElementStatement -> node
+            is ConstDeclaration -> node
         }
     }
 
@@ -154,6 +155,7 @@ class Reconditioner {
                 Program(
                     node.seed,
                     reconditioningMacros,
+                    node.constants,
                     node.structs,
                     reconditionedFunctions
                 )
