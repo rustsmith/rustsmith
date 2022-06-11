@@ -2,6 +2,7 @@ package com.rustsmith.ast
 
 import com.rustsmith.generation.ASTGenerator
 import com.rustsmith.generation.Context
+import com.rustsmith.generation.IdentGenerator
 import com.rustsmith.recondition.Macros
 
 sealed interface ASTNode {
@@ -45,11 +46,11 @@ data class Program(
     }
 }
 
-fun generateProgram(programSeed: Long, failFast: Boolean): Pair<Program, List<String>> {
+fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast: Boolean): Pair<Program, List<String>> {
     val functionSymbolTable = FunctionSymbolTable()
     val globalSymbolTable = GlobalSymbolTable()
     val symbolTable = SymbolTable(null, functionSymbolTable, globalSymbolTable)
-    val astGenerator = ASTGenerator(symbolTable, failFast)
+    val astGenerator = ASTGenerator(symbolTable, failFast, identGenerator)
     val mainFunctionContext = Context(listOf(mapOf()), "main", listOf(), symbolTable)
     val body = astGenerator(mainFunctionContext)
     val bodyWithOutput =

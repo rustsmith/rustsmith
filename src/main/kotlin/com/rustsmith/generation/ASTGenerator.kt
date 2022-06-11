@@ -22,7 +22,7 @@ import kotlin.reflect.KClass
 
 const val MAX_TRIES_FOR_TYPES = 10
 
-class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: Boolean) : AbstractASTGenerator {
+class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: Boolean, private val identGenerator: IdentGenerator) : AbstractASTGenerator {
     private val dependantStatements = mutableListOf<Statement>()
 
     operator fun invoke(ctx: Context, type: Type = VoidType, depth: Int? = null): StatementBlock {
@@ -178,7 +178,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         mutable: Boolean = CustomRandom.nextBoolean(),
         ctx: Context
     ): Declaration {
-        val variableName = IdentGenerator.generateVariable()
+        val variableName = identGenerator.generateVariable()
         val expression = generateExpression(type, ctx.incrementCount(Declaration::class))
         symbolTable[variableName] =
             IdentifierData(expression.toType().clone(), mutable, OwnershipState.VALID, symbolTable.depth.value)
@@ -526,7 +526,7 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
         val currentSymbolTableDepth = symbolTable.depth.value
         val newScope = symbolTable.enterScope()
-        return ASTGenerator(newScope, failFast)(ctx.withSymbolTable(newScope), type, currentSymbolTableDepth)
+        return ASTGenerator(newScope, failFast, identGenerator)(ctx.withSymbolTable(newScope), type, currentSymbolTableDepth)
     }
 
     override fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression {
@@ -792,15 +792,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
         val symbolTableForFunction = SymbolTable(
             null, symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
-        val arguments = argTypes.associateBy { IdentGenerator.generateVariable() }
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
         arguments.forEach {
             symbolTableForFunction[it.key] =
                 IdentifierData(it.value, false, OwnershipState.VALID, 0)
         }
-        val functionName = IdentGenerator.generateFunctionName()
+        val functionName = identGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
             returnType, functionName, arguments,
-            ASTGenerator(symbolTableForFunction, failFast)(
+            ASTGenerator(symbolTableForFunction, failFast, identGenerator)(
                 ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
                     .setReturnExpressionType(returnType).withSymbolTable(symbolTableForFunction)
                     .withFunctionName(functionName),
@@ -952,15 +952,15 @@ class ASTGenerator(private val symbolTable: SymbolTable, private val failFast: B
     }
 
     private fun createNewStructType(ctx: Context, specificType: Type? = null): StructType {
-        val structName = IdentGenerator.generateStructName()
+        val structName = identGenerator.generateStructName()
         /* Generate Struct Definition */
         val numArgs = CustomRandom.nextInt(1, 5)
         val argTypes = (0 until numArgs).map {
-            IdentGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class))
+            identGenerator.generateVariable() to generateType(ctx.incrementCount(StructType::class))
         }.toMutableList()
 
         if (specificType != null) {
-            argTypes += IdentGenerator.generateVariable() to specificType
+            argTypes += identGenerator.generateVariable() to specificType
         }
 
         val structType = StructType(structName, argTypes)
