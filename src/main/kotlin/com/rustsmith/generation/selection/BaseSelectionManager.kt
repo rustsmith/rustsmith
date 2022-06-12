@@ -23,7 +23,8 @@ open class BaseSelectionManager : SelectionManager {
         TupleType::class to 3,
         RecursiveExpression::class to 3,
         ContainerType::class to 3,
-        ArrayLiteral::class to 3
+        ArrayLiteral::class to 3,
+        ArrayLengthExpression::class to 3
     ).withDefault { Int.MAX_VALUE }
 
     /* Block size for statement blocks */
