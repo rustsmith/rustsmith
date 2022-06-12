@@ -37,7 +37,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         "selection-manager",
         help = "Choose selection manager(s) for generation"
     ).enum<SelectionManagerOptions>().multiple()
-    private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = true)
+    private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = Random.nextBoolean())
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "--seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
@@ -49,7 +49,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
     }
 
     private fun getSelectionManager(): List<SelectionManager> {
-        return chosenSelectionManagers.toSet().ifEmpty { setOf(SelectionManagerOptions.OPTIMAL_SELECTION) }.map {
+        return chosenSelectionManagers.toSet().ifEmpty { setOf(SelectionManagerOptions.OPTIMAL_SELECTION, SelectionManagerOptions.BASE_SELECTION) }.map {
             when (it) {
                 SelectionManagerOptions.BASE_SELECTION -> BaseSelectionManager()
                 SelectionManagerOptions.SWARM_SELECTION -> SwarmBasedSelectionManager(getRandomConfiguration())
