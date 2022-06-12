@@ -54,7 +54,7 @@ tasks.register<DefaultTask>("shadowJarExecutable") {
     doLast {
         val execFile = outputs.files.files.first()
         execFile.outputStream().use {
-            it.write("#!/bin/sh\n\nexec java -Xmx512m -jar \"\$0\" \"\$@\"\n\n".toByteArray())
+            it.write("#!/bin/sh\n\nexec java -Xmx2G -jar \"\$0\" \"\$@\"\n\n".toByteArray())
             it.write(inputs.files.singleFile.readBytes())
         }
         execFile.setExecutable(true, false)
