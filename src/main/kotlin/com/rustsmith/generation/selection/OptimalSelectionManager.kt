@@ -12,7 +12,8 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         FunctionCallExpression::class to 5,
         StructType::class to 5,
         TupleType::class to 5,
-        Variable::class to 1
+        Variable::class to 1,
+        ArrayLiteral::class to 5
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
@@ -51,6 +52,10 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         expressionWeightings.updateWeighting(
             ArrayLengthExpression::class,
             1.0 / (ctx.getDepth(ArrayLengthExpression::class) + 1)
+        )
+        expressionWeightings.updateWeighting(
+            ArrayLiteral::class,
+            1.0 / (ctx.getDepth(ArrayLiteral::class) + 1)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

@@ -37,8 +37,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         "selection-manager",
         help = "Choose selection manager(s) for generation"
     ).enum<SelectionManagerOptions>().multiple()
-    private val failFast: Boolean by option("-f", "-fail-fast", help = "Use fail fast approach").flag(default = true)
-    private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "-seed")).long()
+    private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = true)
+    private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "--seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
     enum class SelectionManagerOptions {
@@ -107,7 +107,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                             break
                         } catch (e: NoAvailableStatementException) {
                             continue
-                        }
+                        } catch (e: Error) { continue }
                     }
                 }
 
