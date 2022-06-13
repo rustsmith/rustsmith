@@ -37,7 +37,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         "selection-manager",
         help = "Choose selection manager(s) for generation"
     ).enum<SelectionManagerOptions>().multiple()
-    private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = Random.nextBoolean())
+    private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = true)
     private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "--seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
@@ -49,7 +49,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
     }
 
     private fun getSelectionManager(): List<SelectionManager> {
-        return chosenSelectionManagers.toSet().ifEmpty { setOf(SelectionManagerOptions.OPTIMAL_SELECTION, SelectionManagerOptions.BASE_SELECTION) }.map {
+        return chosenSelectionManagers.toSet().ifEmpty { setOf(SelectionManagerOptions.OPTIMAL_SELECTION) }.map {
             when (it) {
                 SelectionManagerOptions.BASE_SELECTION -> BaseSelectionManager()
                 SelectionManagerOptions.SWARM_SELECTION -> SwarmBasedSelectionManager(getRandomConfiguration())
@@ -67,11 +67,8 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         // Don't make progress bar if printing out the program in console
         val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
-        val executor = Executors.newFixedThreadPool(count.coerceAtMost(10))
-        val counter = AtomicInteger(0)
-        repeat(count) {
-            val worker =
-                Runnable {
+        val executor = Executors.newFixedThreadPool(count.coerceAtMost(8))
+        (0..count).map {   Runnable {
                     while (true) {
                         val randomSeed = seed ?: Random.nextLong()
                         val identGenerator = IdentGenerator()
@@ -92,7 +89,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                                 reconditioner.nodeCounters.mapKeys { it.key.simpleName!! }.toMutableMap()
                             stats["averageVarUse"] = reconditioner.variableUsageCounter.map { it.value }.sum()
                                 .toDouble() / reconditioner.variableUsageCounter.size.toDouble()
-                            val currentCount = counter.incrementAndGet()
+                            val currentCount = it
                             val path = Path(directory, "file$currentCount")
                             path.toFile().mkdir()
                             path.resolve("file$currentCount.rs").toFile().writeText(program.toRust())
@@ -110,9 +107,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                         } catch (e: Error) { continue }
                     }
                 }
-
-            executor.execute(worker)
-        }
+        }.forEach { executor.execute(it) }
         executor.shutdown()
         executor.awaitTermination(10, TimeUnit.HOURS)
         progressBar?.close()
