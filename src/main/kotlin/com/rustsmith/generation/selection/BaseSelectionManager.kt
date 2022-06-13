@@ -118,6 +118,10 @@ open class BaseSelectionManager : SelectionManager {
         if (weightings.isEmpty()) {
             throw NoAvailableExpressionException()
         }
+
+        if (ctx.getDepth(Expression::class) > 20) {
+            throw NoAvailableStatementException()
+        }
         return NodeSelectionWeighting(weightings)
     }
 
