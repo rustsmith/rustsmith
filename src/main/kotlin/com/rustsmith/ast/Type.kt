@@ -457,6 +457,19 @@ data class MutableReferenceType(
     }
 }
 
+@GenNode
+data class BoxType(val internalType: Type) : ContainerType {
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
+
+    override fun clone(): Type = BoxType(internalType.clone())
+    override fun memberTypes(): List<Type> = listOf(this) + internalType.memberTypes()
+    override fun lifetimeParameters(): List<UInt> = internalType.lifetimeParameters()
+
+    override fun toRust(): String {
+        return "Box<${internalType.toRust()}>"
+    }
+}
+
 data class FunctionType(val returnType: Type, val args: List<Type>) : NonVoidType {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
@@ -522,6 +535,7 @@ fun Type.getOwnership(): OwnershipModel {
         is MutableReferenceType -> OwnershipModel.MOVE
         is LifetimeParameterizedType<*> -> this.type.getOwnership()
         is ArrayType -> OwnershipModel.MOVE
+        is BoxType -> OwnershipModel.MOVE
     }
 }
 

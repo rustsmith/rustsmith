@@ -61,6 +61,7 @@ class GlobalSymbolTable {
     val structs = mutableSetOf<StructDefinition>()
     val tupleTypes = mutableSetOf<TupleType>()
     val arrayTypes = mutableSetOf<Type>()
+    val boxTypes = mutableSetOf<Type>()
     val commandLineTypes = mutableSetOf<LiteralType>()
 
     operator fun get(key: String): IdentifierData? {
@@ -70,6 +71,12 @@ class GlobalSymbolTable {
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
     }
+
+    /* Box methods */
+
+    fun addBoxType(type: Type) = boxTypes.add(type)
+
+    fun getRandomBoxType(): Type? = boxTypes.randomOrNull(CustomRandom)
 
     /* Array methods */
 
@@ -206,6 +213,7 @@ data class SymbolTable(
                         .flatMap { findMutableSubExpressions(it.first) }
                     // TODO: Add array access
                     is ArrayType -> listOf()
+                    is BoxType -> listOf()
                 }
             }
             else -> listOf()

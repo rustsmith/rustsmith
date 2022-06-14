@@ -11,6 +11,8 @@ import com.rustsmith.ast.BitwiseAndLogicalXor
 import com.rustsmith.ast.BlockExpression
 import com.rustsmith.ast.BoolType
 import com.rustsmith.ast.BooleanLiteral
+import com.rustsmith.ast.BoxDereferenceExpression
+import com.rustsmith.ast.BoxType
 import com.rustsmith.ast.BreakStatement
 import com.rustsmith.ast.CLIArgumentAccessExpression
 import com.rustsmith.ast.Declaration
@@ -47,6 +49,7 @@ import com.rustsmith.ast.MultiplyExpression
 import com.rustsmith.ast.MutableReferenceExpression
 import com.rustsmith.ast.MutableReferenceType
 import com.rustsmith.ast.NEqExpression
+import com.rustsmith.ast.NewBoxExpression
 import com.rustsmith.ast.PrintElementStatement
 import com.rustsmith.ast.ReferenceExpression
 import com.rustsmith.ast.ReferenceType
@@ -174,6 +177,10 @@ public interface AbstractASTGenerator {
 
     public fun generateArrayAccess(type: Type, ctx: Context): ArrayAccess
 
+    public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
+
+    public fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression
+
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
     public fun generateSubtractExpression(type: Type, ctx: Context): SubtractExpression
@@ -251,6 +258,8 @@ public interface AbstractASTGenerator {
         IfExpression::class -> generateIfExpression(type, ctx)
         LoopExpression::class -> generateLoopExpression(type, ctx)
         ArrayAccess::class -> generateArrayAccess(type, ctx)
+        NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
+        BoxDereferenceExpression::class -> generateBoxDereferenceExpression(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)
         DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -310,6 +319,8 @@ public interface AbstractASTGenerator {
 
     public fun generateArrayType(ctx: Context): ArrayType
 
+    public fun generateBoxType(ctx: Context): BoxType
+
     public fun generateReferenceType(ctx: Context): ReferenceType
 
     public fun generateMutableReferenceType(ctx: Context): MutableReferenceType
@@ -338,6 +349,7 @@ public interface AbstractASTGenerator {
         TupleType::class -> generateTupleType(ctx)
         StructType::class -> generateStructType(ctx)
         ArrayType::class -> generateArrayType(ctx)
+        BoxType::class -> generateBoxType(ctx)
         ReferenceType::class -> generateReferenceType(ctx)
         MutableReferenceType::class -> generateMutableReferenceType(ctx)
         else -> throw Exception("Unrecognized type")

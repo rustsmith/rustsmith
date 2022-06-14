@@ -560,7 +560,10 @@ class ASTGenerator(
         return IfElseExpression(
             generateExpression(BoolType, ctx.incrementCount(IfElseExpression::class)),
             ifBlock,
-            if (mapOf(true to 0.1, false to 0.9).randomByWeights()) ifBlock else generateStatementBlock(type, ctx.incrementCount(IfElseExpression::class)),
+            if (mapOf(true to 0.1, false to 0.9).randomByWeights()) ifBlock else generateStatementBlock(
+                type,
+                ctx.incrementCount(IfElseExpression::class)
+            ),
             type,
             symbolTable
         )
@@ -603,6 +606,22 @@ class ASTGenerator(
         val arrayExpression = generateExpression(ArrayType(type), ctx.incrementCount(ArrayAccess::class))
         val indexExpression = generateExpression(USizeType, ctx.incrementCount(ArrayAccess::class))
         return ArrayAccess(arrayExpression, indexExpression, symbolTable)
+    }
+
+    override fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression {
+        if (type is BoxType) {
+            val internalExpression = generateExpression(type.internalType, ctx.incrementCount(NewBoxExpression::class))
+            return NewBoxExpression(internalExpression, symbolTable)
+        }
+        throw IllegalArgumentException("Not a box type")
+    }
+
+    override fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression {
+        val internalExpression = generateExpression(
+            BoxType(type),
+            ctx.incrementCount(BoxDereferenceExpression::class)
+        )
+        return BoxDereferenceExpression(internalExpression, symbolTable)
     }
 
     override fun generateReferenceExpression(type: Type, ctx: Context): ReferenceExpression {
@@ -955,6 +974,16 @@ class ASTGenerator(
         return ArrayType(randomTupleType)
     }
 
+    override fun generateBoxType(ctx: Context): BoxType {
+        val randomBoxType = symbolTable.globalSymbolTable.getRandomBoxType()
+        if (randomBoxType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+            val internalType = generateType(ctx.incrementCount(BoxType::class))
+            symbolTable.globalSymbolTable.addBoxType(internalType)
+            return BoxType(internalType)
+        }
+        return BoxType(randomBoxType)
+    }
+
     private fun wrapWithLifetimeParameters(type: Type): Type {
         return when (type) {
             is RecursiveType -> when (type) {
@@ -967,6 +996,7 @@ class ASTGenerator(
                 )
                 is TupleType -> type.copy(types = type.types.map { wrapWithLifetimeParameters(it) })
                 is ArrayType -> type.copy(type = wrapWithLifetimeParameters(type.type))
+                is BoxType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
             }
             is ReferencingTypes -> {
                 when (type) {

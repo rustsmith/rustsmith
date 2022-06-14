@@ -124,6 +124,8 @@ class Reconditioner {
                 arrayExpression = reconditionExpression(node.arrayExpression),
                 pushExpression = reconditionExpression(node.pushExpression)
             )
+            is NewBoxExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
+            is BoxDereferenceExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
         }
     }
 

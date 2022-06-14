@@ -589,6 +589,28 @@ data class ArrayPushExpression(
     }
 }
 
+@SwarmNode
+@ExpressionGenNode(BoxType::class)
+data class NewBoxExpression(
+    val internalExpression: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    override fun toRust(): String {
+        return "Box::new(${internalExpression.toRust()})"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(I32Type::class)
+data class BoxDereferenceExpression(
+    val internalExpression: Expression,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+    override fun toRust(): String {
+        return "*${internalExpression.toRust()}"
+    }
+}
+
 sealed interface ReconditionedExpression : Expression
 
 data class WrappingAdd(val addExpression: AddExpression, override val symbolTable: SymbolTable) :
@@ -710,6 +732,8 @@ fun Expression.toType(): Type {
         is ReconditionedIndexAccess -> this.arrayAccessExpression.toType()
         is ArrayLengthExpression -> USizeType
         is ArrayPushExpression -> VoidType
+        is NewBoxExpression -> BoxType(internalExpression.toType())
+        is BoxDereferenceExpression -> internalExpression.toType()
     }
 }
 
