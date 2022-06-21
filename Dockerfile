@@ -1,4 +1,4 @@
-FROM gradle
+FROM openjdk
 
 COPY . /sources
 WORKDIR /sources
