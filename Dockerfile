@@ -1,4 +1,6 @@
-FROM gradle
+FROM ubuntu
+
+RUN apt-get update && apt install -y openjdk-11-jdk gradle
 
 COPY . /sources
 WORKDIR /sources
