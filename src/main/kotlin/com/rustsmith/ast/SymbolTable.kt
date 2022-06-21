@@ -14,7 +14,13 @@ enum class OwnershipState {
     fun overridingState() = this in listOf(INVALID, PARTIALLY_VALID)
 }
 
-data class IdentifierData(val type: Type, val mutable: Boolean, val validity: OwnershipState, val depth: Int, val constant: Boolean = false) {
+data class IdentifierData(
+    val type: Type,
+    val mutable: Boolean,
+    val validity: OwnershipState,
+    val depth: Int,
+    val constant: Boolean = false
+) {
     fun clone(): IdentifierData {
         return this.copy(type = type.clone())
     }
@@ -88,7 +94,8 @@ class GlobalSymbolTable {
 
     fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
 
-    fun getRandomStruct(): Pair<String, IdentifierData>? = symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
+    fun getRandomStruct(): Pair<String, IdentifierData>? =
+        symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
@@ -112,7 +119,7 @@ data class SymbolTable(
     val parent: SymbolTable?,
     val functionSymbolTable: FunctionSymbolTable,
     val globalSymbolTable: GlobalSymbolTable,
-    private val symbolMap: MutableMap<String, IdentifierData> = mutableMapOf()
+    val symbolMap: MutableMap<String, IdentifierData> = mutableMapOf()
 ) : Iterable<SymbolTable> {
     val depth = lazy {
         var count = 0
@@ -131,14 +138,20 @@ data class SymbolTable(
     }
 
     fun snapshot(): SymbolTable {
-        return SymbolTable(parent?.snapshot(), functionSymbolTable, globalSymbolTable, symbolMap.mapValues { it.value.clone() }.toMutableMap())
+        return SymbolTable(
+            parent?.snapshot(),
+            functionSymbolTable,
+            globalSymbolTable,
+            symbolMap.mapValues { it.value.clone().copy(type = it.value.type.snapshot()) }.toMutableMap()
+        )
     }
 
     fun mergeSnapshot(symbolTable: SymbolTable) {
+        val i = this.iterator()
         for (table in symbolTable.iterator()) {
-            table.symbolMap.forEach {
-                this.setVariableOwnershipState(it.key, it.value.validity, it.value.depth)
-            }
+            val iSymbolTable = i.next()
+            iSymbolTable.symbolMap.clear()
+            iSymbolTable.symbolMap.putAll(table.symbolMap)
         }
     }
 
@@ -191,7 +204,8 @@ data class SymbolTable(
         for (table in iterator()) {
             table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
         }
-        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }.filter { if (allowConstants) true else !it.second.constant }
+        return overallMap.toList().filter { it.second.validity == OwnershipState.VALID }
+            .filter { if (allowConstants) true else !it.second.constant }
             .map { it.first }.toSet()
     }
 

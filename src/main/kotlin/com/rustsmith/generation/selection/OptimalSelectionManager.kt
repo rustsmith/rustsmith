@@ -4,12 +4,12 @@ import com.rustsmith.ast.*
 import com.rustsmith.generation.Context
 import com.rustsmith.logging.Logger
 import kotlin.reflect.KClass
-import kotlin.reflect.full.isSubclassOf
 
 open class OptimalSelectionManager : BaseSelectionManager() {
 
     override val config: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf(
-        FunctionCallExpression::class to 5,
+        FunctionCallExpression::class to 2,
+        RecursiveExpression::class to 5,
         StructType::class to 5,
         TupleType::class to 5,
         Variable::class to 1,
@@ -59,14 +59,8 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,
-            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + 1)
+            1.0 / (ctx.getDepth(FunctionCallExpression::class) * 4 + (1 + ctx.numberOfFunctionsDefined.value))
         )
-
-        if (ctx.getDepth(Variable::class) > 0) {
-            if (expressionWeightings.weightings.filter { !it.key.isSubclassOf(RecursiveExpression::class) }.values.sum() != 0.0) {
-                expressionWeightings.updateWeighting(RecursiveExpression::class, 0.0)
-            }
-        }
         Logger.logText("Weightings for expressions ${expressionWeightings.weightings}", ctx)
         return expressionWeightings
     }

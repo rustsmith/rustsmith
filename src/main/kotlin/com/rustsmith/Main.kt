@@ -11,7 +11,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
-import com.rustsmith.ast.AddExpression
+import com.rustsmith.ast.BoxDereferenceExpression
 import com.rustsmith.ast.generateProgram
 import com.rustsmith.exceptions.NoAvailableStatementException
 import com.rustsmith.generation.IdentGenerator
@@ -30,7 +30,7 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(100)
+    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(500)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
     private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
         "selection-manager",
@@ -53,7 +53,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                 SelectionManagerOptions.BASE_SELECTION -> BaseSelectionManager()
                 SelectionManagerOptions.SWARM_SELECTION -> SwarmBasedSelectionManager(getRandomConfiguration())
                 SelectionManagerOptions.OPTIMAL_SELECTION -> OptimalSelectionManager()
-                SelectionManagerOptions.AGGRESSIVE_SELECTION -> AggressiveSelectionManager(AddExpression::class)
+                SelectionManagerOptions.AGGRESSIVE_SELECTION -> AggressiveSelectionManager(BoxDereferenceExpression::class)
             }
         }
     }
@@ -104,7 +104,10 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                         break
                     } catch (e: NoAvailableStatementException) {
                         continue
-                    } catch (e: Error) { continue }
+                    } catch (e: Exception) {
+                        println(seed)
+                        continue
+                    }
                 }
             }
         }.forEach { executor.execute(it) }

@@ -14,10 +14,12 @@ data class FunctionDefinition(
     val returnType: Type = VoidType,
     val functionName: String,
     val arguments: Map<String, Type>,
-    val body: StatementBlock
+    val body: StatementBlock,
+    val forceNoInline: Boolean
 ) : ASTNode {
     override fun toRust(): String {
-        return "fn $functionName(${
+        val inline = if (forceNoInline) "#[inline(never)]" else ""
+        return "$inline\nfn $functionName(${
         arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
         }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
@@ -54,14 +56,16 @@ fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast:
     val symbolTable = SymbolTable(SymbolTable(null, functionSymbolTable, globalSymbolTable), functionSymbolTable, globalSymbolTable)
     val astGenerator = ASTGenerator(symbolTable, failFast, identGenerator)
     val mainFunctionContext = Context(listOf(mapOf()), "main", listOf(), symbolTable)
-    val constantDeclarations = (0..CustomRandom.nextInt(10)).map { astGenerator.generateConstantDeclaration(mainFunctionContext) }
+    val numberOfConstants = CustomRandom.nextInt(10)
+    val constantDeclarations = (0..numberOfConstants).map { astGenerator.generateConstantDeclaration(mainFunctionContext) }
     val body = astGenerator(mainFunctionContext)
     val bodyWithOutput =
         StatementBlock(listOf(FetchCLIArgs(symbolTable)) + body.statements + Output(symbolTable, programSeed), symbolTable)
     val mainFunction = FunctionDefinition(
         functionName = "main",
         arguments = emptyMap(),
-        body = bodyWithOutput
+        body = bodyWithOutput,
+        forceNoInline = false,
     )
     val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
     return Program(programSeed, setOf(), constantDeclarations, globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments

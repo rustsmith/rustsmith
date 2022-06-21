@@ -80,7 +80,7 @@ data class PrintElementStatement(
     override val symbolTable: SymbolTable
 ) : Statement {
     override fun toRust(): String {
-        return "println!(\"{:?}\", (\"$variableName\", $variableName));"
+        return "println!(\"{:?}\", $variableName);"
     }
 }
 

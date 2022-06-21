@@ -46,13 +46,9 @@ object ReconditionedArrayAccess : Macros {
         return """
             macro_rules! reconditioned_access{
                 (${"$"}a:expr,${"$"}b:expr) => {{
-                    let index_expr = ${"$"}b;
-                    let array = ${"$"}a;
-                    if (index_expr < array.len()) {
-                        array[index_expr]
-                    } else {
-                        array[0]
-                    }
+                    let arrLength = ${"$"}a.len();
+                    let index = ${"$"}b;
+                    ${"$"}a[if (index < arrLength) { index } else { 0 }]
                 }};
             }
         """.trimIndent()

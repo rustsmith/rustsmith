@@ -4,6 +4,7 @@ import com.rustsmith.ast.*
 import com.rustsmith.exceptions.NoAvailableExpressionException
 import com.rustsmith.exceptions.NoAvailableStatementException
 import com.rustsmith.exceptions.NoAvailableTypeException
+import com.rustsmith.exceptions.StatementGenerationRejectedException
 import com.rustsmith.generation.Context
 import com.rustsmith.subclasses
 import kotlin.reflect.KClass
@@ -36,6 +37,7 @@ open class BaseSelectionManager : SelectionManager {
     override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
+
     override fun choiceGenerateNewBoxTypeWeightings(ctx: Context) = mapOf(true to 0.5, false to 0.5)
 
     override fun choiceGenerateNewArrayTypeWeightings(ctx: Context) = mapOf(true to 0.1, false to 0.9)
@@ -84,7 +86,6 @@ open class BaseSelectionManager : SelectionManager {
                 filteredExpressions[TupleElementAccessExpression::class] = 1.0
                 filteredExpressions[StructElementAccessExpression::class] = 1.0
                 filteredExpressions[DereferenceExpression::class] = 1.0
-                filteredExpressions[ArrayAccess::class] = 1.0
             }
         }
         if (ctx.currentFunctionName != "main") {
@@ -113,6 +114,12 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions[Variable::class] = 1.0
         }
 
+        if (ctx.getDepthLast(ArrayAccess::class) > 0) {
+            filteredExpressions.clear()
+            filteredExpressions[Variable::class] = 1.0
+//            RecursiveStatementBlockExpression::class.subclasses().forEach { filteredExpressions.remove(it) }
+        }
+
         val weightings = filterNodes(filteredExpressions.keys.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         ctx.failedGenerationNodes.forEach {
             weightings.remove(it)
@@ -121,8 +128,8 @@ open class BaseSelectionManager : SelectionManager {
             throw NoAvailableExpressionException()
         }
 
-        if (ctx.getDepth(Expression::class) > 20) {
-            throw NoAvailableStatementException()
+        if (ctx.getDepth(Expression::class) > 30) {
+            throw StatementGenerationRejectedException()
         }
         return NodeSelectionWeighting(weightings)
     }

@@ -451,12 +451,14 @@ data class StructInstantiationExpression(
     }
 }
 
+sealed interface RecursiveStatementBlockExpression : Expression
+
 @ExpressionGenNode(Type::class)
 data class BlockExpression(
     val statement: StatementBlock,
     val type: Type?,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : RecursiveExpression, RecursiveStatementBlockExpression {
     override fun toRust(): String {
         return "{\n${statement.toRust()}\n}"
     }
@@ -469,7 +471,7 @@ data class IfElseExpression(
     val elseBlock: StatementBlock,
     val type: Type?,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : RecursiveExpression, RecursiveStatementBlockExpression {
     override fun toRust(): String {
         return "if (${predicate.toRust()}) {\n ${ifBlock.toRust()} \n} else {\n ${elseBlock.toRust()} \n}"
     }
@@ -480,7 +482,7 @@ data class IfExpression(
     val predicate: Expression,
     val ifBlock: StatementBlock,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : RecursiveExpression, RecursiveStatementBlockExpression {
     override fun toRust(): String {
         return "if (${predicate.toRust()}) {\n ${ifBlock.toRust()} \n}"
     }
@@ -492,7 +494,7 @@ data class IfExpression(
 data class LoopExpression(
     val body: StatementBlock,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : RecursiveExpression, RecursiveStatementBlockExpression {
     override fun toRust(): String {
         return "loop {\n ${body.toRust()} \n}"
     }
@@ -605,7 +607,15 @@ data class NewBoxExpression(
 data class BoxDereferenceExpression(
     val internalExpression: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : LHSAssignmentNode, RecursiveExpression {
+    override fun rootNode(): Variable? {
+        return if (internalExpression is LHSAssignmentNode) {
+            internalExpression.rootNode()
+        } else {
+            null
+        }
+    }
+
     override fun toRust(): String {
         return "*${internalExpression.toRust()}"
     }
@@ -733,7 +743,7 @@ fun Expression.toType(): Type {
         is ArrayLengthExpression -> USizeType
         is ArrayPushExpression -> VoidType
         is NewBoxExpression -> BoxType(internalExpression.toType())
-        is BoxDereferenceExpression -> internalExpression.toType()
+        is BoxDereferenceExpression -> (internalExpression.toType() as BoxType).internalType
     }
 }
 

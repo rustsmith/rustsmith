@@ -27,7 +27,7 @@ class ASTGenerator(
     private val failFast: Boolean,
     private val identGenerator: IdentGenerator
 ) : AbstractASTGenerator {
-    private val dependantStatements = mutableListOf<Statement>()
+    private val dependantStatements = mutableListOf<Declaration>()
 
     operator fun invoke(ctx: Context, type: Type = VoidType, depth: Int? = null): StatementBlock {
         var currentCtx = ctx.enterScope()
@@ -84,6 +84,10 @@ class ASTGenerator(
             try {
                 return generateSpecificStatement(selectedStatement, ctx)
             } catch (e: StatementGenerationRejectedException) {
+                dependantStatements.forEach {
+                    symbolTable.symbolMap.remove(it.variableName)
+                }
+                dependantStatements.clear()
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
                 Logger.logText(
@@ -92,6 +96,10 @@ class ASTGenerator(
                     Color.LIGHT_RED
                 )
             } catch (e: NoAvailableExpressionException) {
+                dependantStatements.forEach {
+                    symbolTable.symbolMap.remove(it.variableName)
+                }
+                dependantStatements.clear()
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 currentCtx = currentCtx.addFailedNode(selectedStatement)
                 Logger.logText(
@@ -127,6 +135,7 @@ class ASTGenerator(
         var currentCtx = ctx
         var count = 0
         while (count < MAX_TRIES_FOR_TYPES) {
+            count++
             try {
                 val type = generateType(currentCtx.incrementCount(ExpressionStatement::class))
                 try {
@@ -138,11 +147,19 @@ class ASTGenerator(
                         true, symbolTable
                     )
                 } catch (e: NoAvailableExpressionException) {
+                    dependantStatements.forEach {
+                        symbolTable.symbolMap.remove(it.variableName)
+                    }
+                    dependantStatements.clear()
                     symbolTable.mergeSnapshot(symbolTableSnapshot)
                     currentCtx = currentCtx.addFailedNode(type::class)
                     Logger.logText("Expression Statement generation failed for type $type", currentCtx, Color.LIGHT_RED)
                 }
             } catch (e: NoAvailableTypeException) {
+                dependantStatements.forEach {
+                    symbolTable.symbolMap.remove(it.variableName)
+                }
+                dependantStatements.clear()
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
                 Logger.logText(
@@ -152,8 +169,11 @@ class ASTGenerator(
                 )
                 throw StatementGenerationRejectedException()
             }
-            count++
         }
+        dependantStatements.forEach {
+            symbolTable.symbolMap.remove(it.variableName)
+        }
+        dependantStatements.clear()
         symbolTable.mergeSnapshot(symbolTableSnapshot)
         // MAX_TRIES exceeded, give up on making Expression Statement
         throw StatementGenerationRejectedException()
@@ -169,6 +189,10 @@ class ASTGenerator(
                 try {
                     return generateDependantDeclarationOfType(declarationType, ctx = ctx)
                 } catch (e: NoAvailableExpressionException) {
+                    dependantStatements.forEach {
+                        symbolTable.symbolMap.remove(it.variableName)
+                    }
+                    dependantStatements.clear()
                     symbolTable.mergeSnapshot(symbolTableSnapshot)
                     currentCtx = currentCtx.addFailedNode(declarationType::class)
                     Logger.logText(
@@ -178,6 +202,10 @@ class ASTGenerator(
                     )
                 }
             } catch (e: NoAvailableTypeException) {
+                dependantStatements.forEach {
+                    symbolTable.symbolMap.remove(it.variableName)
+                }
+                dependantStatements.clear()
                 symbolTable.mergeSnapshot(symbolTableSnapshot)
                 // Types have been exhausted to make an expression generation, throw statement not generated exception
                 Logger.logText("Declaration generation failed as no types available", currentCtx, Color.LIGHT_RED)
@@ -185,6 +213,10 @@ class ASTGenerator(
             }
             count++
         }
+        dependantStatements.forEach {
+            symbolTable.symbolMap.remove(it.variableName)
+        }
+        dependantStatements.clear()
         symbolTable.mergeSnapshot(symbolTableSnapshot)
         // MAX_TRIES exceeded, give up on making Expression Statement
         throw StatementGenerationRejectedException()
@@ -232,6 +264,16 @@ class ASTGenerator(
                         ctx.incrementCount(Assignment::class).withAssignmentNode(value.node.rootNode())
                             .withLifetimeRequirement(value.identifierData.depth)
                     )
+                } else if (lhsAssignmentType is BoxType) {
+                    val useDereferenceLhs = CustomRandom.nextBoolean() || !value.identifierData.mutable
+                    val lhsExpression =
+                        if (useDereferenceLhs) BoxDereferenceExpression(value.node, value.node.symbolTable) else value.node
+                    val exprType = if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType
+                    lhsExpression to generateExpression(
+                        exprType,
+                        ctx.incrementCount(Assignment::class).withAssignmentNode(value.node.rootNode())
+                            .withLifetimeRequirement(value.identifierData.depth)
+                    )
                 } else {
                     value.node to generateExpression(
                         lhsAssignmentType,
@@ -266,8 +308,8 @@ class ASTGenerator(
             }
             PrintElementStatement(declaration.variableName, symbolTable)
         } else {
-            if (Variable(variableName, symbolTable).toType().getOwnership() == OwnershipModel.MOVE) {
-                symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable.depth.value)
+            if (symbolTable[variableName]!!.type.getOwnership() == OwnershipModel.MOVE) {
+                symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable[variableName]!!.depth)
             }
             PrintElementStatement(variableName, symbolTable)
         }
@@ -843,15 +885,17 @@ class ASTGenerator(
             symbolTableForFunction[it.key] =
                 IdentifierData(it.value, false, OwnershipState.VALID, 0)
         }
+        val bodySymbolTable = symbolTableForFunction.enterScope()
         val functionName = identGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
             returnType, functionName, arguments,
-            ASTGenerator(symbolTableForFunction, failFast, identGenerator)(
+            ASTGenerator(bodySymbolTable, failFast, identGenerator)(
                 ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
-                    .setReturnExpressionType(returnType).withSymbolTable(symbolTableForFunction)
+                    .setReturnExpressionType(returnType).withSymbolTable(bodySymbolTable)
                     .withFunctionName(functionName),
                 returnType
-            )
+            ),
+            CustomRandom.nextBoolean()
         )
         val functionType = FunctionType(returnType, argTypes)
         symbolTable.functionSymbolTable[functionDefinition.functionName] =
