@@ -1,4 +1,4 @@
-FROM openjdk
+FROM openjdk:15-slim
 
 COPY . /sources
 WORKDIR /sources
