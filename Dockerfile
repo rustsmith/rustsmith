@@ -1,8 +1,5 @@
 FROM openjdk:15-slim
 
-COPY . /sources
-WORKDIR /sources
+COPY ./build/libs/RustSmith-1.0-SNAPSHOT-all.jar /rustsmith.jar
 
-RUN ./gradlew build
-
-ENTRYPOINT ["java", "-jar", "build/libs/RustSmith-1.0-SNAPSHOT-all.jar"]
+ENTRYPOINT ["java", "-jar", "rustsmith.jar"]
