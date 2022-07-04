@@ -112,7 +112,10 @@ class Reconditioner {
             is ArrayAccess -> {
                 reconditioningMacros.add(ReconditionedArrayAccess)
                 ReconditionedIndexAccess(
-                    node.copy(arrayExpression = reconditionExpression(node.arrayExpression), indexExpression = reconditionExpression(node.indexExpression)),
+                    node.copy(
+                        arrayExpression = reconditionExpression(node.arrayExpression),
+                        indexExpression = reconditionExpression(node.indexExpression)
+                    ),
                     node.symbolTable
                 )
             }
@@ -126,7 +129,10 @@ class Reconditioner {
             )
             is NewBoxExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
             is BoxDereferenceExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
-            is MethodCallExpression -> node.copy(structExpression = reconditionExpression(node.structExpression), args = node.args.map { reconditionExpression(it) })
+            is MethodCallExpression -> node.copy(
+                structExpression = reconditionExpression(node.structExpression),
+                args = node.args.map { reconditionExpression(it) }
+            )
         }
     }
 
@@ -155,11 +161,20 @@ class Reconditioner {
                 nodeCounters[FunctionDefinition::class] = node.functions.size
                 nodeCounters[StructDefinition::class] = node.structs.size
                 val reconditionedFunctions = node.functions.map { it.copy(body = reconditionStatementBlock(it.body)) }
+                val reconditionedStructs = node.structs.map {
+                    it.copy(
+                        methods = it.methods.map { method ->
+                            method.copy(
+                                body = reconditionStatementBlock(method.body)
+                            )
+                        }.toMutableList()
+                    )
+                }
                 Program(
                     node.seed,
                     reconditioningMacros,
                     node.constants,
-                    node.structs,
+                    reconditionedStructs,
                     reconditionedFunctions
                 )
             }
@@ -168,7 +183,10 @@ class Reconditioner {
             is FunctionDefinition -> node
             is Type -> node
             is StatementBlock -> node
-            is StructDefinition -> node.copy(methods = node.methods.map { it.copy(body = reconditionStatementBlock(it.body)) }.toMutableList())
+            is StructDefinition -> node.copy(
+                methods = node.methods.map { it.copy(body = reconditionStatementBlock(it.body)) }
+                    .toMutableList()
+            )
         }
     }
 }

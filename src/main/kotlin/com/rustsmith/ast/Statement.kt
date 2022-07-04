@@ -80,7 +80,7 @@ data class PrintElementStatement(
     override val symbolTable: SymbolTable
 ) : Statement {
     override fun toRust(): String {
-        return "println!(\"{:?}\", $variableName);"
+        return "format!(\"{:?}\", $variableName).hash(hasher);"
     }
 }
 
@@ -94,18 +94,19 @@ data class StatementBlock(val statements: List<Statement>, val symbolTable: Symb
 data class FetchCLIArgs(override val symbolTable: SymbolTable) : Statement {
 
     override fun toRust(): String {
-        return "use std::env;\nlet cli_args: Vec<String> = env::args().collect();"
+        return "let cli_args: Vec<String> = env::args().collect();\nlet mut s = DefaultHasher::new();\nlet hasher = &mut s;"
     }
 }
 
-data class Output(override val symbolTable: SymbolTable, val programSeed: Long?) : Statement {
+data class Output(override val symbolTable: SymbolTable, val programSeed: Long) : Statement {
 
     override fun toRust(): String {
         val hashString = mutableListOf<String>()
-        if (programSeed != null) hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
         symbolTable.getOwnedVariables().sorted().forEach {
-            hashString.add("println!(\"{:?}\", ${"\"$it\"" to it});")
+            hashString.add("format!(\"{:?}\", $it).hash(hasher);")
         }
+        hashString.add("println!(\"Program Seed: {:?}\", ${programSeed}i64);")
+        hashString.add("println!(\"{:?}\", hasher.finish());")
         return hashString.joinToString("\n")
     }
 }

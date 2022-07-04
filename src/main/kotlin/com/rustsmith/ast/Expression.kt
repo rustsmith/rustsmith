@@ -435,7 +435,8 @@ data class FunctionCallExpression(
 ) : RecursiveExpression {
 
     override fun toRust(): String {
-        return "$functionName(${args.joinToString(",") { it.toRust() }})"
+        val arguments = args.map { it.toRust() } + "hasher"
+        return "$functionName(${arguments.joinToString(",") { it }})"
     }
 }
 
@@ -449,7 +450,8 @@ data class MethodCallExpression(
 ) : RecursiveExpression {
 
     override fun toRust(): String {
-        return "${structExpression.toRust()}.$methodName(${args.joinToString(",") { it.toRust() }})"
+        val arguments = args.map { it.toRust() } + "hasher"
+        return "${structExpression.toRust()}.$methodName(${arguments.joinToString(",") { it }})"
     }
 }
 
