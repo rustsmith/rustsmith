@@ -886,7 +886,7 @@ class ASTGenerator(
             symbolTable.globalSymbolTable.getRandomMethodOfType(type) ?: generateMethod(type.clone(), ctx)
         if (!failFast) {
             val membersWithReferenceType =
-                methodInformation.second.arguments.map { it.value }
+                methodInformation.second.arguments.filter { it.key != "hasher" }.map { it.value }
                     .flatMap { it.memberTypes().filterIsInstance<ReferencingTypes>() }
             membersWithReferenceType.forEach {
                 dependantStatements.add(
@@ -898,7 +898,7 @@ class ASTGenerator(
         return MethodCallExpression(
             structExpression,
             methodInformation.second.functionName,
-            methodInformation.second.arguments.map { it.value }.map {
+            methodInformation.second.arguments.filter { it.key != "hasher" }.map { it.value }.map {
                 generateExpression(it, ctx.incrementCount(FunctionCallExpression::class))
             },
             symbolTable
@@ -911,12 +911,7 @@ class ASTGenerator(
         val symbolTableForFunction = SymbolTable(
             symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
-        val arguments = argTypes.associateBy { identGenerator.generateVariable() } + mapOf(
-            "hasher" to MutableReferenceType(
-                DefaultHasher,
-                symbolTable.depth.value.toUInt()
-            )
-        )
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
         arguments.forEach {
             symbolTableForFunction[it.key] =
                 IdentifierData(it.value, false, OwnershipState.VALID, 0)
@@ -924,7 +919,13 @@ class ASTGenerator(
         val bodySymbolTable = symbolTableForFunction.enterScope()
         val functionName = identGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
-            returnType, functionName, arguments,
+            returnType, functionName,
+            arguments + mapOf(
+                "hasher" to MutableReferenceType(
+                    DefaultHasher,
+                    symbolTable.depth.value.toUInt()
+                )
+            ),
             ASTGenerator(bodySymbolTable, failFast, identGenerator)(
                 ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
                     .setReturnExpressionType(returnType).withSymbolTable(bodySymbolTable)
@@ -948,12 +949,7 @@ class ASTGenerator(
         val symbolTableForFunction = SymbolTable(
             symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
-        val arguments = argTypes.associateBy { identGenerator.generateVariable() } + mapOf(
-            "hasher" to MutableReferenceType(
-                DefaultHasher,
-                symbolTable.depth.value.toUInt()
-            )
-        )
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
         symbolTableForFunction["self"] =
             IdentifierData(ReferenceType(structType, symbolTable.depth.value.toUInt()), false, OwnershipState.VALID, 0)
         arguments.forEach {
@@ -963,7 +959,13 @@ class ASTGenerator(
         val bodySymbolTable = symbolTableForFunction.enterScope()
         val functionName = identGenerator.generateFunctionName()
         val functionDefinition = FunctionDefinition(
-            returnType, functionName, arguments,
+            returnType, functionName,
+            arguments + mapOf(
+                "hasher" to MutableReferenceType(
+                    DefaultHasher,
+                    symbolTable.depth.value.toUInt()
+                )
+            ),
             ASTGenerator(bodySymbolTable, failFast, identGenerator)(
                 ctx.incrementCount(MethodCallExpression::class).resetContextForFunction()
                     .setReturnExpressionType(returnType).withSymbolTable(bodySymbolTable)
@@ -973,7 +975,6 @@ class ASTGenerator(
             CustomRandom.nextBoolean(),
             addSelfVariable = true
         )
-        val functionType = FunctionType(returnType, argTypes)
         symbolTable.globalSymbolTable.addMethod(structType, functionDefinition)
         return structType to functionDefinition
     }

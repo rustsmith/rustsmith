@@ -21,6 +21,7 @@ open class BaseSelectionManager : SelectionManager {
     // Config describes what limit each specific ASTNode should have in terms of depth
     override val config: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf(
         FunctionCallExpression::class to 3,
+        MethodCallExpression::class to 3,
         TupleType::class to 3,
         RecursiveExpression::class to 3,
         ContainerType::class to 3,
@@ -105,9 +106,10 @@ open class BaseSelectionManager : SelectionManager {
         }
         if (type.memberTypes().count { it is ReferencingTypes } > 0) {
             filteredExpressions.remove(FunctionCallExpression::class)
+            filteredExpressions.remove(MethodCallExpression::class)
         }
 
-        val variableRequiringExpressions = listOf(StructInstantiationExpression::class, TupleLiteral::class, FunctionCallExpression::class)
+        val variableRequiringExpressions = listOf(StructInstantiationExpression::class, TupleLiteral::class, FunctionCallExpression::class, MethodCallExpression::class)
         if (ctx.previousIncrement in variableRequiringExpressions && type is ReferencingTypes) {
             // Ensure the variables created beforehand are used
             filteredExpressions.clear()
