@@ -470,6 +470,14 @@ data class BoxType(val internalType: Type) : ContainerType {
     }
 }
 
+object DefaultHasher : Type {
+    override fun clone() = DefaultHasher
+    override fun memberTypes() = listOf<Type>()
+    override fun lifetimeParameters() = listOf<UInt>()
+
+    override fun toRust() = "DefaultHasher"
+}
+
 data class FunctionType(val returnType: Type, val args: List<Type>) : NonVoidType {
     override fun toRust(): String {
         return "fn(${args.joinToString(",") { it.toRust() }}) -> ${returnType.toRust()}"
@@ -536,6 +544,7 @@ fun Type.getOwnership(): OwnershipModel {
         is LifetimeParameterizedType<*> -> this.type.getOwnership()
         is ArrayType -> OwnershipModel.MOVE
         is BoxType -> OwnershipModel.MOVE
+        DefaultHasher -> OwnershipModel.MOVE
     }
 }
 

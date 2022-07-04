@@ -911,7 +911,12 @@ class ASTGenerator(
         val symbolTableForFunction = SymbolTable(
             symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
-        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() } + mapOf(
+            "hasher" to MutableReferenceType(
+                DefaultHasher,
+                symbolTable.depth.value.toUInt()
+            )
+        )
         arguments.forEach {
             symbolTableForFunction[it.key] =
                 IdentifierData(it.value, false, OwnershipState.VALID, 0)
@@ -943,7 +948,12 @@ class ASTGenerator(
         val symbolTableForFunction = SymbolTable(
             symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
         )
-        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() } + mapOf(
+            "hasher" to MutableReferenceType(
+                DefaultHasher,
+                symbolTable.depth.value.toUInt()
+            )
+        )
         symbolTableForFunction["self"] =
             IdentifierData(ReferenceType(structType, symbolTable.depth.value.toUInt()), false, OwnershipState.VALID, 0)
         arguments.forEach {
@@ -955,7 +965,7 @@ class ASTGenerator(
         val functionDefinition = FunctionDefinition(
             returnType, functionName, arguments,
             ASTGenerator(bodySymbolTable, failFast, identGenerator)(
-                ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
+                ctx.incrementCount(MethodCallExpression::class).resetContextForFunction()
                     .setReturnExpressionType(returnType).withSymbolTable(bodySymbolTable)
                     .withFunctionName(functionName),
                 returnType
