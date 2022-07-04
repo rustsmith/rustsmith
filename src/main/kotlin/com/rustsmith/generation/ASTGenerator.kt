@@ -267,7 +267,10 @@ class ASTGenerator(
                 } else if (lhsAssignmentType is BoxType) {
                     val useDereferenceLhs = CustomRandom.nextBoolean() || !value.identifierData.mutable
                     val lhsExpression =
-                        if (useDereferenceLhs) BoxDereferenceExpression(value.node, value.node.symbolTable) else value.node
+                        if (useDereferenceLhs) BoxDereferenceExpression(
+                            value.node,
+                            value.node.symbolTable
+                        ) else value.node
                     val exprType = if (useDereferenceLhs) lhsAssignmentType.internalType else lhsAssignmentType
                     lhsExpression to generateExpression(
                         exprType,
@@ -309,7 +312,11 @@ class ASTGenerator(
             PrintElementStatement(declaration.variableName, symbolTable)
         } else {
             if (symbolTable[variableName]!!.type.getOwnership() == OwnershipModel.MOVE) {
-                symbolTable.setVariableOwnershipState(variableName, OwnershipState.INVALID, symbolTable[variableName]!!.depth)
+                symbolTable.setVariableOwnershipState(
+                    variableName,
+                    OwnershipState.INVALID,
+                    symbolTable[variableName]!!.depth
+                )
             }
             PrintElementStatement(variableName, symbolTable)
         }
@@ -874,6 +881,30 @@ class ASTGenerator(
         )
     }
 
+    override fun generateMethodCallExpression(type: Type, ctx: Context): MethodCallExpression {
+        val methodInformation: Pair<StructType, FunctionDefinition> =
+            symbolTable.globalSymbolTable.getRandomMethodOfType(type) ?: generateMethod(type.clone(), ctx)
+        if (!failFast) {
+            val membersWithReferenceType =
+                methodInformation.second.arguments.map { it.value }
+                    .flatMap { it.memberTypes().filterIsInstance<ReferencingTypes>() }
+            membersWithReferenceType.forEach {
+                dependantStatements.add(
+                    generateDependantDeclarationOfType(it, ctx = ctx.incrementCount(MethodCallExpression::class))
+                )
+            }
+        }
+        val structExpression = generateExpression(methodInformation.first, ctx)
+        return MethodCallExpression(
+            structExpression,
+            methodInformation.second.functionName,
+            methodInformation.second.arguments.map { it.value }.map {
+                generateExpression(it, ctx.incrementCount(FunctionCallExpression::class))
+            },
+            symbolTable
+        )
+    }
+
     private fun generateFunction(returnType: Type, ctx: Context): Pair<String, FunctionType> {
         val numArgs = CustomRandom.nextInt(5)
         val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
@@ -895,13 +926,46 @@ class ASTGenerator(
                     .withFunctionName(functionName),
                 returnType
             ),
-            CustomRandom.nextBoolean()
+            CustomRandom.nextBoolean(),
+            addSelfVariable = false
         )
         val functionType = FunctionType(returnType, argTypes)
         symbolTable.functionSymbolTable[functionDefinition.functionName] =
             IdentifierData(functionType, false, OwnershipState.VALID, symbolTable.depth.value)
         symbolTable.functionSymbolTable.addFunction(functionDefinition)
         return functionDefinition.functionName to functionType
+    }
+
+    private fun generateMethod(returnType: Type, ctx: Context): Pair<StructType, FunctionDefinition> {
+        val structType = generateStructType(ctx.incrementCount(MethodCallExpression::class))
+        val numArgs = CustomRandom.nextInt(5)
+        val argTypes = (0 until numArgs).map { generateType(ctx.incrementCount(FunctionType::class)) }
+        val symbolTableForFunction = SymbolTable(
+            symbolTable.root(), symbolTable.functionSymbolTable, symbolTable.globalSymbolTable
+        )
+        val arguments = argTypes.associateBy { identGenerator.generateVariable() }
+        symbolTableForFunction["self"] =
+            IdentifierData(ReferenceType(structType, symbolTable.depth.value.toUInt()), false, OwnershipState.VALID, 0)
+        arguments.forEach {
+            symbolTableForFunction[it.key] =
+                IdentifierData(it.value, false, OwnershipState.VALID, 0)
+        }
+        val bodySymbolTable = symbolTableForFunction.enterScope()
+        val functionName = identGenerator.generateFunctionName()
+        val functionDefinition = FunctionDefinition(
+            returnType, functionName, arguments,
+            ASTGenerator(bodySymbolTable, failFast, identGenerator)(
+                ctx.incrementCount(FunctionCallExpression::class).resetContextForFunction()
+                    .setReturnExpressionType(returnType).withSymbolTable(bodySymbolTable)
+                    .withFunctionName(functionName),
+                returnType
+            ),
+            CustomRandom.nextBoolean(),
+            addSelfVariable = true
+        )
+        val functionType = FunctionType(returnType, argTypes)
+        symbolTable.globalSymbolTable.addMethod(structType, functionDefinition)
+        return structType to functionDefinition
     }
 
     override fun generateStructInstantiationExpression(type: Type, ctx: Context): StructInstantiationExpression {

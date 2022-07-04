@@ -1,6 +1,6 @@
 package com.rustsmith.generation
 
-const val CONST_PREFIX = "const"
+const val CONST_PREFIX = "CONST"
 const val VARIABLE_PREFIX = "var"
 const val FUNCTION_PREFIX = "fun"
 const val STRUCT_PREFIX = "Struct"

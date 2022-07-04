@@ -94,6 +94,14 @@ class GlobalSymbolTable {
 
     fun addStruct(structDefinition: StructDefinition) = structs.add(structDefinition)
 
+    fun addMethod(structType: StructType, method: FunctionDefinition) {
+        structs.find { it.structType.type.structName == structType.structName }!!.methods.add(method)
+    }
+
+    fun getRandomMethodOfType(type: Type): Pair<StructType, FunctionDefinition>? {
+        return structs.flatMap { struct -> struct.methods.map { struct.structType.type to it } }.filter { it.second.returnType == type }.randomOrNull()
+    }
+
     fun getRandomStruct(): Pair<String, IdentifierData>? =
         symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
 

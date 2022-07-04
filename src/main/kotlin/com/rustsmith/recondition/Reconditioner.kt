@@ -126,6 +126,7 @@ class Reconditioner {
             )
             is NewBoxExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
             is BoxDereferenceExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
+            is MethodCallExpression -> node.copy(structExpression = reconditionExpression(node.structExpression), args = node.args.map { reconditionExpression(it) })
         }
     }
 
@@ -167,7 +168,7 @@ class Reconditioner {
             is FunctionDefinition -> node
             is Type -> node
             is StatementBlock -> node
-            is StructDefinition -> node
+            is StructDefinition -> node.copy(methods = node.methods.map { it.copy(body = reconditionStatementBlock(it.body)) }.toMutableList())
         }
     }
 }

@@ -67,6 +67,11 @@ tasks.register<JavaExec>("generateInterface") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+tasks.register<Copy>("install") {
+    from("run/rustsmith")
+    into("/usr/local/bin")
+}
+
 tasks.named("build") {
     dependsOn("shadowJarExecutable")
 }

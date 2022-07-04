@@ -439,6 +439,20 @@ data class FunctionCallExpression(
     }
 }
 
+@SwarmNode
+@ExpressionGenNode(Type::class)
+data class MethodCallExpression(
+    val structExpression: Expression,
+    val methodName: String,
+    val args: List<Expression>,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression {
+
+    override fun toRust(): String {
+        return "${structExpression.toRust()}.$methodName(${args.joinToString(",") { it.toRust() }})"
+    }
+}
+
 @ExpressionGenNode(StructType::class)
 data class StructInstantiationExpression(
     val structName: String,
@@ -744,6 +758,7 @@ fun Expression.toType(): Type {
         is ArrayPushExpression -> VoidType
         is NewBoxExpression -> BoxType(internalExpression.toType())
         is BoxDereferenceExpression -> (internalExpression.toType() as BoxType).internalType
+        is MethodCallExpression -> symbolTable.globalSymbolTable.structs.find { it.structType.type.structName == (this.structExpression.toType() as StructType).structName }!!.methods.find { it.functionName == methodName }!!.returnType
     }
 }
 

@@ -44,6 +44,7 @@ import com.rustsmith.ast.Int8Literal
 import com.rustsmith.ast.LTEExpression
 import com.rustsmith.ast.LTExpression
 import com.rustsmith.ast.LoopExpression
+import com.rustsmith.ast.MethodCallExpression
 import com.rustsmith.ast.ModExpression
 import com.rustsmith.ast.MultiplyExpression
 import com.rustsmith.ast.MutableReferenceExpression
@@ -163,9 +164,13 @@ public interface AbstractASTGenerator {
 
     public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
 
+    public fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression
+
     public fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
 
     public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
+
+    public fun generateMethodCallExpression(type: Type, ctx: Context): MethodCallExpression
 
     public fun generateBlockExpression(type: Type, ctx: Context): BlockExpression
 
@@ -178,8 +183,6 @@ public interface AbstractASTGenerator {
     public fun generateArrayAccess(type: Type, ctx: Context): ArrayAccess
 
     public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
-
-    public fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression
 
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
@@ -251,15 +254,16 @@ public interface AbstractASTGenerator {
         StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
         Variable::class -> generateVariable(type, ctx)
         DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
+        BoxDereferenceExpression::class -> generateBoxDereferenceExpression(type, ctx)
         GroupedExpression::class -> generateGroupedExpression(type, ctx)
         FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
+        MethodCallExpression::class -> generateMethodCallExpression(type, ctx)
         BlockExpression::class -> generateBlockExpression(type, ctx)
         IfElseExpression::class -> generateIfElseExpression(type, ctx)
         IfExpression::class -> generateIfExpression(type, ctx)
         LoopExpression::class -> generateLoopExpression(type, ctx)
         ArrayAccess::class -> generateArrayAccess(type, ctx)
         NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
-        BoxDereferenceExpression::class -> generateBoxDereferenceExpression(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)
         DivideExpression::class -> generateDivideExpression(type, ctx)

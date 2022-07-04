@@ -15,21 +15,25 @@ data class FunctionDefinition(
     val functionName: String,
     val arguments: Map<String, Type>,
     val body: StatementBlock,
-    val forceNoInline: Boolean
+    val forceNoInline: Boolean,
+    val addSelfVariable: Boolean
 ) : ASTNode {
     override fun toRust(): String {
         val inline = if (forceNoInline) "#[inline(never)]" else ""
-        return "$inline\nfn $functionName(${
+        val self = if (addSelfVariable) "self," else ""
+        return "$inline\nfn $functionName($self ${
         arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
         }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"
     }
 }
 
-data class StructDefinition(val structType: LifetimeParameterizedType<StructType>) : ASTNode {
+data class StructDefinition(val structType: LifetimeParameterizedType<StructType>, val methods: MutableList<FunctionDefinition> = mutableListOf()) : ASTNode {
     override fun toRust(): String {
         val traits = "#[derive(Debug)]\n"
         val parameterizedSyntax = if (structType.lifetimeParameters().isNotEmpty()) "<${structType.lifetimeParameters().toSet().joinToString(",") { "'a$it" }}>" else ""
-        return "${traits}struct ${structType.type.structName}$parameterizedSyntax {\n${structType.type.types.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
+        val structDef = "${traits}struct ${structType.type.structName}$parameterizedSyntax {\n${structType.type.types.joinToString("\n") { "${it.first}: ${it.second.toRust()}," }}\n}\n"
+        val implDef = "\nimpl$parameterizedSyntax ${structType.type.structName}$parameterizedSyntax {\n ${methods.joinToString("\n") { it.toRust() }} \n}"
+        return structDef + implDef
     }
 }
 
@@ -66,6 +70,7 @@ fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast:
         arguments = emptyMap(),
         body = bodyWithOutput,
         forceNoInline = false,
+        addSelfVariable = false
     )
     val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
     return Program(programSeed, setOf(), constantDeclarations, globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments

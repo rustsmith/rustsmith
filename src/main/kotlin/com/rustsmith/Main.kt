@@ -30,8 +30,9 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(1)
+    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(100)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
+    private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(8)
     private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
         "selection-manager",
         help = "Choose selection manager(s) for generation"
@@ -66,7 +67,7 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         // Don't make progress bar if printing out the program in console
         val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
-        val executor = Executors.newFixedThreadPool(count.coerceAtMost(8))
+        val executor = Executors.newFixedThreadPool(count.coerceAtMost(threads))
         (0 until count).map {
             Runnable {
                 while (true) {
@@ -105,7 +106,6 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                     } catch (e: NoAvailableStatementException) {
                         continue
                     } catch (e: Exception) {
-                        println(seed)
                         continue
                     }
                 }
