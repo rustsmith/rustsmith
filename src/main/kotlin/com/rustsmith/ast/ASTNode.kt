@@ -20,7 +20,7 @@ data class FunctionDefinition(
 ) : ASTNode {
     override fun toRust(): String {
         val inline = if (forceNoInline) "#[inline(never)]" else ""
-        val self = if (addSelfVariable) "self," else ""
+        val self = if (addSelfVariable) "&self," else ""
         return "$inline\nfn $functionName($self ${
         arguments.map { "${it.key}: ${it.value.toRust()}" }.joinToString(", ")
         }) -> ${returnType.toRust()} {\n${body.toRust()}\n}\n"

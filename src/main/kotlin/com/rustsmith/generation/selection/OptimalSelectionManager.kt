@@ -25,7 +25,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> {
         val createNewStruct = 1.0 / (ctx.numberOfStructsDefined.value + 1)
-        return mapOf(true to 0.0, false to 1.0)
+        return mapOf(true to createNewStruct, false to 1.0 - createNewStruct)
     }
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> {
