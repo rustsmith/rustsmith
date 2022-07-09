@@ -47,6 +47,7 @@ open class BaseSelectionManager : SelectionManager {
         mapOf(false to 0.5, true to 0.5)
 
     override fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
+    override fun choiceGenerateNewTypeAliasWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
     override fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement> {
         val allStatements = Statement::class.subclasses().filter { it.hasAnnotation<GenNode>() }

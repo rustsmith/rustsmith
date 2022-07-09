@@ -21,6 +21,7 @@ data class Context(
     val numberOfDeclarationsInScope = lazy { symbolTable.getCurrentVariables().size }
     val numberOfFunctionsDefined = lazy { symbolTable.functionSymbolTable.functions.size }
     val numberOfStructsDefined = lazy { symbolTable.globalSymbolTable.structs.size }
+    val numberOfTypeAliasesDefined = lazy { symbolTable.globalSymbolTable.typeAliases.size }
     val numberOfTuplesDefined = lazy { symbolTable.globalSymbolTable.tupleTypes.size }
     val numberOfArrayTypesDefined = lazy { symbolTable.globalSymbolTable.arrayTypes.size }
 

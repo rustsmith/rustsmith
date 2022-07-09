@@ -1,5 +1,6 @@
 package com.rustsmith.generation
 
+const val TYPE_PREFIX = "Type"
 const val CONST_PREFIX = "CONST"
 const val VARIABLE_PREFIX = "var"
 const val FUNCTION_PREFIX = "fun"
@@ -11,6 +12,8 @@ class IdentGenerator {
     fun generateVariable(): String = generate(VARIABLE_PREFIX)
 
     fun generateConst(): String = generate(CONST_PREFIX)
+
+    fun generateTypeAlias(): String = generate(TYPE_PREFIX)
 
     fun generateFunctionName(): String = generate(FUNCTION_PREFIX)
 

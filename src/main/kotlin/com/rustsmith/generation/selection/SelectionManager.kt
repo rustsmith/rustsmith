@@ -23,6 +23,8 @@ interface SelectionManager {
 
     fun choiceGenerateNewCLIArgumentWeightings(ctx: Context): Map<Boolean, Double>
 
+    fun choiceGenerateNewTypeAliasWeightings(ctx: Context): Map<Boolean, Double>
+
     fun availableStatementsWeightings(ctx: Context): NodeSelectionWeighting<Statement>
 
     fun availableExpressionsWeightings(ctx: Context, type: Type): NodeSelectionWeighting<Expression>

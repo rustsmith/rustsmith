@@ -1093,6 +1093,17 @@ class ASTGenerator(
         return ArrayType(randomTupleType)
     }
 
+    override fun generateTypeAliasType(ctx: Context): TypeAliasType {
+        val typeAliasType = symbolTable.globalSymbolTable.getRandomTypeAlias()
+        return if (typeAliasType == null || selectionManager.choiceGenerateNewTypeAliasWeightings(ctx).randomByWeights()) {
+            val typeAlias = TypeAliasType(identGenerator.generateTypeAlias(), generateType(ctx.incrementCount(TypeAliasType::class)))
+            symbolTable.globalSymbolTable.addTypeAlias(TypeAliasDefinition(wrapWithLifetimeParameters(typeAlias) as LifetimeParameterizedType<TypeAliasType>))
+            typeAlias
+        } else {
+            typeAliasType
+        }
+    }
+
     override fun generateBoxType(ctx: Context): BoxType {
         val randomBoxType = symbolTable.globalSymbolTable.getRandomBoxType()
         if (randomBoxType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
@@ -1116,6 +1127,7 @@ class ASTGenerator(
                 is TupleType -> type.copy(types = type.types.map { wrapWithLifetimeParameters(it) })
                 is ArrayType -> type.copy(type = wrapWithLifetimeParameters(type.type))
                 is BoxType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
+                is TypeAliasType -> LifetimeParameterizedType(type.copy(internalType = wrapWithLifetimeParameters(type.internalType)))
             }
             is ReferencingTypes -> {
                 when (type) {

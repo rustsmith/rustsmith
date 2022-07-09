@@ -46,6 +46,13 @@ data class LifetimeParameterizedType<T : Type>(val type: T) : Type {
         if (type is ReferenceType) {
             return "&'a${type.lifetimeParameter} ${type.internalType.toRust()}"
         }
+        if (type is TypeAliasType) {
+            return type.copy(
+                typeAliasName = "${type.typeAliasName}<${
+                type.lifetimeParameters().toSet().joinToString(",") { "'a$it" }
+                }>"
+            ).toRust()
+        }
         return type.toRust()
     }
 
@@ -470,6 +477,19 @@ data class BoxType(val internalType: Type) : ContainerType {
     }
 }
 
+@GenNode
+data class TypeAliasType(val typeAliasName: String, val internalType: Type) : RecursiveType {
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
+
+    override fun clone(): Type = TypeAliasType(typeAliasName, internalType.clone())
+    override fun memberTypes(): List<Type> = listOf(this) + internalType.memberTypes()
+    override fun lifetimeParameters(): List<UInt> = internalType.lifetimeParameters()
+
+    override fun toRust(): String {
+        return typeAliasName
+    }
+}
+
 object DefaultHasher : Type {
     override fun clone() = DefaultHasher
     override fun memberTypes() = listOf<Type>()
@@ -545,6 +565,7 @@ fun Type.getOwnership(): OwnershipModel {
         is ArrayType -> OwnershipModel.MOVE
         is BoxType -> OwnershipModel.MOVE
         DefaultHasher -> OwnershipModel.MOVE
+        is TypeAliasType -> this.internalType.getOwnership()
     }
 }
 

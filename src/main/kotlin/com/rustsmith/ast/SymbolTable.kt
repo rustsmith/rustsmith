@@ -68,6 +68,7 @@ class GlobalSymbolTable {
     val tupleTypes = mutableSetOf<TupleType>()
     val arrayTypes = mutableSetOf<Type>()
     val boxTypes = mutableSetOf<Type>()
+    val typeAliases = mutableSetOf<TypeAliasDefinition>()
     val commandLineTypes = mutableSetOf<LiteralType>()
 
     operator fun get(key: String): IdentifierData? {
@@ -77,6 +78,12 @@ class GlobalSymbolTable {
     operator fun set(key: String, value: IdentifierData) {
         symbolMap[key] = value
     }
+
+    /* Type aliases methods */
+
+    fun addTypeAlias(type: TypeAliasDefinition) = typeAliases.add(type)
+
+    fun getRandomTypeAlias(): TypeAliasType? = typeAliases.randomOrNull(CustomRandom)?.aliasType?.type
 
     /* Box methods */
 
@@ -99,7 +106,8 @@ class GlobalSymbolTable {
     }
 
     fun getRandomMethodOfType(type: Type): Pair<StructType, FunctionDefinition>? {
-        return structs.flatMap { struct -> struct.methods.map { struct.structType.type to it } }.filter { it.second.returnType == type }.randomOrNull()
+        return structs.flatMap { struct -> struct.methods.map { struct.structType.type to it } }
+            .filter { it.second.returnType == type }.randomOrNull(CustomRandom)
     }
 
     fun getRandomStruct(): Pair<String, IdentifierData>? =

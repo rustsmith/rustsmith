@@ -37,16 +37,24 @@ data class StructDefinition(val structType: LifetimeParameterizedType<StructType
     }
 }
 
+data class TypeAliasDefinition(val aliasType: LifetimeParameterizedType<TypeAliasType>) : ASTNode {
+    override fun toRust(): String {
+        val parameterizedSyntax = if (aliasType.lifetimeParameters().isNotEmpty()) "<${aliasType.lifetimeParameters().toSet().joinToString(",") { "'a$it" }}>" else ""
+        return "type ${aliasType.type.typeAliasName}$parameterizedSyntax = ${aliasType.type.internalType.toRust()};"
+    }
+}
+
 data class Program(
     val seed: Long,
     val macros: Set<Macros>,
     val constants: List<ConstDeclaration>,
+    val aliases: List<TypeAliasDefinition>,
     val structs: List<StructDefinition> = emptyList(),
     val functions: List<FunctionDefinition>
 ) :
     ASTNode {
     override fun toRust(): String {
-        return "#![allow(warnings, unused, unconditional_panic)]\nuse std::env;\nuse std::collections::hash_map::DefaultHasher;\nuse std::hash::{Hash, Hasher};\n${constants.joinToString("\n") { it.toRust() }}\n${macros.joinToString("\n") { it.toRust() }}\n${structs.joinToString("\n") { it.toRust() }}\n${
+        return "#![allow(warnings, unused, unconditional_panic)]\nuse std::env;\nuse std::collections::hash_map::DefaultHasher;\nuse std::hash::{Hash, Hasher};\n${constants.joinToString("\n") { it.toRust() }}\n${macros.joinToString("\n") { it.toRust() }}\n${structs.joinToString("\n") { it.toRust() }}\n${aliases.joinToString("\n") { it.toRust() }}\n${
         functions.joinToString(
             "\n"
         ) { it.toRust() }
@@ -73,5 +81,5 @@ fun generateProgram(programSeed: Long, identGenerator: IdentGenerator, failFast:
         addSelfVariable = false
     )
     val cliArguments = symbolTable.globalSymbolTable.commandLineTypes.map { astGenerator.generateCLIArgumentsForLiteralType(it, mainFunctionContext) }
-    return Program(programSeed, setOf(), constantDeclarations, globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments
+    return Program(programSeed, setOf(), constantDeclarations, globalSymbolTable.typeAliases.toList(), globalSymbolTable.structs.toList(), functionSymbolTable.functions + mainFunction) to cliArguments
 }

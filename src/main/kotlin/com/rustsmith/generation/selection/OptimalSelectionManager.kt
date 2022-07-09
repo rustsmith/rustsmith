@@ -86,6 +86,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val typeWeightings = super.availableTypesWeightings(ctx)
         typeWeightings.updateWeighting(ContainerType::class, 2.0 / (ctx.getDepth(ContainerType::class) + 1))
+        typeWeightings.updateWeighting(TypeAliasType::class, 1.0 / (ctx.getDepth(RecursiveType::class) + 1))
         typeWeightings.updateWeighting(ReferenceType::class, 1.0 / (ctx.getDepth(ReferenceType::class) + 1))
         if (ctx.previousIncrement == ExpressionStatement::class) {
             typeWeightings.updateWeighting(VoidType::class, 2.0)
@@ -94,5 +95,10 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         }
         Logger.logText("Weightings for types ${typeWeightings.weightings}", ctx)
         return typeWeightings
+    }
+
+    override fun choiceGenerateNewTypeAliasWeightings(ctx: Context): Map<Boolean, Double> {
+        val createNewAlias = 1.0 / (ctx.numberOfTypeAliasesDefined.value + 1)
+        return mapOf(true to createNewAlias, false to 1.0 - createNewAlias)
     }
 }

@@ -174,6 +174,7 @@ class Reconditioner {
                     node.seed,
                     reconditioningMacros,
                     node.constants,
+                    node.aliases,
                     reconditionedStructs,
                     reconditionedFunctions
                 )
@@ -187,6 +188,7 @@ class Reconditioner {
                 methods = node.methods.map { it.copy(body = reconditionStatementBlock(it.body)) }
                     .toMutableList()
             )
+            is TypeAliasDefinition -> node
         }
     }
 }

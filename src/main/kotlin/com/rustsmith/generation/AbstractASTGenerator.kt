@@ -66,6 +66,7 @@ import com.rustsmith.ast.TupleElementAccessExpression
 import com.rustsmith.ast.TupleLiteral
 import com.rustsmith.ast.TupleType
 import com.rustsmith.ast.Type
+import com.rustsmith.ast.TypeAliasType
 import com.rustsmith.ast.U128Type
 import com.rustsmith.ast.U16Type
 import com.rustsmith.ast.U32Type
@@ -323,6 +324,8 @@ public interface AbstractASTGenerator {
 
     public fun generateArrayType(ctx: Context): ArrayType
 
+    public fun generateTypeAliasType(ctx: Context): TypeAliasType
+
     public fun generateBoxType(ctx: Context): BoxType
 
     public fun generateReferenceType(ctx: Context): ReferenceType
@@ -353,6 +356,7 @@ public interface AbstractASTGenerator {
         TupleType::class -> generateTupleType(ctx)
         StructType::class -> generateStructType(ctx)
         ArrayType::class -> generateArrayType(ctx)
+        TypeAliasType::class -> generateTypeAliasType(ctx)
         BoxType::class -> generateBoxType(ctx)
         ReferenceType::class -> generateReferenceType(ctx)
         MutableReferenceType::class -> generateMutableReferenceType(ctx)
