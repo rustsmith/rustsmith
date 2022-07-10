@@ -133,6 +133,7 @@ class Reconditioner {
                 structExpression = reconditionExpression(node.structExpression),
                 args = node.args.map { reconditionExpression(it) }
             )
+            is TypeAliasExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
         }
     }
 

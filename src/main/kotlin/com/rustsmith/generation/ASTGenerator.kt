@@ -665,6 +665,13 @@ class ASTGenerator(
         throw IllegalArgumentException("Not a box type")
     }
 
+    override fun generateTypeAliasExpression(type: Type, ctx: Context): TypeAliasExpression {
+        if (type is TypeAliasType) {
+            return TypeAliasExpression(generateExpression(type.internalType, ctx.incrementCount(TypeAliasExpression::class)), symbolTable)
+        }
+        throw IllegalArgumentException("Incorrect type")
+    }
+
     override fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression {
         val internalExpression = generateExpression(
             BoxType(type),

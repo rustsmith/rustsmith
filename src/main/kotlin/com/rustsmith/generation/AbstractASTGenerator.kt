@@ -66,6 +66,7 @@ import com.rustsmith.ast.TupleElementAccessExpression
 import com.rustsmith.ast.TupleLiteral
 import com.rustsmith.ast.TupleType
 import com.rustsmith.ast.Type
+import com.rustsmith.ast.TypeAliasExpression
 import com.rustsmith.ast.TypeAliasType
 import com.rustsmith.ast.U128Type
 import com.rustsmith.ast.U16Type
@@ -185,6 +186,8 @@ public interface AbstractASTGenerator {
 
     public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
 
+    public fun generateTypeAliasExpression(type: Type, ctx: Context): TypeAliasExpression
+
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
     public fun generateSubtractExpression(type: Type, ctx: Context): SubtractExpression
@@ -265,6 +268,7 @@ public interface AbstractASTGenerator {
         LoopExpression::class -> generateLoopExpression(type, ctx)
         ArrayAccess::class -> generateArrayAccess(type, ctx)
         NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
+        TypeAliasExpression::class -> generateTypeAliasExpression(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)
         DivideExpression::class -> generateDivideExpression(type, ctx)

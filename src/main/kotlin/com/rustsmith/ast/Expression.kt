@@ -619,6 +619,17 @@ data class NewBoxExpression(
 }
 
 @SwarmNode
+@ExpressionGenNode(TypeAliasType::class)
+data class TypeAliasExpression(
+    val internalExpression: Expression,
+    override val symbolTable: SymbolTable
+) : Expression {
+    override fun toRust(): String {
+        return internalExpression.toRust()
+    }
+}
+
+@SwarmNode
 @ExpressionGenNode(I32Type::class)
 data class BoxDereferenceExpression(
     val internalExpression: Expression,
@@ -761,6 +772,7 @@ fun Expression.toType(): Type {
         is NewBoxExpression -> BoxType(internalExpression.toType())
         is BoxDereferenceExpression -> (internalExpression.toType() as BoxType).internalType
         is MethodCallExpression -> symbolTable.globalSymbolTable.structs.find { it.structType.type.structName == (this.structExpression.toType() as StructType).structName }!!.methods.find { it.functionName == methodName }!!.returnType
+        is TypeAliasExpression -> internalExpression.toType()
     }
 }
 
