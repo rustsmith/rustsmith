@@ -33,7 +33,9 @@ RustSmith can then be invoked as below:
     ./rustsmith --help
 ```
 
-### Docker can also be used in the following way using the latest docker image:
+### Docker
+
+Docker can also be used in the following way using the latest docker image:
 
 ```shell
 docker run --rm ghcr.io/rustsmith/rustsmith --help
