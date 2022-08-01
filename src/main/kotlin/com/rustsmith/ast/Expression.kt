@@ -560,8 +560,8 @@ data class DereferenceExpression(
 }
 
 @SwarmNode
-@ExpressionGenNode(ArrayType::class)
-data class ArrayLiteral(
+@ExpressionGenNode(VectorType::class)
+data class VectorLiteral(
     val expressions: List<Expression>,
     override val symbolTable: SymbolTable
 ) : LiteralExpression {
@@ -570,40 +570,63 @@ data class ArrayLiteral(
     }
 }
 
+@SwarmNode
+@ExpressionGenNode(StaticSizedArrayType::class)
+data class StaticSizedArrayLiteral(
+    val expressions: List<Expression>,
+    override val symbolTable: SymbolTable
+) : LiteralExpression {
+    override fun toRust(): String {
+        return "[${expressions.joinToString(",") { it.toRust() }}]"
+    }
+}
+
+@SwarmNode
+@ExpressionGenNode(StaticSizedArrayType::class)
+data class StaticSizedArrayDefaultLiteral(
+    val arraySize: UInt,
+    val expression: Expression,
+    override val symbolTable: SymbolTable
+) : LiteralExpression {
+    override fun toRust(): String {
+        return "[${expression.toRust()}; $arraySize]"
+    }
+}
+
 sealed interface NonMovingExpressions : Expression
 
 @SwarmNode
 @ExpressionGenNode(NonVoidType::class)
-data class ArrayAccess(
-    val arrayExpression: Expression,
+data class VectorAccess(
+    val vectorExpression: Expression,
     val indexExpression: Expression,
     override val symbolTable: SymbolTable
 ) : RecursiveExpression, NonMovingExpressions {
     override fun toRust(): String {
-        return "${arrayExpression.toRust()}[${indexExpression.toRust()}]"
+        return "${vectorExpression.toRust()}[${indexExpression.toRust()}]"
     }
 }
 
 @SwarmNode
 @ExpressionGenNode(USizeType::class)
-data class ArrayLengthExpression(
-    val arrayExpression: Expression,
+data class VectorLengthExpression(
+    val vectorExpression: Expression,
     override val symbolTable: SymbolTable
 ) : NonMovingExpressions {
     override fun toRust(): String {
-        return "${arrayExpression.toRust()}.len()"
+        return "${vectorExpression.toRust()}.len()"
     }
 }
 
 @SwarmNode
 @ExpressionGenNode(VoidType::class)
-data class ArrayPushExpression(
-    val arrayExpression: Expression,
+data class VectorPushExpression(
+    val vectorExpression: Expression,
     val pushExpression: Expression,
     override val symbolTable: SymbolTable
 ) : NonMovingExpressions {
     override fun toRust(): String {
-        return "${arrayExpression.toRust()}.push(${pushExpression.toRust()})"
+        return "${vectorExpression.toRust()}.push(${pushExpression.toRust()})"
     }
 }
 
@@ -700,12 +723,12 @@ data class ReconditionedModExpression(
 }
 
 data class ReconditionedIndexAccess(
-    val arrayAccessExpression: ArrayAccess,
+    val vectorAccessExpression: VectorAccess,
     override val symbolTable: SymbolTable
 ) :
     ReconditionedExpression {
     override fun toRust(): String {
-        return "${ReconditionedArrayAccess.macroName}!(${arrayAccessExpression.arrayExpression.toRust()}, ${arrayAccessExpression.indexExpression.toRust()})"
+        return "${ReconditionedArrayAccess.macroName}!(${vectorAccessExpression.vectorExpression.toRust()}, ${vectorAccessExpression.indexExpression.toRust()})"
     }
 }
 
@@ -764,15 +787,17 @@ fun Expression.toType(): Type {
         is GTExpression -> BoolType
         is LTEExpression -> BoolType
         is LTExpression -> BoolType
-        is ArrayLiteral -> ArrayType(this.expressions.first().toType())
-        is ArrayAccess -> (this.arrayExpression.toType() as ArrayType).type
-        is ReconditionedIndexAccess -> this.arrayAccessExpression.toType()
-        is ArrayLengthExpression -> USizeType
-        is ArrayPushExpression -> VoidType
+        is VectorLiteral -> VectorType(this.expressions.first().toType())
+        is VectorAccess -> (this.vectorExpression.toType() as VectorType).type
+        is ReconditionedIndexAccess -> this.vectorAccessExpression.toType()
+        is VectorLengthExpression -> USizeType
+        is VectorPushExpression -> VoidType
         is NewBoxExpression -> BoxType(internalExpression.toType())
         is BoxDereferenceExpression -> (internalExpression.toType() as BoxType).internalType
         is MethodCallExpression -> symbolTable.globalSymbolTable.structs.find { it.structType.type.structName == (this.structExpression.toType() as StructType).structName }!!.methods.find { it.functionName == methodName }!!.returnType
         is TypeAliasExpression -> internalExpression.toType()
+        is StaticSizedArrayDefaultLiteral -> StaticSizedArrayType(expression.toType(), arraySize)
+        is StaticSizedArrayLiteral -> StaticSizedArrayType(expressions.first().toType(), expressions.size.toUInt())
     }
 }
 

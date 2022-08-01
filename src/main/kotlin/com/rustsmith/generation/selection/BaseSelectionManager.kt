@@ -25,8 +25,8 @@ open class BaseSelectionManager : SelectionManager {
         TupleType::class to 3,
         RecursiveExpression::class to 3,
         ContainerType::class to 3,
-        ArrayLiteral::class to 3,
-        ArrayLengthExpression::class to 3
+        VectorLiteral::class to 3,
+        VectorLengthExpression::class to 3
     ).withDefault { Int.MAX_VALUE }
 
     /* Block size for statement blocks */
@@ -90,11 +90,11 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
         }
         if (type.getOwnership() == OwnershipModel.MOVE) {
-            filteredExpressions.remove(ArrayAccess::class)
+            filteredExpressions.remove(VectorAccess::class)
             filteredExpressions.remove(DereferenceExpression::class)
         }
         if (ctx.previousIncrement == ExpressionStatement::class) {
-            filteredExpressions.remove(ArrayAccess::class)
+            filteredExpressions.remove(VectorAccess::class)
         }
         // To stop explicit && cases
         if (ctx.previousIncrement in ReferencingExpressions::class.subclasses()) {
@@ -113,7 +113,7 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions[Variable::class] = 1.0
         }
 
-        if (ctx.getDepthLast(ArrayAccess::class) > 0) {
+        if (ctx.getDepthLast(VectorAccess::class) > 0) {
             filteredExpressions.clear()
             filteredExpressions[Variable::class] = 1.0
 //            RecursiveStatementBlockExpression::class.subclasses().forEach { filteredExpressions.remove(it) }

@@ -13,7 +13,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         StructType::class to 5,
         TupleType::class to 5,
         Variable::class to 1,
-        ArrayLiteral::class to 5
+        VectorLiteral::class to 5
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
@@ -50,12 +50,12 @@ open class OptimalSelectionManager : BaseSelectionManager() {
             1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + currentRecursiveExpressions)
         )
         expressionWeightings.updateWeighting(
-            ArrayLengthExpression::class,
-            1.0 / (ctx.getDepth(ArrayLengthExpression::class) + 1)
+            VectorLengthExpression::class,
+            1.0 / (ctx.getDepth(VectorLengthExpression::class) + 1)
         )
         expressionWeightings.updateWeighting(
-            ArrayLiteral::class,
-            1.0 / (ctx.getDepth(ArrayLiteral::class) + 1)
+            VectorLiteral::class,
+            1.0 / (ctx.getDepth(VectorLiteral::class) + 1)
         )
         expressionWeightings.updateWeighting(
             FunctionCallExpression::class,

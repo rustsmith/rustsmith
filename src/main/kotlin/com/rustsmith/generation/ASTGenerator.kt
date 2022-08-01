@@ -525,7 +525,7 @@ class ASTGenerator(
 
     override fun generateVariable(type: Type, ctx: Context): Variable {
         val mutableRequired =
-            ctx.getDepthLast(MutableReferenceExpression::class) > 0 || ctx.getDepthLast(ArrayPushExpression::class) > 0
+            ctx.getDepthLast(MutableReferenceExpression::class) > 0 || ctx.getDepthLast(VectorPushExpression::class) > 0
         val value = symbolTable.getRandomVariableOfType(type, ctx.requiredType, ctx, mutableRequired)
         if (value == null && failFast) throw ExpressionGenerationRejectedException()
         if (value == null &&
@@ -635,14 +635,14 @@ class ASTGenerator(
         )
     }
 
-    override fun generateArrayLiteral(type: Type, ctx: Context): ArrayLiteral {
-        if (type is ArrayType) {
+    override fun generateVectorLiteral(type: Type, ctx: Context): VectorLiteral {
+        if (type is VectorType) {
             val size = CustomRandom.nextInt(1, 10)
-            return ArrayLiteral(
+            return VectorLiteral(
                 (0 until size).map {
                     generateExpression(
                         type.type,
-                        ctx.incrementCount(ArrayLiteral::class)
+                        ctx.incrementCount(VectorLiteral::class)
                     )
                 },
                 symbolTable
@@ -651,10 +651,10 @@ class ASTGenerator(
         throw IllegalArgumentException("Invalid type $type")
     }
 
-    override fun generateArrayAccess(type: Type, ctx: Context): ArrayAccess {
-        val arrayExpression = generateExpression(ArrayType(type), ctx.incrementCount(ArrayAccess::class))
-        val indexExpression = generateExpression(USizeType, ctx.incrementCount(ArrayAccess::class))
-        return ArrayAccess(arrayExpression, indexExpression, symbolTable)
+    override fun generateVectorAccess(type: Type, ctx: Context): VectorAccess {
+        val arrayExpression = generateExpression(VectorType(type), ctx.incrementCount(VectorAccess::class))
+        val indexExpression = generateExpression(USizeType, ctx.incrementCount(VectorAccess::class))
+        return VectorAccess(arrayExpression, indexExpression, symbolTable)
     }
 
     override fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression {
@@ -667,7 +667,13 @@ class ASTGenerator(
 
     override fun generateTypeAliasExpression(type: Type, ctx: Context): TypeAliasExpression {
         if (type is TypeAliasType) {
-            return TypeAliasExpression(generateExpression(type.internalType, ctx.incrementCount(TypeAliasExpression::class)), symbolTable)
+            return TypeAliasExpression(
+                generateExpression(
+                    type.internalType,
+                    ctx.incrementCount(TypeAliasExpression::class)
+                ),
+                symbolTable
+            )
         }
         throw IllegalArgumentException("Incorrect type")
     }
@@ -698,23 +704,23 @@ class ASTGenerator(
         throw IllegalArgumentException("Invalid type $type")
     }
 
-    override fun generateArrayLengthExpression(type: Type, ctx: Context): ArrayLengthExpression {
+    override fun generateVectorLengthExpression(type: Type, ctx: Context): VectorLengthExpression {
         val arrayExpression = generateExpression(
-            generateArrayType(ctx.incrementCount(ArrayLengthExpression::class)),
-            ctx.incrementCount(ArrayLengthExpression::class)
+            generateVectorType(ctx.incrementCount(VectorLengthExpression::class)),
+            ctx.incrementCount(VectorLengthExpression::class)
         )
-        return ArrayLengthExpression(
+        return VectorLengthExpression(
             arrayExpression, symbolTable
         )
     }
 
-    override fun generateArrayPushExpression(type: Type, ctx: Context): ArrayPushExpression {
+    override fun generateVectorPushExpression(type: Type, ctx: Context): VectorPushExpression {
         val arrayExpression = generateExpression(
-            generateArrayType(ctx.incrementCount(ArrayPushExpression::class)),
-            ctx.incrementCount(ArrayPushExpression::class)
+            generateVectorType(ctx.incrementCount(VectorPushExpression::class)),
+            ctx.incrementCount(VectorPushExpression::class)
         )
-        val pushExpression = generateExpression((arrayExpression.toType() as ArrayType).type, ctx)
-        return ArrayPushExpression(arrayExpression, pushExpression, symbolTable)
+        val pushExpression = generateExpression((arrayExpression.toType() as VectorType).type, ctx)
+        return VectorPushExpression(arrayExpression, pushExpression, symbolTable)
     }
 
     override fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression {
@@ -1010,6 +1016,33 @@ class ASTGenerator(
         }
     }
 
+    override fun generateStaticSizedArrayLiteral(type: Type, ctx: Context): StaticSizedArrayLiteral {
+        if (type is StaticSizedArrayType) {
+            return StaticSizedArrayLiteral(
+                (0 until type.size.toInt()).map {
+                    generateExpression(
+                        type.internalType,
+                        ctx.incrementCount(StaticSizedArrayLiteral::class)
+                    )
+                },
+                symbolTable
+            )
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateStaticSizedArrayDefaultLiteral(type: Type, ctx: Context): StaticSizedArrayDefaultLiteral {
+        if (type is StaticSizedArrayType) {
+            if (type.internalType.getOwnership() != OwnershipModel.COPY) throw ExpressionGenerationRejectedException()
+            return StaticSizedArrayDefaultLiteral(
+                type.size,
+                generateExpression(type.internalType, ctx.incrementCount(StaticSizedArrayLiteral::class)),
+                symbolTable
+            )
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
     /** Type generators **/
 
     override fun selectRandomType(ctx: Context): KClass<out Type> {
@@ -1088,27 +1121,45 @@ class ASTGenerator(
         }
     }
 
-    override fun generateArrayType(ctx: Context): ArrayType {
-        val randomTupleType = symbolTable.globalSymbolTable.getRandomArrayType()
+    override fun generateVectorType(ctx: Context): VectorType {
+        val randomVectorType = symbolTable.globalSymbolTable.getRandomArrayType()
         /* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
-        if (randomTupleType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
-            val internalType = generateType(ctx.incrementCount(ArrayType::class))
+        if (randomVectorType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+            val internalType = generateType(ctx.incrementCount(VectorType::class))
             symbolTable.globalSymbolTable.addArrayType(internalType)
-            return ArrayType(internalType)
+            return VectorType(internalType)
         }
-        return ArrayType(randomTupleType)
+        return VectorType(randomVectorType)
     }
 
     override fun generateTypeAliasType(ctx: Context): TypeAliasType {
         val typeAliasType = symbolTable.globalSymbolTable.getRandomTypeAlias()
-        return if (typeAliasType == null || selectionManager.choiceGenerateNewTypeAliasWeightings(ctx).randomByWeights()) {
-            val typeAlias = TypeAliasType(identGenerator.generateTypeAlias(), generateType(ctx.incrementCount(TypeAliasType::class)))
+        return if (typeAliasType == null || selectionManager.choiceGenerateNewTypeAliasWeightings(ctx)
+            .randomByWeights()
+        ) {
+            val typeAlias = TypeAliasType(
+                identGenerator.generateTypeAlias(),
+                generateType(ctx.incrementCount(TypeAliasType::class))
+            )
             symbolTable.globalSymbolTable.addTypeAlias(TypeAliasDefinition(wrapWithLifetimeParameters(typeAlias) as LifetimeParameterizedType<TypeAliasType>))
             typeAlias
         } else {
             typeAliasType
         }
+    }
+
+    override fun generateStaticSizedArrayType(ctx: Context): StaticSizedArrayType {
+        val arraySize = CustomRandom.nextUInt(1u, 10u)
+        val randomVectorType = symbolTable.globalSymbolTable.getRandomArrayType()
+        /* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (randomVectorType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+            val internalType = generateType(ctx.incrementCount(StaticSizedArrayType::class))
+            symbolTable.globalSymbolTable.addArrayType(internalType)
+            return StaticSizedArrayType(internalType, arraySize)
+        }
+        return StaticSizedArrayType(randomVectorType, arraySize)
     }
 
     override fun generateBoxType(ctx: Context): BoxType {
@@ -1131,17 +1182,21 @@ class ASTGenerator(
                         }
                     )
                 )
+
                 is TupleType -> type.copy(types = type.types.map { wrapWithLifetimeParameters(it) })
-                is ArrayType -> type.copy(type = wrapWithLifetimeParameters(type.type))
+                is VectorType -> type.copy(type = wrapWithLifetimeParameters(type.type))
                 is BoxType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
                 is TypeAliasType -> LifetimeParameterizedType(type.copy(internalType = wrapWithLifetimeParameters(type.internalType)))
+                is StaticSizedArrayType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
             }
+
             is ReferencingTypes -> {
                 when (type) {
                     is MutableReferenceType -> LifetimeParameterizedType(type.copy(wrapWithLifetimeParameters(type.internalType)))
                     is ReferenceType -> LifetimeParameterizedType(type.copy(wrapWithLifetimeParameters(type.internalType)))
                 }
             }
+
             else -> type
         }
     }

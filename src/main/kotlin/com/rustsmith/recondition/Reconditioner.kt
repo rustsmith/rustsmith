@@ -108,23 +108,23 @@ class Reconditioner {
             is UInt32Literal -> node
             is UInt64Literal -> node
             is UInt8Literal -> node
-            is ArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
-            is ArrayAccess -> {
+            is VectorLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
+            is VectorAccess -> {
                 reconditioningMacros.add(ReconditionedArrayAccess)
                 ReconditionedIndexAccess(
                     node.copy(
-                        arrayExpression = reconditionExpression(node.arrayExpression),
+                        vectorExpression = reconditionExpression(node.vectorExpression),
                         indexExpression = reconditionExpression(node.indexExpression)
                     ),
                     node.symbolTable
                 )
             }
             is USizeLiteral -> node
-            is ArrayLengthExpression -> {
-                node.copy(arrayExpression = reconditionExpression(node.arrayExpression))
+            is VectorLengthExpression -> {
+                node.copy(vectorExpression = reconditionExpression(node.vectorExpression))
             }
-            is ArrayPushExpression -> node.copy(
-                arrayExpression = reconditionExpression(node.arrayExpression),
+            is VectorPushExpression -> node.copy(
+                vectorExpression = reconditionExpression(node.vectorExpression),
                 pushExpression = reconditionExpression(node.pushExpression)
             )
             is NewBoxExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
@@ -134,6 +134,8 @@ class Reconditioner {
                 args = node.args.map { reconditionExpression(it) }
             )
             is TypeAliasExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
+            is StaticSizedArrayDefaultLiteral -> node.copy(expression = reconditionExpression(node.expression))
+            is StaticSizedArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
         }
     }
 

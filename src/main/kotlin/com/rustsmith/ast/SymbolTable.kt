@@ -242,8 +242,9 @@ data class SymbolTable(
                     }.filter { it.second.second.assignable() }
                         .flatMap { findMutableSubExpressions(it.first) }
                     // TODO: Add array access
-                    is ArrayType -> listOf()
+                    is VectorType -> listOf()
                     is BoxType -> listOf()
+                    is StaticSizedArrayType -> listOf()
                 }
             }
             else -> listOf()
