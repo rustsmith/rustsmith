@@ -25,7 +25,8 @@ open class BaseSelectionManager : SelectionManager {
         TupleType::class to 3,
         RecursiveExpression::class to 3,
         ContainerType::class to 3,
-        VectorLiteral::class to 3,
+        VectorType::class to 3,
+        ElementAccess::class to 1,
         VectorLengthExpression::class to 3
     ).withDefault { Int.MAX_VALUE }
 
@@ -79,12 +80,13 @@ open class BaseSelectionManager : SelectionManager {
             filterNodes(allExpressions.toMutableList(), ctx).associateWith { 1.0 }.toMutableMap()
         if (ctx.getDepthLast(ReferencingExpressions::class) > 0) {
             filteredExpressions.clear()
-            filteredExpressions[Variable::class] = 1.0
-            if (ctx.nodeDepthState.last().values.sum() < 4) {
-                filteredExpressions[TupleElementAccessExpression::class] = 1.0
-                filteredExpressions[StructElementAccessExpression::class] = 1.0
-                filteredExpressions[DereferenceExpression::class] = 1.0
-            }
+//            filteredExpressions[Variable::class] = 1.0
+            filteredExpressions[ElementAccess::class] = 1.0
+//            if (ctx.nodeDepthState.last().values.sum() < 4) {
+//                filteredExpressions[TupleElementAccessExpression::class] = 1.0
+//                filteredExpressions[StructElementAccessExpression::class] = 1.0
+//                filteredExpressions[DereferenceExpression::class] = 1.0
+//            }
         }
         if (ctx.currentFunctionName != "main") {
             filteredExpressions.remove(CLIArgumentAccessExpression::class)
@@ -110,12 +112,12 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.previousIncrement in variableRequiringExpressions && type is ReferencingTypes) {
             // Ensure the variables created beforehand are used
             filteredExpressions.clear()
-            filteredExpressions[Variable::class] = 1.0
+            filteredExpressions[ElementAccess::class] = 1.0
         }
 
         if (ctx.getDepthLast(VectorAccess::class) > 0) {
             filteredExpressions.clear()
-            filteredExpressions[Variable::class] = 1.0
+            filteredExpressions[ElementAccess::class] = 1.0
 //            RecursiveStatementBlockExpression::class.subclasses().forEach { filteredExpressions.remove(it) }
         }
 
@@ -128,6 +130,7 @@ open class BaseSelectionManager : SelectionManager {
         }
 
         if (ctx.getDepth(Expression::class) > 30) {
+            // Depth too large, give up
             throw StatementGenerationRejectedException()
         }
         return NodeSelectionWeighting(weightings)

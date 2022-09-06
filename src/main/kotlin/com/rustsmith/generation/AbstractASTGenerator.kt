@@ -13,6 +13,7 @@ import com.rustsmith.ast.CLIArgumentAccessExpression
 import com.rustsmith.ast.Declaration
 import com.rustsmith.ast.DereferenceExpression
 import com.rustsmith.ast.DivideExpression
+import com.rustsmith.ast.ElementAccess
 import com.rustsmith.ast.EqExpression
 import com.rustsmith.ast.Expression
 import com.rustsmith.ast.ExpressionStatement
@@ -56,11 +57,9 @@ import com.rustsmith.ast.StaticSizedArrayLiteral
 import com.rustsmith.ast.StaticSizedArrayType
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
-import com.rustsmith.ast.StructElementAccessExpression
 import com.rustsmith.ast.StructInstantiationExpression
 import com.rustsmith.ast.StructType
 import com.rustsmith.ast.SubtractExpression
-import com.rustsmith.ast.TupleElementAccessExpression
 import com.rustsmith.ast.TupleLiteral
 import com.rustsmith.ast.TupleType
 import com.rustsmith.ast.Type
@@ -78,8 +77,6 @@ import com.rustsmith.ast.UInt64Literal
 import com.rustsmith.ast.UInt8Literal
 import com.rustsmith.ast.USizeLiteral
 import com.rustsmith.ast.USizeType
-import com.rustsmith.ast.Variable
-import com.rustsmith.ast.VectorAccess
 import com.rustsmith.ast.VectorLengthExpression
 import com.rustsmith.ast.VectorLiteral
 import com.rustsmith.ast.VectorPushExpression
@@ -118,6 +115,8 @@ public interface AbstractASTGenerator {
         }
 
     public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
+
+    public fun generateElementAccess(type: Type, ctx: Context): ElementAccess
 
     public fun generateTypeAliasExpression(type: Type, ctx: Context): TypeAliasExpression
 
@@ -166,14 +165,6 @@ public interface AbstractASTGenerator {
     public fun generateStaticSizedArrayDefaultLiteral(type: Type, ctx: Context):
         StaticSizedArrayDefaultLiteral
 
-    public fun generateTupleElementAccessExpression(type: Type, ctx: Context):
-        TupleElementAccessExpression
-
-    public fun generateStructElementAccessExpression(type: Type, ctx: Context):
-        StructElementAccessExpression
-
-    public fun generateVariable(type: Type, ctx: Context): Variable
-
     public fun generateDereferenceExpression(type: Type, ctx: Context): DereferenceExpression
 
     public fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression
@@ -191,8 +182,6 @@ public interface AbstractASTGenerator {
     public fun generateIfExpression(type: Type, ctx: Context): IfExpression
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
-
-    public fun generateVectorAccess(type: Type, ctx: Context): VectorAccess
 
     public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
 
@@ -243,6 +232,7 @@ public interface AbstractASTGenerator {
         ctx: Context,
     ): Expression = when (expression) {
         VoidLiteral::class -> generateVoidLiteral(type, ctx)
+        ElementAccess::class -> generateElementAccess(type, ctx)
         TypeAliasExpression::class -> generateTypeAliasExpression(type, ctx)
         CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
         Int8Literal::class -> generateInt8Literal(type, ctx)
@@ -265,9 +255,6 @@ public interface AbstractASTGenerator {
         VectorLiteral::class -> generateVectorLiteral(type, ctx)
         StaticSizedArrayLiteral::class -> generateStaticSizedArrayLiteral(type, ctx)
         StaticSizedArrayDefaultLiteral::class -> generateStaticSizedArrayDefaultLiteral(type, ctx)
-        TupleElementAccessExpression::class -> generateTupleElementAccessExpression(type, ctx)
-        StructElementAccessExpression::class -> generateStructElementAccessExpression(type, ctx)
-        Variable::class -> generateVariable(type, ctx)
         DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
         BoxDereferenceExpression::class -> generateBoxDereferenceExpression(type, ctx)
         GroupedExpression::class -> generateGroupedExpression(type, ctx)
@@ -277,7 +264,6 @@ public interface AbstractASTGenerator {
         IfElseExpression::class -> generateIfElseExpression(type, ctx)
         IfExpression::class -> generateIfExpression(type, ctx)
         LoopExpression::class -> generateLoopExpression(type, ctx)
-        VectorAccess::class -> generateVectorAccess(type, ctx)
         NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)

@@ -478,7 +478,7 @@ data class StaticSizedArrayType(val internalType: Type, val size: UInt) : Contai
 }
 
 @GenNode
-data class BoxType(val internalType: Type) : ContainerType {
+data class BoxType(val internalType: Type) : RecursiveType {
     override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
 
     override fun clone(): Type = BoxType(internalType.clone())

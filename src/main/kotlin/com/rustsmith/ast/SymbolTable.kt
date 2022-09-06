@@ -215,6 +215,14 @@ data class SymbolTable(
         return currentVariables
     }
 
+    fun getAllVariables(): MutableMap<String, IdentifierData> {
+        val overallMap = mutableMapOf<String, IdentifierData>()
+        for (table in iterator()) {
+            table.symbolMap.forEach { overallMap.putIfAbsent(it.key, it.value) }
+        }
+        return overallMap
+    }
+
     fun getOwnedVariables(allowConstants: Boolean = true): Set<String> {
         val overallMap = mutableMapOf<String, IdentifierData>()
         for (table in iterator()) {
@@ -279,7 +287,7 @@ data class SymbolTable(
         requiredType: Type?,
         ctx: Context,
         mutableRequired: Boolean
-    ): Pair<String, IdentifierData>? {
+    ): List<String> {
         var overallMap = mutableMapOf<String, IdentifierData>()
         if (ctx.getDepth(LoopExpression::class) > 0) {
             if (ctx.lifetimeRequirement == null ||
@@ -327,12 +335,12 @@ data class SymbolTable(
             }.filter { it.second.type == type }.filter {
                 if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity
                     .borrowable() else it.second.validity.movable()
-            }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
+            }.filter { it.second.mutable == mutableRequired }.map { it.first }
         }
         return overallMap.toList().filter { it.second.type == type }.filter {
             if (ctx.getDepthLast(ReferenceExpression::class) > 0) it.second.validity
                 .borrowable() else it.second.validity.movable()
-        }.filter { it.second.mutable == mutableRequired }.randomOrNull(CustomRandom)
+        }.filter { it.second.mutable == mutableRequired }.map { it.first }
     }
 
     fun enterScope(): SymbolTable {

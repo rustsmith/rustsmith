@@ -13,12 +13,13 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         StructType::class to 5,
         TupleType::class to 5,
         Variable::class to 1,
+        ElementAccess::class to 2,
         VectorLiteral::class to 5
     ).withDefault { Int.MAX_VALUE }
 
     override fun choiceGenerateNewStatementWeightings(ctx: Context): Map<Boolean, Double> {
         val newStatementWeightings = super.choiceGenerateNewStatementWeightings(ctx).toMutableMap()
-        newStatementWeightings[true] = 30.0 / (ctx.statementsPerScope.last().size + 1)
+        newStatementWeightings[true] = 15.0 / (ctx.statementsPerScope.last().size + 1)
         newStatementWeightings[false] = 1 - newStatementWeightings[true]!!
         return newStatementWeightings
     }
@@ -85,7 +86,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
 
     override fun availableTypesWeightings(ctx: Context): NodeSelectionWeighting<Type> {
         val typeWeightings = super.availableTypesWeightings(ctx)
-        typeWeightings.updateWeighting(ContainerType::class, 2.0 / (ctx.getDepth(ContainerType::class) + 1))
+        typeWeightings.updateWeighting(ContainerType::class, 2.0 / (ctx.getDepth(ContainerType::class) * 0.5 + 1))
         typeWeightings.updateWeighting(TypeAliasType::class, 1.0 / (ctx.getDepth(RecursiveType::class) + 5))
         typeWeightings.updateWeighting(ReferenceType::class, 1.0 / (ctx.getDepth(ReferenceType::class) + 1))
         if (ctx.previousIncrement == ExpressionStatement::class) {

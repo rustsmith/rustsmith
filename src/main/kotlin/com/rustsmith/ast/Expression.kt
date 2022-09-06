@@ -171,13 +171,13 @@ data class TupleLiteral(val values: List<Expression>, override val symbolTable: 
 
 sealed interface PartialMoveExpression : Expression
 
-@SwarmNode
-@ExpressionGenNode(NonVoidType::class)
+sealed interface ElementAccessExpression : Expression
+
 data class TupleElementAccessExpression(
     val expression: Expression,
     val index: Int,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
+) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode, ElementAccessExpression {
     override fun rootNode(): Variable? {
         return if (expression is LHSAssignmentNode) {
             expression.rootNode()
@@ -192,12 +192,11 @@ data class TupleElementAccessExpression(
 }
 
 @SwarmNode
-@ExpressionGenNode(NonVoidType::class)
 data class StructElementAccessExpression(
     val expression: Expression,
     val elementName: String,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode {
+) : RecursiveExpression, PartialMoveExpression, LHSAssignmentNode, ElementAccessExpression {
 
     override fun rootNode(): Variable? {
         return if (expression is LHSAssignmentNode) {
@@ -212,8 +211,7 @@ data class StructElementAccessExpression(
     }
 }
 
-@ExpressionGenNode(NonVoidType::class)
-data class Variable(val value: String, override val symbolTable: SymbolTable) : LHSAssignmentNode {
+data class Variable(val value: String, override val symbolTable: SymbolTable) : LHSAssignmentNode, ElementAccessExpression {
 
     override fun rootNode(): Variable {
         return this
@@ -221,6 +219,14 @@ data class Variable(val value: String, override val symbolTable: SymbolTable) : 
 
     override fun toRust(): String {
         return value
+    }
+}
+
+@ExpressionGenNode(NonVoidType::class)
+data class ElementAccess(val expression: Expression, override val symbolTable: SymbolTable) : Expression {
+
+    override fun toRust(): String {
+        return expression.toRust()
     }
 }
 
@@ -595,13 +601,11 @@ data class StaticSizedArrayDefaultLiteral(
 
 sealed interface NonMovingExpressions : Expression
 
-@SwarmNode
-@ExpressionGenNode(NonVoidType::class)
 data class VectorAccess(
     val vectorExpression: Expression,
     val indexExpression: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression, NonMovingExpressions {
+) : RecursiveExpression, NonMovingExpressions, ElementAccessExpression {
     override fun toRust(): String {
         return "${vectorExpression.toRust()}[${indexExpression.toRust()}]"
     }
@@ -635,7 +639,7 @@ data class VectorPushExpression(
 data class NewBoxExpression(
     val internalExpression: Expression,
     override val symbolTable: SymbolTable
-) : RecursiveExpression {
+) : Expression {
     override fun toRust(): String {
         return "Box::new(${internalExpression.toRust()})"
     }
@@ -667,7 +671,7 @@ data class BoxDereferenceExpression(
     }
 
     override fun toRust(): String {
-        return "*${internalExpression.toRust()}"
+        return "(*${internalExpression.toRust()})"
     }
 }
 
@@ -798,6 +802,7 @@ fun Expression.toType(): Type {
         is TypeAliasExpression -> internalExpression.toType()
         is StaticSizedArrayDefaultLiteral -> StaticSizedArrayType(expression.toType(), arraySize)
         is StaticSizedArrayLiteral -> StaticSizedArrayType(expressions.first().toType(), expressions.size.toUInt())
+        is ElementAccess -> expression.toType()
     }
 }
 

@@ -1,22 +1,20 @@
 package com.rustsmith.recondition
 
 import com.rustsmith.ast.*
-import com.rustsmith.subclasses
 import kotlin.reflect.KClass
-import kotlin.reflect.full.hasAnnotation
 
 class Reconditioner {
     private val reconditioningMacros = mutableSetOf<Macros>()
-    val nodeCounters: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf()
+    val nodeCounters: MutableMap<KClass<out ASTNode>, Int> = mutableMapOf<KClass<out ASTNode>, Int>().withDefault { 0 }
     val variableUsageCounter: MutableMap<String, Int> = mutableMapOf()
 
     init {
-        Statement::class.subclasses().map {
-            nodeCounters[it] = 0
-        }
-        Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.map {
-            nodeCounters[it] = 0
-        }
+//        Statement::class.subclasses().map {
+//            nodeCounters[it] = 0
+//        }
+//        Expression::class.subclasses().filter { it.hasAnnotation<ExpressionGenNode>() }.map {
+//            nodeCounters[it] = 0
+//        }
     }
 
     private fun reconditionBinOpExpression(node: BinOpExpression): Expression {
@@ -136,6 +134,7 @@ class Reconditioner {
             is TypeAliasExpression -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
             is StaticSizedArrayDefaultLiteral -> node.copy(expression = reconditionExpression(node.expression))
             is StaticSizedArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
+            is ElementAccess -> node.copy(expression = reconditionExpression(node.expression))
         }
     }
 
