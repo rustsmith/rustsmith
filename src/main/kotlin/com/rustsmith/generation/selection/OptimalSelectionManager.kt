@@ -14,6 +14,7 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         TupleType::class to 5,
         Variable::class to 1,
         ElementAccess::class to 2,
+        VectorAccess::class to 2,
         VectorLiteral::class to 5
     ).withDefault { Int.MAX_VALUE }
 
@@ -34,6 +35,16 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         return mapOf(true to createNewTuple, false to 1 - createNewTuple)
     }
 
+    override fun choiceGenerateNewVectorWeightings(ctx: Context): Map<Boolean, Double> {
+        val createNewVector = 1.0 / (ctx.numberOfArrayTypesDefined.value + 1)
+        return mapOf(true to createNewVector, false to 1 - createNewVector)
+    }
+
+    override fun choiceGenerateNewArrayWeightings(ctx: Context): Map<Boolean, Double> {
+        val createNewVector = 1.0 / (ctx.numberOfArrayTypesDefined.value + 1)
+        return mapOf(true to createNewVector, false to 1 - createNewVector)
+    }
+
     override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> {
         val createNewFunction = 1.0 / (ctx.numberOfFunctionsDefined.value + 1)
         return mapOf(true to createNewFunction, false to 1 - createNewFunction)
@@ -46,6 +57,8 @@ open class OptimalSelectionManager : BaseSelectionManager() {
         val expressionWeightings = super.availableExpressionsWeightings(ctx, type)
         val currentRecursiveExpressions = ctx.statementsPerScope.last()
             .count { it is ExpressionStatement && it.expression is RecursiveExpression } + 1
+        expressionWeightings.updateWeighting(StaticSizedArrayLiteral::class, 0.5)
+        expressionWeightings.updateWeighting(StaticSizedArrayDefaultLiteral::class, 0.5)
         expressionWeightings.updateWeighting(
             RecursiveExpression::class,
             1.0 / (ctx.getDepth(RecursiveExpression::class) * 4 + currentRecursiveExpressions)

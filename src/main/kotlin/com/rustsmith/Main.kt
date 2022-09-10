@@ -30,15 +30,15 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(1)
+    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(100)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
-    private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(1)
+    private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(8)
     private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
         "selection-manager",
         help = "Choose selection manager(s) for generation"
     ).enum<SelectionManagerOptions>().multiple()
     private val failFast: Boolean by option("-f", "--fail-fast", help = "Use fail fast approach").flag(default = false)
-    private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "--seed")).long().default(7197491561148221772)
+    private val seed: Long? by option(help = "Optional Seed", names = arrayOf("-s", "--seed")).long()
     private val directory: String by option(help = "Directory to save files").default("outRust")
 
     enum class SelectionManagerOptions {

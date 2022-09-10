@@ -135,6 +135,13 @@ class Reconditioner {
             is StaticSizedArrayDefaultLiteral -> node.copy(expression = reconditionExpression(node.expression))
             is StaticSizedArrayLiteral -> node.copy(expressions = node.expressions.map { reconditionExpression(it) })
             is ElementAccess -> node.copy(expression = reconditionExpression(node.expression))
+            is NoneLiteral -> node
+            is SomeLiteral -> node.copy(internalExpression = reconditionExpression(node.internalExpression))
+            is ExtractOptionExpression -> node.copy(
+                internalExpression = reconditionExpression(node.internalExpression),
+                matchedStatement = reconditionStatementBlock(node.matchedStatement),
+                noneStatement = reconditionStatementBlock(node.noneStatement),
+            )
         }
     }
 

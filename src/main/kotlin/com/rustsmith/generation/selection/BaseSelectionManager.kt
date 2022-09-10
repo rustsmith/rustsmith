@@ -39,10 +39,13 @@ open class BaseSelectionManager : SelectionManager {
     override fun choiceGenerateNewStructWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
 
     override fun choiceGenerateNewTupleWeightings(ctx: Context): Map<Boolean, Double> = mapOf(false to 1.0)
+    override fun choiceGenerateNewVectorWeightings(ctx: Context) = mapOf(true to 0.5, false to 0.5)
+
+    override fun choiceGenerateNewArrayWeightings(ctx: Context) = mapOf(true to 0.5, false to 0.5)
+
+    override fun choiceGenerateNewOptionWeightings(ctx: Context) = mapOf(true to 0.5, false to 0.5)
 
     override fun choiceGenerateNewBoxTypeWeightings(ctx: Context) = mapOf(true to 0.5, false to 0.5)
-
-    override fun choiceGenerateNewArrayTypeWeightings(ctx: Context) = mapOf(true to 0.1, false to 0.9)
 
     override fun choiceGenerateNewFunctionWeightings(ctx: Context): Map<Boolean, Double> =
         mapOf(false to 0.5, true to 0.5)
@@ -108,7 +111,12 @@ open class BaseSelectionManager : SelectionManager {
             filteredExpressions.remove(MethodCallExpression::class)
         }
 
-        val variableRequiringExpressions = listOf(StructInstantiationExpression::class, TupleLiteral::class, FunctionCallExpression::class, MethodCallExpression::class)
+        val variableRequiringExpressions = listOf(
+            StructInstantiationExpression::class,
+            TupleLiteral::class,
+            FunctionCallExpression::class,
+            MethodCallExpression::class
+        )
         if (ctx.previousIncrement in variableRequiringExpressions && type is ReferencingTypes) {
             // Ensure the variables created beforehand are used
             filteredExpressions.clear()
@@ -142,6 +150,12 @@ open class BaseSelectionManager : SelectionManager {
         if (ctx.getDepth(MutableReferenceType::class) > 0) {
             allTypes.remove(ReferenceType::class)
             allTypes.remove(MutableReferenceType::class)
+        }
+
+        if (ctx.getDepth(OptionType::class) > 0) {
+            allTypes.remove(MutableReferenceType::class)
+            allTypes.remove(ReferenceType::class)
+            allTypes.remove(BoxType::class)
         }
 
         if (ctx.previousIncrement != ExpressionStatement::class) {

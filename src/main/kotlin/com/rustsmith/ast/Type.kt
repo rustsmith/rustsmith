@@ -352,7 +352,7 @@ data class StructType(
 }
 
 @GenNode
-data class VectorType(val type: Type) : RecursiveType, ContainerType {
+data class VectorType(val type: Type) : RecursiveType {
     override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
     override fun toRust(): String {
         return "Vec<${type.toRust()}>"
@@ -363,21 +363,20 @@ data class VectorType(val type: Type) : RecursiveType, ContainerType {
     override fun lifetimeParameters(): List<UInt> = type.lifetimeParameters()
 
     override fun clone() = VectorType(type.clone())
+}
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as VectorType
-
-        if (type != other.type) return false
-
-        return true
+@GenNode
+data class OptionType(val type: Type) : RecursiveType {
+    override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
+    override fun toRust(): String {
+        return "Option<${type.toRust()}>"
     }
 
-    override fun hashCode(): Int {
-        return type.hashCode()
-    }
+    override fun memberTypes(): List<Type> = listOf(this) + this.type.memberTypes()
+
+    override fun lifetimeParameters(): List<UInt> = type.lifetimeParameters()
+
+    override fun clone() = OptionType(type.clone())
 }
 
 sealed interface ReferencingTypes : NonVoidType {
@@ -464,8 +463,7 @@ data class MutableReferenceType(
     }
 }
 
-@GenNode
-data class StaticSizedArrayType(val internalType: Type, val size: UInt) : ContainerType {
+data class StaticSizedArrayType(val internalType: Type, val size: UInt) : RecursiveType {
     override val argumentsToOwnershipMap: MutableList<Pair<Type, OwnershipState>> = mutableListOf()
 
     override fun clone(): Type = StaticSizedArrayType(internalType.clone(), size)
@@ -580,6 +578,7 @@ fun Type.getOwnership(): OwnershipModel {
         DefaultHasher -> OwnershipModel.MOVE
         is TypeAliasType -> this.internalType.getOwnership()
         is StaticSizedArrayType -> this.internalType.getOwnership()
+        is OptionType -> this.type.getOwnership()
     }
 }
 

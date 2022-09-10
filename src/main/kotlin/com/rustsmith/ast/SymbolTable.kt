@@ -66,7 +66,9 @@ class GlobalSymbolTable {
     private val symbolMap = mutableMapOf<String, IdentifierData>()
     val structs = mutableSetOf<StructDefinition>()
     val tupleTypes = mutableSetOf<TupleType>()
-    val arrayTypes = mutableSetOf<Type>()
+    val vectorTypes = mutableSetOf<Type>()
+    val optionTypes = mutableSetOf<Type>()
+    val arrayTypes = mutableSetOf<StaticSizedArrayType>()
     val boxTypes = mutableSetOf<Type>()
     val typeAliases = mutableSetOf<TypeAliasDefinition>()
     val commandLineTypes = mutableSetOf<LiteralType>()
@@ -93,9 +95,19 @@ class GlobalSymbolTable {
 
     /* Array methods */
 
-    fun addArrayType(type: Type) = arrayTypes.add(type)
+    fun addVectorType(type: Type) = vectorTypes.add(type)
 
-    fun getRandomArrayType(): Type? = arrayTypes.randomOrNull(CustomRandom)
+    fun addArrayType(type: Type, index: UInt) = arrayTypes.add(StaticSizedArrayType(type, index))
+
+    fun getRandomVectorType(): Type? = vectorTypes.randomOrNull(CustomRandom)
+
+    fun getRandomArrayType(): StaticSizedArrayType? = arrayTypes.randomOrNull(CustomRandom)
+
+    /* Option methods */
+
+    fun addOptionType(type: Type) = optionTypes.add(type)
+
+    fun getRandomOptionType(): Type? = optionTypes.randomOrNull(CustomRandom)
 
     /* Struct methods */
 
@@ -110,8 +122,16 @@ class GlobalSymbolTable {
             .filter { it.second.returnType == type }.randomOrNull(CustomRandom)
     }
 
-    fun getRandomStruct(): Pair<String, IdentifierData>? =
-        symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
+    fun getRandomStruct(ctx: Context): Pair<String, IdentifierData>? {
+        if (ctx.getDepth(OptionType::class) > 0) {
+            return symbolMap.toList().filter { it.second.type.memberTypes().find { kClass -> kClass::class == MutableReferenceType::class } == null }
+                .filter { it.second.type.memberTypes().find { kClass -> kClass::class == MutableReferenceType::class } == null }
+                .filter { it.second.type.memberTypes().find { kClass -> kClass::class == ReferenceType::class } == null }
+                .filter { it.second.type.memberTypes().find { kClass -> kClass::class == BoxType::class } == null }
+                .randomOrNull(CustomRandom)
+        }
+        return symbolMap.toList().filter { it.second.type is StructType }.randomOrNull(CustomRandom)
+    }
 
     fun findStructWithType(type: Type): StructType? {
         val structDefinition =
@@ -124,10 +144,15 @@ class GlobalSymbolTable {
 
     fun addTupleType(type: TupleType) = tupleTypes.add(type.clone())
 
-    fun getRandomTuple(): TupleType? = tupleTypes.randomOrNull(CustomRandom)
-
-    fun findTupleWithType(type: Type): TupleType? {
-        return tupleTypes.filter { it.types.contains(type) }.randomOrNull(CustomRandom)
+    fun getRandomTuple(ctx: Context): TupleType? {
+        if (ctx.getDepth(OptionType::class) > 0) {
+            return tupleTypes.filter { it.memberTypes().find { kClass -> kClass::class == MutableReferenceType::class } == null }
+                .filter { it.memberTypes().find { kClass -> kClass::class == MutableReferenceType::class } == null }
+                .filter { it.memberTypes().find { kClass -> kClass::class == ReferenceType::class } == null }
+                .filter { it.memberTypes().find { kClass -> kClass::class == BoxType::class } == null }
+                .randomOrNull(CustomRandom)
+        }
+        return tupleTypes.randomOrNull(CustomRandom)
     }
 }
 

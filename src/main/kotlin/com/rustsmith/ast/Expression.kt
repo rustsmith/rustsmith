@@ -487,6 +487,20 @@ data class BlockExpression(
 }
 
 @ExpressionGenNode(Type::class)
+data class ExtractOptionExpression(
+    val internalExpression: Expression,
+    val matchedSomeVariable: String,
+    val matchedStatement: StatementBlock,
+    val noneStatement: StatementBlock,
+    val type: Type?,
+    override val symbolTable: SymbolTable
+) : RecursiveExpression, RecursiveStatementBlockExpression {
+    override fun toRust(): String {
+        return "match (${internalExpression.toRust()}) {\nNone => {\n${noneStatement.toRust()}},\n Some($matchedSomeVariable) => {\n${matchedStatement.toRust()}\n}\n}\n"
+    }
+}
+
+@ExpressionGenNode(Type::class)
 data class IfElseExpression(
     val predicate: Expression,
     val ifBlock: StatementBlock,
@@ -576,6 +590,26 @@ data class VectorLiteral(
     }
 }
 
+@ExpressionGenNode(OptionType::class)
+data class SomeLiteral(
+    val internalExpression: Expression,
+    override val symbolTable: SymbolTable
+) : LiteralExpression {
+    override fun toRust(): String {
+        return "Some::<${internalExpression.toType().toRust()}>(${internalExpression.toRust()})"
+    }
+}
+
+@ExpressionGenNode(OptionType::class)
+data class NoneLiteral(
+    val type: Type,
+    override val symbolTable: SymbolTable
+) : LiteralExpression {
+    override fun toRust(): String {
+        return "None::<${type.toRust()}>"
+    }
+}
+
 @SwarmNode
 @ExpressionGenNode(StaticSizedArrayType::class)
 data class StaticSizedArrayLiteral(
@@ -601,6 +635,7 @@ data class StaticSizedArrayDefaultLiteral(
 
 sealed interface NonMovingExpressions : Expression
 
+@ExpressionGenNode(NonVoidType::class)
 data class VectorAccess(
     val vectorExpression: Expression,
     val indexExpression: Expression,
@@ -611,7 +646,7 @@ data class VectorAccess(
     }
 }
 
-@SwarmNode
+// @SwarmNode
 @ExpressionGenNode(USizeType::class)
 data class VectorLengthExpression(
     val vectorExpression: Expression,
@@ -622,7 +657,7 @@ data class VectorLengthExpression(
     }
 }
 
-@SwarmNode
+// @SwarmNode
 @ExpressionGenNode(VoidType::class)
 data class VectorPushExpression(
     val vectorExpression: Expression,
@@ -803,6 +838,9 @@ fun Expression.toType(): Type {
         is StaticSizedArrayDefaultLiteral -> StaticSizedArrayType(expression.toType(), arraySize)
         is StaticSizedArrayLiteral -> StaticSizedArrayType(expressions.first().toType(), expressions.size.toUInt())
         is ElementAccess -> expression.toType()
+        is NoneLiteral -> OptionType(type)
+        is SomeLiteral -> OptionType(internalExpression.toType())
+        is ExtractOptionExpression -> type!!
     }
 }
 

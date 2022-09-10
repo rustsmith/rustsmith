@@ -487,9 +487,6 @@ class ASTGenerator(
                 )
                 expressionsFromContainerElements
             }
-            //
-            is StaticSizedArrayType -> listOf()
-            is VectorType -> listOf()
         }
     }
 
@@ -693,9 +690,21 @@ class ASTGenerator(
         return BlockExpression(body, type.clone(), symbolTable)
     }
 
-    private fun generateStatementBlock(type: Type, ctx: Context): StatementBlock {
+    override fun generateExtractOptionExpression(type: Type, ctx: Context): ExtractOptionExpression {
+        val optionType = generateOptionType(ctx.incrementCount(ExtractOptionExpression::class))
+        val expressionToMatch = generateExpression(optionType, ctx.incrementCount(ExtractOptionExpression::class))
+        val extractedVariable = identGenerator.generateVariable()
+        val matchedStatement = generateStatementBlock(type, ctx.incrementCount(ExtractOptionExpression::class), extractedVariable to optionType.type)
+        val noneStatement = generateStatementBlock(type, ctx.incrementCount(ExtractOptionExpression::class))
+        return ExtractOptionExpression(expressionToMatch, extractedVariable, matchedStatement, noneStatement, type, symbolTable)
+    }
+
+    private fun generateStatementBlock(type: Type, ctx: Context, addVariable: Pair<String, Type>? = null): StatementBlock {
         val currentSymbolTableDepth = symbolTable.depth.value
         val newScope = symbolTable.enterScope()
+        if (addVariable != null) {
+            newScope[addVariable.first] = IdentifierData(addVariable.second.clone(), false, OwnershipState.VALID, newScope.depth.value)
+        }
         return ASTGenerator(newScope, failFast, identGenerator)(
             ctx.withSymbolTable(newScope), type, currentSymbolTableDepth
         )
@@ -746,7 +755,21 @@ class ASTGenerator(
         throw IllegalArgumentException("Invalid type $type")
     }
 
-    fun generateVectorAccess(type: Type, ctx: Context): VectorAccess {
+    override fun generateSomeLiteral(type: Type, ctx: Context): SomeLiteral {
+        if (type is OptionType) {
+            return SomeLiteral(generateExpression(type.type, ctx.incrementCount(SomeLiteral::class)), symbolTable)
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateNoneLiteral(type: Type, ctx: Context): NoneLiteral {
+        if (type is OptionType) {
+            return NoneLiteral(type.type, symbolTable)
+        }
+        throw IllegalArgumentException("Invalid type $type")
+    }
+
+    override fun generateVectorAccess(type: Type, ctx: Context): VectorAccess {
         val arrayExpression = generateExpression(VectorType(type), ctx.incrementCount(VectorAccess::class))
         val indexExpression = generateExpression(USizeType, ctx.incrementCount(VectorAccess::class))
         return VectorAccess(arrayExpression, indexExpression, symbolTable)
@@ -1181,7 +1204,7 @@ class ASTGenerator(
     }
 
     override fun generateTupleType(ctx: Context): TupleType {
-        val randomTupleType = symbolTable.globalSymbolTable.getRandomTuple()/* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+        val randomTupleType = symbolTable.globalSymbolTable.getRandomTuple(ctx)/* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
         if (randomTupleType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx)
             .randomByWeights()
@@ -1197,7 +1220,7 @@ class ASTGenerator(
     }
 
     override fun generateStructType(ctx: Context): StructType {
-        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct()/* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
+        val randomStructType = symbolTable.globalSymbolTable.getRandomStruct(ctx)/* Create a new struct if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
         if (selectionManager.choiceGenerateNewStructWeightings(ctx).randomByWeights() || randomStructType == null) {
             return createNewStructType(ctx)
@@ -1207,14 +1230,25 @@ class ASTGenerator(
     }
 
     override fun generateVectorType(ctx: Context): VectorType {
-        val randomVectorType = symbolTable.globalSymbolTable.getRandomArrayType()/* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
+        val randomVectorType = symbolTable.globalSymbolTable.getRandomVectorType()/* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
            currently available */
-        if (randomVectorType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
+        if (randomVectorType == null || selectionManager.choiceGenerateNewVectorWeightings(ctx).randomByWeights()) {
             val internalType = generateType(ctx.incrementCount(VectorType::class))
-            symbolTable.globalSymbolTable.addArrayType(internalType)
+            symbolTable.globalSymbolTable.addVectorType(internalType)
             return VectorType(internalType)
         }
         return VectorType(randomVectorType)
+    }
+
+    override fun generateOptionType(ctx: Context): OptionType {
+        val randomVectorType = symbolTable.globalSymbolTable.getRandomOptionType()/* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
+           currently available */
+        if (randomVectorType == null || selectionManager.choiceGenerateNewOptionWeightings(ctx).randomByWeights()) {
+            val internalType = generateType(ctx.incrementCount(OptionType::class))
+            symbolTable.globalSymbolTable.addOptionType(internalType)
+            return OptionType(internalType)
+        }
+        return OptionType(randomVectorType)
     }
 
     override fun generateTypeAliasType(ctx: Context): TypeAliasType {
@@ -1232,17 +1266,17 @@ class ASTGenerator(
         }
     }
 
-    override fun generateStaticSizedArrayType(ctx: Context): StaticSizedArrayType {
-        val arraySize = CustomRandom.nextUInt(1u, 10u)
-        val randomVectorType = symbolTable.globalSymbolTable.getRandomArrayType()/* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
-           currently available */
-        if (randomVectorType == null || selectionManager.choiceGenerateNewTupleWeightings(ctx).randomByWeights()) {
-            val internalType = generateType(ctx.incrementCount(StaticSizedArrayType::class))
-            symbolTable.globalSymbolTable.addArrayType(internalType)
-            return StaticSizedArrayType(internalType, arraySize)
-        }
-        return StaticSizedArrayType(randomVectorType, arraySize)
-    }
+//    override fun generateStaticSizedArrayType(ctx: Context): StaticSizedArrayType {
+//        val arraySize = CustomRandom.nextUInt(1u, 10u)
+//        val randomVectorType = symbolTable.globalSymbolTable.getRandomArrayType()/* Create a new array type if the choice was made to, or if the choice was made not to but there are no structs
+//           currently available */
+//        if (randomVectorType == null || selectionManager.choiceGenerateNewArrayWeightings(ctx).randomByWeights()) {
+//            val internalType = generateType(ctx.incrementCount(StaticSizedArrayType::class))
+//            symbolTable.globalSymbolTable.addArrayType(internalType, arraySize)
+//            return StaticSizedArrayType(internalType, arraySize)
+//        }
+//        return StaticSizedArrayType(randomVectorType, arraySize)
+//    }
 
     override fun generateBoxType(ctx: Context): BoxType {
         val randomBoxType = symbolTable.globalSymbolTable.getRandomBoxType()
@@ -1270,6 +1304,7 @@ class ASTGenerator(
                 is BoxType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
                 is TypeAliasType -> LifetimeParameterizedType(type.copy(internalType = wrapWithLifetimeParameters(type.internalType)))
                 is StaticSizedArrayType -> type.copy(internalType = wrapWithLifetimeParameters(type.internalType))
+                is OptionType -> type.copy(type = wrapWithLifetimeParameters(type.type))
             }
 
             is ReferencingTypes -> {

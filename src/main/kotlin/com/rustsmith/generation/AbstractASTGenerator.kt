@@ -17,6 +17,7 @@ import com.rustsmith.ast.ElementAccess
 import com.rustsmith.ast.EqExpression
 import com.rustsmith.ast.Expression
 import com.rustsmith.ast.ExpressionStatement
+import com.rustsmith.ast.ExtractOptionExpression
 import com.rustsmith.ast.F32Type
 import com.rustsmith.ast.F64Type
 import com.rustsmith.ast.Float32Literal
@@ -47,14 +48,16 @@ import com.rustsmith.ast.MutableReferenceExpression
 import com.rustsmith.ast.MutableReferenceType
 import com.rustsmith.ast.NEqExpression
 import com.rustsmith.ast.NewBoxExpression
+import com.rustsmith.ast.NoneLiteral
+import com.rustsmith.ast.OptionType
 import com.rustsmith.ast.PrintElementStatement
 import com.rustsmith.ast.ReferenceExpression
 import com.rustsmith.ast.ReferenceType
 import com.rustsmith.ast.ReturnStatement
+import com.rustsmith.ast.SomeLiteral
 import com.rustsmith.ast.Statement
 import com.rustsmith.ast.StaticSizedArrayDefaultLiteral
 import com.rustsmith.ast.StaticSizedArrayLiteral
-import com.rustsmith.ast.StaticSizedArrayType
 import com.rustsmith.ast.StringLiteral
 import com.rustsmith.ast.StringType
 import com.rustsmith.ast.StructInstantiationExpression
@@ -77,6 +80,7 @@ import com.rustsmith.ast.UInt64Literal
 import com.rustsmith.ast.UInt8Literal
 import com.rustsmith.ast.USizeLiteral
 import com.rustsmith.ast.USizeType
+import com.rustsmith.ast.VectorAccess
 import com.rustsmith.ast.VectorLengthExpression
 import com.rustsmith.ast.VectorLiteral
 import com.rustsmith.ast.VectorPushExpression
@@ -117,6 +121,8 @@ public interface AbstractASTGenerator {
     public fun generateVoidLiteral(type: Type, ctx: Context): VoidLiteral
 
     public fun generateElementAccess(type: Type, ctx: Context): ElementAccess
+
+    public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
 
     public fun generateTypeAliasExpression(type: Type, ctx: Context): TypeAliasExpression
 
@@ -160,6 +166,10 @@ public interface AbstractASTGenerator {
 
     public fun generateVectorLiteral(type: Type, ctx: Context): VectorLiteral
 
+    public fun generateSomeLiteral(type: Type, ctx: Context): SomeLiteral
+
+    public fun generateNoneLiteral(type: Type, ctx: Context): NoneLiteral
+
     public fun generateStaticSizedArrayLiteral(type: Type, ctx: Context): StaticSizedArrayLiteral
 
     public fun generateStaticSizedArrayDefaultLiteral(type: Type, ctx: Context):
@@ -169,6 +179,8 @@ public interface AbstractASTGenerator {
 
     public fun generateBoxDereferenceExpression(type: Type, ctx: Context): BoxDereferenceExpression
 
+    public fun generateVectorAccess(type: Type, ctx: Context): VectorAccess
+
     public fun generateGroupedExpression(type: Type, ctx: Context): GroupedExpression
 
     public fun generateFunctionCallExpression(type: Type, ctx: Context): FunctionCallExpression
@@ -177,13 +189,13 @@ public interface AbstractASTGenerator {
 
     public fun generateBlockExpression(type: Type, ctx: Context): BlockExpression
 
+    public fun generateExtractOptionExpression(type: Type, ctx: Context): ExtractOptionExpression
+
     public fun generateIfElseExpression(type: Type, ctx: Context): IfElseExpression
 
     public fun generateIfExpression(type: Type, ctx: Context): IfExpression
 
     public fun generateLoopExpression(type: Type, ctx: Context): LoopExpression
-
-    public fun generateNewBoxExpression(type: Type, ctx: Context): NewBoxExpression
 
     public fun generateAddExpression(type: Type, ctx: Context): AddExpression
 
@@ -233,6 +245,7 @@ public interface AbstractASTGenerator {
     ): Expression = when (expression) {
         VoidLiteral::class -> generateVoidLiteral(type, ctx)
         ElementAccess::class -> generateElementAccess(type, ctx)
+        NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
         TypeAliasExpression::class -> generateTypeAliasExpression(type, ctx)
         CLIArgumentAccessExpression::class -> generateCLIArgumentAccessExpression(type, ctx)
         Int8Literal::class -> generateInt8Literal(type, ctx)
@@ -253,18 +266,21 @@ public interface AbstractASTGenerator {
         TupleLiteral::class -> generateTupleLiteral(type, ctx)
         StructInstantiationExpression::class -> generateStructInstantiationExpression(type, ctx)
         VectorLiteral::class -> generateVectorLiteral(type, ctx)
+        SomeLiteral::class -> generateSomeLiteral(type, ctx)
+        NoneLiteral::class -> generateNoneLiteral(type, ctx)
         StaticSizedArrayLiteral::class -> generateStaticSizedArrayLiteral(type, ctx)
         StaticSizedArrayDefaultLiteral::class -> generateStaticSizedArrayDefaultLiteral(type, ctx)
         DereferenceExpression::class -> generateDereferenceExpression(type, ctx)
         BoxDereferenceExpression::class -> generateBoxDereferenceExpression(type, ctx)
+        VectorAccess::class -> generateVectorAccess(type, ctx)
         GroupedExpression::class -> generateGroupedExpression(type, ctx)
         FunctionCallExpression::class -> generateFunctionCallExpression(type, ctx)
         MethodCallExpression::class -> generateMethodCallExpression(type, ctx)
         BlockExpression::class -> generateBlockExpression(type, ctx)
+        ExtractOptionExpression::class -> generateExtractOptionExpression(type, ctx)
         IfElseExpression::class -> generateIfElseExpression(type, ctx)
         IfExpression::class -> generateIfExpression(type, ctx)
         LoopExpression::class -> generateLoopExpression(type, ctx)
-        NewBoxExpression::class -> generateNewBoxExpression(type, ctx)
         AddExpression::class -> generateAddExpression(type, ctx)
         SubtractExpression::class -> generateSubtractExpression(type, ctx)
         DivideExpression::class -> generateDivideExpression(type, ctx)
@@ -324,11 +340,11 @@ public interface AbstractASTGenerator {
 
     public fun generateVectorType(ctx: Context): VectorType
 
-    public fun generateTypeAliasType(ctx: Context): TypeAliasType
-
-    public fun generateStaticSizedArrayType(ctx: Context): StaticSizedArrayType
+    public fun generateOptionType(ctx: Context): OptionType
 
     public fun generateBoxType(ctx: Context): BoxType
+
+    public fun generateTypeAliasType(ctx: Context): TypeAliasType
 
     public fun generateReferenceType(ctx: Context): ReferenceType
 
@@ -358,9 +374,9 @@ public interface AbstractASTGenerator {
         TupleType::class -> generateTupleType(ctx)
         StructType::class -> generateStructType(ctx)
         VectorType::class -> generateVectorType(ctx)
-        TypeAliasType::class -> generateTypeAliasType(ctx)
-        StaticSizedArrayType::class -> generateStaticSizedArrayType(ctx)
+        OptionType::class -> generateOptionType(ctx)
         BoxType::class -> generateBoxType(ctx)
+        TypeAliasType::class -> generateTypeAliasType(ctx)
         ReferenceType::class -> generateReferenceType(ctx)
         MutableReferenceType::class -> generateMutableReferenceType(ctx)
         else -> throw Exception("Unrecognized type")
