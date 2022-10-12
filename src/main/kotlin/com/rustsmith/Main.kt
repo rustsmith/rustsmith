@@ -21,8 +21,6 @@ import com.rustsmith.recondition.Reconditioner
 import me.tongfei.progressbar.ProgressBarBuilder
 import me.tongfei.progressbar.ProgressBarStyle
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.Path
 import kotlin.random.Random
 
@@ -30,9 +28,9 @@ lateinit var CustomRandom: Random
 lateinit var selectionManager: SelectionManager
 
 class RustSmith : CliktCommand(name = "rustsmith") {
-    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(100)
+    private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(1)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
-    private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(8)
+    private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(1)
     private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
         "selection-manager",
         help = "Choose selection manager(s) for generation"
@@ -67,50 +65,50 @@ class RustSmith : CliktCommand(name = "rustsmith") {
         // Don't make progress bar if printing out the program in console
         val progressBar = if (!print) ProgressBarBuilder().setTaskName("Generating").setInitialMax(count.toLong())
             .setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(10).build() else null
-        val executor = Executors.newFixedThreadPool(count.coerceAtMost(threads))
+//        val executor = Executors.newFixedThreadPool(count.coerceAtMost(threads))
         (0 until count).map {
-            Runnable {
-                while (true) {
-                    val randomSeed = seed ?: Random.nextLong()
-                    val identGenerator = IdentGenerator()
-                    CustomRandom = Random(randomSeed)
-                    selectionManager = getSelectionManager().random(CustomRandom)
-                    Logger.logText("Chosen selection manager ${selectionManager::class}", null, Color.YELLOW)
-                    val reconditioner = Reconditioner()
-                    try {
-                        val (generatedProgram, cliArguments) = generateProgram(randomSeed, identGenerator, failFast)
-                        if (generatedProgram.toRust().count { char -> char == '\n' } > 20000) continue
-                        val program = reconditioner.recondition(generatedProgram)
-                        if (print) {
-                            println(program.toRust())
-                            print(cliArguments.joinToString(" "))
-                            break
-                        }
-                        val stats: MutableMap<String, Any> =
-                            reconditioner.nodeCounters.mapKeys { it.key.simpleName!! }.toMutableMap()
-                        stats["averageVarUse"] = reconditioner.variableUsageCounter.map { it.value }.sum()
-                            .toDouble() / reconditioner.variableUsageCounter.size.toDouble()
-                        val currentCount = it
-                        val path = Path(directory, "file$currentCount")
-                        path.toFile().mkdir()
-                        path.resolve("file$currentCount.rs").toFile().writeText(program.toRust())
-                        path.resolve("file$currentCount.txt").toFile().writeText(cliArguments.joinToString(" "))
-                        path.resolve("file$currentCount.json").toFile()
-                            .writeText(
-                                jacksonObjectMapper().writeValueAsString(
-                                    stats
-                                )
-                            )
-                        progressBar?.step()
+//            Runnable {
+            while (true) {
+                val randomSeed = seed ?: Random.nextLong()
+                val identGenerator = IdentGenerator()
+                CustomRandom = Random(randomSeed)
+                selectionManager = getSelectionManager().random(CustomRandom)
+                Logger.logText("Chosen selection manager ${selectionManager::class}", null, Color.YELLOW)
+                val reconditioner = Reconditioner()
+                try {
+                    val (generatedProgram, cliArguments) = generateProgram(randomSeed, identGenerator, failFast)
+                    if (generatedProgram.toRust().count { char -> char == '\n' } > 20000) continue
+                    val program = reconditioner.recondition(generatedProgram)
+                    if (print) {
+                        println(program.toRust())
+                        print(cliArguments.joinToString(" "))
                         break
-                    } catch (e: NoAvailableStatementException) {
-                        continue
                     }
+                    val stats: MutableMap<String, Any> =
+                        reconditioner.nodeCounters.mapKeys { it.key.simpleName!! }.toMutableMap()
+                    stats["averageVarUse"] = reconditioner.variableUsageCounter.map { it.value }.sum()
+                        .toDouble() / reconditioner.variableUsageCounter.size.toDouble()
+                    val currentCount = it
+                    val path = Path(directory, "file$currentCount")
+                    path.toFile().mkdir()
+                    path.resolve("file$currentCount.rs").toFile().writeText(program.toRust())
+                    path.resolve("file$currentCount.txt").toFile().writeText(cliArguments.joinToString(" "))
+                    path.resolve("file$currentCount.json").toFile()
+                        .writeText(
+                            jacksonObjectMapper().writeValueAsString(
+                                stats
+                            )
+                        )
+                    progressBar?.step()
+                    break
+                } catch (e: NoAvailableStatementException) {
+                    continue
                 }
             }
-        }.forEach { executor.execute(it) }
-        executor.shutdown()
-        executor.awaitTermination(10, TimeUnit.HOURS)
+        }
+//        }.forEach { executor.execute(it) }
+//        executor.shutdown()
+//        executor.awaitTermination(10, TimeUnit.HOURS)
         progressBar?.close()
     }
 }
