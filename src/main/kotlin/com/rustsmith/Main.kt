@@ -32,6 +32,7 @@ lateinit var selectionManager: SelectionManager
 class RustSmith : CliktCommand(name = "rustsmith") {
     private val count: Int by option(help = "No. of files", names = arrayOf("-n", "-count")).int().default(100)
     private val print: Boolean by option("-p", "-print", help = "Print out program only").flag(default = false)
+    private val outputStats: Boolean by option("--stats", help = "Output stats (as JSON files)").flag(default = false)
     private val threads: Int by option(help = "No. of threads", names = arrayOf("-t", "--threads")).int().default(8)
     private val chosenSelectionManagers: List<SelectionManagerOptions> by argument(
         "selection-manager",
@@ -95,12 +96,14 @@ class RustSmith : CliktCommand(name = "rustsmith") {
                         path.toFile().mkdir()
                         path.resolve("file$currentCount.rs").toFile().writeText(program.toRust())
                         path.resolve("file$currentCount.txt").toFile().writeText(cliArguments.joinToString(" "))
-                        path.resolve("file$currentCount.json").toFile()
-                            .writeText(
-                                jacksonObjectMapper().writeValueAsString(
-                                    stats
+                        if (outputStats) {
+                            path.resolve("file$currentCount.json").toFile()
+                                .writeText(
+                                    jacksonObjectMapper().writeValueAsString(
+                                        stats
+                                    )
                                 )
-                            )
+                        }
                         progressBar?.step()
                         break
                     } catch (e: NoAvailableStatementException) {
