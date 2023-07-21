@@ -82,7 +82,7 @@ Options:
 
 ## Documentation
 
-Documentation is in progress and will be released soon!
+Documentation is available at: https://rustsmith.github.io/docs ! 
 
 ## Contributing
 
